@@ -1,16 +1,15 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { toast } from "sonner"
-import { MoreHorizontal, Building } from "lucide-react"
+import { MoreHorizontal, Building, Upload } from "lucide-react"
 import type { ColumnDef } from "@tanstack/react-table"
 
 import { QUERY_KEYS } from "@/lib/query-keys"
-import { PageHeader } from "@/components/admin/page-header"
 import { DataTable } from "@/components/admin/data-table"
 import { MobileCardList } from "@/components/admin/mobile-card-list"
 import { ConfirmDialog } from "@/components/admin/confirm-dialog"
@@ -63,6 +62,7 @@ type DeptFormValues = z.infer<typeof deptSchema>
 
 export default function DepartmentsPage() {
   const queryClient = useQueryClient()
+  const fileRef = useRef<HTMLInputElement>(null)
   const [filterSchoolId, setFilterSchoolId] = useState<string>("all")
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<Department | null>(null)
@@ -163,6 +163,22 @@ export default function DepartmentsPage() {
     onError: (e: Error) => toast.error(e.message),
   })
 
+  const uploadMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData()
+      formData.append("file", file)
+      const res = await fetch("/api/departments/upload-csv", { method: "POST", body: formData })
+      const json = await res.json()
+      if (!json.success) throw new Error(json.message)
+      return json.data
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["departments"] })
+      toast.success(`Imported: ${data?.imported ?? 0}, Skipped: ${data?.skipped ?? 0}`)
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+
   const onSubmit = (values: DeptFormValues) => {
     if (editTarget) updateMutation.mutate(values)
     else createMutation.mutate(values)
@@ -229,11 +245,32 @@ export default function DepartmentsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Departments"
-        description="Manage departments within schools"
-        action={{ label: "Add Department", onClick: openCreate }}
-      />
+      <div className="flex flex-row items-start justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-zinc-50">Departments</h1>
+          <p className="mt-0.5 text-sm text-zinc-400">Manage departments within schools</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} disabled={uploadMutation.isPending}>
+            <Upload className="mr-1.5 size-4" />
+            {uploadMutation.isPending ? "Uploading…" : "Upload CSV"}
+          </Button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".csv"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (file) {
+                uploadMutation.mutate(file)
+                e.target.value = ""
+              }
+            }}
+          />
+          <Button onClick={openCreate}>Add Department</Button>
+        </div>
+      </div>
 
       <div className="flex items-center gap-3">
         <Select value={filterSchoolId} onValueChange={(v) => v != null && setFilterSchoolId(v)}>

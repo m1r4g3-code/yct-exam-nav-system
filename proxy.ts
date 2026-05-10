@@ -62,9 +62,19 @@ export async function proxy(request: NextRequest) {
 
   const role = (user.app_metadata?.role as string) ?? "";
 
-  // Admin-only routes
+  // Admin page routes (browser navigates to /admin/*) — redirect, never return JSON.
+  // A raw JSON 403 shows as plain text in the browser, which confuses users.
+  if (pathname.startsWith("/admin")) {
+    if (role !== "admin" && role !== "superadmin") {
+      const dest = request.nextUrl.clone();
+      dest.pathname = role === "student" ? "/dashboard" : "/login";
+      if (role !== "student") dest.searchParams.set("redirectTo", pathname);
+      return NextResponse.redirect(dest);
+    }
+  }
+
+  // Admin-only API routes → JSON 403 for non-admins
   const isAdminApiRoute =
-    pathname.startsWith("/admin") ||
     pathname.startsWith("/api/schools") ||
     pathname.startsWith("/api/departments") ||
     pathname.startsWith("/api/slots") ||

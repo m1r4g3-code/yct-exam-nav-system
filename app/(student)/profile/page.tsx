@@ -1,12 +1,19 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { QUERY_KEYS } from "@/lib/query-keys";
 import { useLogout } from "@/hooks/use-user";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { LogOut } from "lucide-react";
+import { LogOut, Pencil } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface StudentProfile {
   id: string;
@@ -17,6 +24,14 @@ interface StudentProfile {
   level: { name: string; year: number };
   department: { name: string; code: string };
 }
+
+const AVATARS = [
+  "🎓", "📚", "💻", "🔬", "⚗️", "🧪",
+  "📐", "🔭", "🎯", "🏅", "🌟", "🚀",
+  "🦁", "🐯", "🦊", "🐧", "🦋", "🐻",
+];
+
+const AVATAR_STORAGE_KEY = "yct_profile_avatar";
 
 function getInitials(name: string): string {
   return name
@@ -59,6 +74,12 @@ function ProfileSkeleton() {
 
 export default function ProfilePage() {
   const logout = useLogout();
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  const [selectedAvatar, setSelectedAvatar] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    return localStorage.getItem(AVATAR_STORAGE_KEY) ?? "";
+  });
 
   const { data: profile, isLoading } = useQuery<StudentProfile>({
     queryKey: QUERY_KEYS.STUDENT("me"),
@@ -68,6 +89,18 @@ export default function ProfilePage() {
       return json.data;
     },
   });
+
+  function handleAvatarSelect(emoji: string) {
+    setSelectedAvatar(emoji);
+    localStorage.setItem(AVATAR_STORAGE_KEY, emoji);
+    setPickerOpen(false);
+  }
+
+  function clearAvatar() {
+    setSelectedAvatar("");
+    localStorage.removeItem(AVATAR_STORAGE_KEY);
+    setPickerOpen(false);
+  }
 
   return (
     <div className="min-h-screen bg-zinc-950 px-4 py-6 md:px-8 md:py-8">
@@ -84,9 +117,28 @@ export default function ProfilePage() {
           <>
             {/* Avatar + name */}
             <div className="flex flex-col items-center gap-3 pt-2 pb-6">
-              <div className="flex size-20 items-center justify-center rounded-full bg-zinc-800 text-2xl font-semibold text-zinc-300 select-none">
-                {getInitials(profile.fullName)}
+              <div className="relative group">
+                <div className="flex size-20 items-center justify-center rounded-full bg-zinc-800 select-none text-4xl">
+                  {selectedAvatar || (
+                    <span className="text-2xl font-semibold text-zinc-300">
+                      {getInitials(profile.fullName)}
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={() => setPickerOpen(true)}
+                  className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                  aria-label="Change avatar"
+                >
+                  <Pencil className="size-4 text-white" />
+                </button>
               </div>
+              <button
+                onClick={() => setPickerOpen(true)}
+                className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+              >
+                Change avatar
+              </button>
               <div className="text-center">
                 <h2 className="text-xl font-semibold text-zinc-50">
                   {profile.fullName}
@@ -127,6 +179,39 @@ export default function ProfilePage() {
           </>
         )}
       </div>
+
+      {/* Avatar picker dialog */}
+      <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
+        <DialogContent className="bg-zinc-900 border-zinc-800 max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-zinc-50">Choose an Avatar</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-6 gap-2 py-2">
+            {AVATARS.map((emoji) => (
+              <button
+                key={emoji}
+                onClick={() => handleAvatarSelect(emoji)}
+                className={`flex items-center justify-center size-12 rounded-xl text-2xl transition-colors hover:bg-zinc-700 ${
+                  selectedAvatar === emoji
+                    ? "bg-zinc-700 ring-2 ring-indigo-500"
+                    : "bg-zinc-800"
+                }`}
+                aria-label={`Select avatar ${emoji}`}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+          {selectedAvatar && (
+            <button
+              onClick={clearAvatar}
+              className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors text-center w-full mt-1"
+            >
+              Remove avatar (use initials)
+            </button>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

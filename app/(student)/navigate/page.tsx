@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { MapPin } from "lucide-react";
+import { Building2, MapPin, Navigation } from "lucide-react";
 import { QUERY_KEYS } from "@/lib/query-keys";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -35,15 +35,20 @@ export default function NavigateIndexPage() {
       </div>
 
       {isLoading ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <div
               key={i}
-              className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 space-y-2"
+              className="flex flex-col rounded-xl border border-zinc-800 bg-zinc-900 p-5 min-h-[160px]"
             >
-              <Skeleton className="h-5 w-32 bg-zinc-800" />
-              <Skeleton className="h-4 w-20 bg-zinc-800" />
-              <Skeleton className="h-8 w-24 bg-zinc-800 mt-2" />
+              <div className="flex items-start gap-3 flex-1">
+                <Skeleton className="size-10 rounded-lg bg-zinc-800 shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-5 w-40 bg-zinc-800" />
+                  <Skeleton className="h-3 w-16 bg-zinc-800" />
+                </div>
+              </div>
+              <Skeleton className="h-9 w-full mt-4 bg-zinc-800 rounded-lg" />
             </div>
           ))}
         </div>
@@ -53,35 +58,51 @@ export default function NavigateIndexPage() {
           <p className="text-zinc-400 text-sm">No exam halls configured yet.</p>
         </div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {halls.map((hall) => (
             <div
               key={hall.id}
-              className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 space-y-3"
+              className="flex flex-col rounded-xl border border-zinc-800 bg-zinc-900 p-5"
             >
-              <div>
-                <p className="font-semibold text-zinc-50">{hall.name}</p>
-                <p className="text-xs text-zinc-500 font-mono">{hall.code}</p>
-                {hall.description && (
-                  <p className="text-xs text-zinc-400 mt-1 leading-snug">
-                    {hall.description}
+              {/* Hall info */}
+              <div className="flex items-start gap-3 flex-1">
+                <div className="shrink-0 flex size-10 items-center justify-center rounded-lg bg-zinc-800">
+                  <Building2 className="size-5 text-zinc-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-zinc-50 leading-snug">
+                    {hall.name}
                   </p>
+                  <p className="text-[11px] text-zinc-500 font-mono mt-0.5">
+                    {hall.code}
+                  </p>
+                  {hall.description && (
+                    <p className="text-xs text-zinc-400 mt-2 leading-relaxed line-clamp-2">
+                      {hall.description}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* CTA */}
+              <div className="mt-4">
+                {hall.navigationNode ? (
+                  <Button
+                    render={<Link href={`/navigate/${hall.id}`} />}
+                    nativeButton={false}
+                    className="w-full justify-center bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-600"
+                  >
+                    <Navigation className="size-4 mr-2" />
+                    Navigate
+                  </Button>
+                ) : (
+                  <div className="flex items-center justify-center rounded-lg bg-zinc-800/60 h-9 border border-zinc-800">
+                    <span className="text-xs text-zinc-600">
+                      No route available
+                    </span>
+                  </div>
                 )}
               </div>
-              {hall.navigationNode ? (
-                <Button
-                  render={<Link href={`/navigate/${hall.id}`} />}
-                  nativeButton={false}
-                  size="sm"
-                  variant="outline"
-                  className="border-zinc-700 text-zinc-200 hover:text-zinc-50"
-                >
-                  <MapPin className="size-3.5 mr-1" />
-                  Navigate
-                </Button>
-              ) : (
-                <span className="text-xs text-zinc-600">No route available</span>
-              )}
             </div>
           ))}
         </div>

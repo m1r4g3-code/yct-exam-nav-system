@@ -85,6 +85,24 @@ function nextMonday(): string {
   return d.toISOString().split("T")[0]
 }
 
+/** Format an ISO date string (e.g. "2024-01-15T00:00:00.000Z") as "Mon, 15 Jan 2024" */
+function formatDate(iso: string): string {
+  const d = new Date(iso)
+  return d.toLocaleDateString("en-NG", {
+    weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC",
+  })
+}
+
+/** Format an ISO time string (e.g. "1970-01-01T08:00:00.000Z") as "8:00 AM" */
+function formatTime(iso: string): string {
+  const d = new Date(iso)
+  const h = d.getUTCHours()
+  const m = d.getUTCMinutes()
+  const ampm = h >= 12 ? "PM" : "AM"
+  const hour = h % 12 || 12
+  return `${hour}:${m.toString().padStart(2, "0")} ${ampm}`
+}
+
 export default function TimetablePage() {
   const queryClient = useQueryClient()
 
@@ -131,6 +149,12 @@ export default function TimetablePage() {
       return json.data ?? []
     },
   })
+
+  // Deduplicate levels by name — multiple departments each create ND1/ND2/HND1/HND2,
+  // resulting in duplicate names when all levels are fetched without a programme filter.
+  const uniqueLevels = levels.filter(
+    (l, i, arr) => arr.findIndex((x) => x.name === l.name) === i
+  )
 
   const levelIdParam = levelId !== "all" ? levelId : undefined
 
@@ -248,15 +272,15 @@ export default function TimetablePage() {
       id: "date",
       header: "Date",
       cell: ({ row }) => (
-        <span className="text-zinc-400">{row.original.timeSlot.date}</span>
+        <span className="text-zinc-400">{formatDate(row.original.timeSlot.date)}</span>
       ),
     },
     {
       id: "startTime",
       header: "Time",
       cell: ({ row }) => (
-        <span className="font-mono text-sm text-zinc-400">
-          {row.original.timeSlot.startTime}–{row.original.timeSlot.endTime}
+        <span className="text-sm text-zinc-400">
+          {formatTime(row.original.timeSlot.startTime)} – {formatTime(row.original.timeSlot.endTime)}
         </span>
       ),
     },
@@ -359,12 +383,12 @@ export default function TimetablePage() {
         <Select value={levelId} onValueChange={(v) => v != null && setLevelId(v)}>
           <SelectTrigger className="w-48">
             <SelectValue>
-              {levelId === "all" ? "All Levels" : (levels.find(l => l.id === levelId)?.name ?? "Level")}
+              {levelId === "all" ? "All Levels" : (uniqueLevels.find(l => l.id === levelId)?.name ?? "Level")}
             </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Levels</SelectItem>
-            {levels.map((l) => (
+            {uniqueLevels.map((l) => (
               <SelectItem key={l.id} value={l.id}>
                 {l.name}
               </SelectItem>
@@ -442,8 +466,8 @@ export default function TimetablePage() {
                 className="bg-zinc-800 border-zinc-700 text-zinc-50"
               />
               <p className="text-xs text-zinc-500">
-                Mon–Fri exam slots (08:00–10:00 and 12:00–14:00) will be auto-created for
-                4 weeks from this date
+                Mon–Fri exam slots (8:00 AM–10:00 AM and 12:00 PM–2:00 PM) will be auto-created
+                for 2 weeks (10 days) from this date
               </p>
             </div>
           </div>
@@ -568,7 +592,7 @@ export default function TimetablePage() {
               <SelectContent>
                 {slots.map((s) => (
                   <SelectItem key={s.id} value={s.id}>
-                    {s.label} — {s.date} {s.startTime}–{s.endTime}
+                    {s.label} — {formatDate(s.date)}, {formatTime(s.startTime)}–{formatTime(s.endTime)}
                   </SelectItem>
                 ))}
               </SelectContent>
