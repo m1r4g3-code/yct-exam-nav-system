@@ -117,6 +117,7 @@ export default function HallsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.HALLS })
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.NAV_HALLS })
       toast.success("Hall created")
       setDialogOpen(false)
       form.reset()
@@ -137,6 +138,7 @@ export default function HallsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.HALLS })
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.NAV_HALLS })
       toast.success("Hall updated")
       setDialogOpen(false)
       setEditTarget(null)
@@ -153,6 +155,7 @@ export default function HallsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.HALLS })
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.NAV_HALLS })
       toast.success("Hall deleted")
       setDeleteTarget(null)
     },

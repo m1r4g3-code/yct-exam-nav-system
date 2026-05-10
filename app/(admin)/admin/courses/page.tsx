@@ -371,7 +371,9 @@ export default function CoursesPage() {
       <div className="flex flex-wrap items-center gap-3">
         <Select value={filterSchoolId} onValueChange={(v) => { if (v == null) return; setFilterSchoolId(v); setFilterDeptId("all"); setFilterProgId("all"); setFilterLevelId("all") }}>
           <SelectTrigger className="w-44">
-            <SelectValue placeholder="School" />
+            <SelectValue>
+              {filterSchoolId === "all" ? "All Schools" : (schools.find(s => s.id === filterSchoolId)?.name ?? "School")}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Schools</SelectItem>
@@ -381,7 +383,9 @@ export default function CoursesPage() {
 
         <Select value={filterDeptId} onValueChange={(v) => { if (v == null) return; setFilterDeptId(v); setFilterProgId("all"); setFilterLevelId("all") }}>
           <SelectTrigger className="w-44">
-            <SelectValue placeholder="Department" />
+            <SelectValue>
+              {filterDeptId === "all" ? "All Departments" : (filterDepts.find(d => d.id === filterDeptId)?.name ?? "Department")}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Departments</SelectItem>
@@ -389,9 +393,15 @@ export default function CoursesPage() {
           </SelectContent>
         </Select>
 
-        <Select value={filterProgId} onValueChange={(v) => { if (v == null) return; setFilterProgId(v); setFilterLevelId("all") }}>
+        <Select
+          value={filterProgId}
+          onValueChange={(v) => { if (v == null) return; setFilterProgId(v); setFilterLevelId("all") }}
+          disabled={filterDeptId === "all"}
+        >
           <SelectTrigger className="w-44">
-            <SelectValue placeholder="Programme" />
+            <SelectValue>
+              {filterProgId === "all" ? "All Programmes" : (filterProgs.find(p => p.id === filterProgId)?.name ?? "Programme")}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Programmes</SelectItem>
@@ -399,9 +409,15 @@ export default function CoursesPage() {
           </SelectContent>
         </Select>
 
-        <Select value={filterLevelId} onValueChange={(v) => v != null && setFilterLevelId(v)}>
+        <Select
+          value={filterLevelId}
+          onValueChange={(v) => v != null && setFilterLevelId(v)}
+          disabled={filterProgId === "all"}
+        >
           <SelectTrigger className="w-44">
-            <SelectValue placeholder="Level" />
+            <SelectValue>
+              {filterLevelId === "all" ? "All Levels" : (filterLevels.find(l => l.id === filterLevelId)?.name ?? "Level")}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Levels</SelectItem>
@@ -462,7 +478,11 @@ export default function CoursesPage() {
               <div className="space-y-1.5">
                 <Label className="text-zinc-300">School</Label>
                 <Select value={formSchoolId} onValueChange={(v) => { if (v == null) return; setFormSchoolId(v); setFormDeptId(""); setFormProgId(""); form.setValue("levelId", "") }}>
-                  <SelectTrigger><SelectValue placeholder="School" /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue>
+                      {formSchoolId ? (schools.find(s => s.id === formSchoolId)?.name ?? "School") : "School"}
+                    </SelectValue>
+                  </SelectTrigger>
                   <SelectContent>
                     {schools.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                   </SelectContent>
@@ -471,7 +491,11 @@ export default function CoursesPage() {
               <div className="space-y-1.5">
                 <Label className="text-zinc-300">Department</Label>
                 <Select value={formDeptId} onValueChange={(v) => { if (v == null) return; setFormDeptId(v); setFormProgId(""); form.setValue("levelId", "") }} disabled={!formSchoolId}>
-                  <SelectTrigger><SelectValue placeholder="Department" /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue>
+                      {formDeptId ? (formDepts.find(d => d.id === formDeptId)?.name ?? "Department") : "Department"}
+                    </SelectValue>
+                  </SelectTrigger>
                   <SelectContent>
                     {formDepts.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
                   </SelectContent>
@@ -480,7 +504,11 @@ export default function CoursesPage() {
               <div className="space-y-1.5">
                 <Label className="text-zinc-300">Programme</Label>
                 <Select value={formProgId} onValueChange={(v) => { if (v == null) return; setFormProgId(v); form.setValue("levelId", "") }} disabled={!formDeptId}>
-                  <SelectTrigger><SelectValue placeholder="Programme" /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue>
+                      {formProgId ? (formProgs.find(p => p.id === formProgId)?.name ?? "Programme") : "Programme"}
+                    </SelectValue>
+                  </SelectTrigger>
                   <SelectContent>
                     {formProgs.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                   </SelectContent>
@@ -489,7 +517,11 @@ export default function CoursesPage() {
               <div className="space-y-1.5">
                 <Label className="text-zinc-300">Level</Label>
                 <Select value={form.watch("levelId")} onValueChange={(v) => v != null && form.setValue("levelId", v, { shouldValidate: true })} disabled={!formProgId}>
-                  <SelectTrigger><SelectValue placeholder="Level" /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue>
+                      {form.watch("levelId") ? (formLevels.find(l => l.id === form.watch("levelId"))?.name ?? "Level") : "Level"}
+                    </SelectValue>
+                  </SelectTrigger>
                   <SelectContent>
                     {formLevels.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
                   </SelectContent>

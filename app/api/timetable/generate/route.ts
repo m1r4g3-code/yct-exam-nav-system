@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireAdminUser, isErrorResponse } from "@/lib/auth";
 import { ok, badRequest, conflict as conflictRes } from "@/lib/api-response";
-import { buildConflictGraph } from "@/lib/services/graph-builder";
+import { buildLevelConflictGraph } from "@/lib/services/graph-builder";
 import { runDsatur } from "@/lib/services/timetable-generator";
 import { assignHallsForEntry, type EnrolledStudent } from "@/lib/services/hall-assigner";
 import { z } from "zod";
@@ -10,6 +10,10 @@ const bodySchema = z.object({
   session: z.string().min(4),
   force: z.boolean().optional().default(false),
 });
+
+function parseSemester(session: string): "FIRST" | "SECOND" {
+  return session.toLowerCase().includes("second") ? "SECOND" : "FIRST";
+}
 
 export async function POST(request: Request) {
   const auth = await requireAdminUser();
@@ -40,14 +44,19 @@ export async function POST(request: Request) {
     await prisma.timetableEntry.deleteMany({ where: { session, status: "DRAFT" } });
   }
 
-  const rows = await prisma.studentCourse.findMany({
-    where: { session, deletedAt: null },
-    select: { courseId: true },
-    distinct: ["courseId"],
-  });
-  const courseIds = rows.map((r) => r.courseId);
+  // Derive semester from session label so we only schedule the right courses
+  const semester = parseSemester(session);
 
-  if (courseIds.length === 0) return badRequest("No active enrollments found for this session");
+  const allCourses = await prisma.course.findMany({
+    where: { semester },
+    select: { id: true, levelId: true },
+  });
+
+  if (allCourses.length === 0)
+    return badRequest(`No ${semester.toLowerCase().replace("_", " ")} semester courses found`);
+
+  const courseIds = allCourses.map((c) => c.id);
+  const courseLevel = new Map(allCourses.map((c) => [c.id, c.levelId]));
 
   const [slots, activeHalls] = await Promise.all([
     prisma.timeSlot.findMany({ orderBy: [{ date: "asc" }, { startTime: "asc" }] }),
@@ -57,11 +66,18 @@ export async function POST(request: Request) {
   if (slots.length === 0) return badRequest("No time slots configured");
   if (activeHalls.length === 0) return badRequest("No active exam halls configured");
 
-  const graph = await buildConflictGraph(session, courseIds);
+  // Level-based conflict graph: courses in same level cannot share a time slot
+  const graph = await buildLevelConflictGraph(courseIds);
   const { assignments, unresolved } = runDsatur(graph, slots);
 
-  // Pre-fetch all enrollments for the session in one query — avoids N per-course
-  // queries inside the transaction (one per course → one total)
+  // Pre-fetch level → student count for hall capacity estimation
+  const levelCounts = await prisma.student.groupBy({
+    by: ["levelId"],
+    _count: { _all: true },
+  });
+  const studentsByLevel = new Map(levelCounts.map((r) => [r.levelId, r._count._all]));
+
+  // Pre-fetch individual enrollments for this session (may be empty — that is fine)
   const allEnrollments = await prisma.studentCourse.findMany({
     where: { session, deletedAt: null },
     include: { student: { select: { id: true, matricNumber: true } } },
@@ -75,7 +91,8 @@ export async function POST(request: Request) {
   }
 
   const overflows: string[] = [];
-  const alreadyBookedHallIds = new Set<string>();
+  // Track booked halls PER SLOT — halls in different slots are independent
+  const alreadyBookedBySlot = new Map<string, Set<string>>();
 
   await prisma.$transaction(
     async (tx) => {
@@ -84,12 +101,25 @@ export async function POST(request: Request) {
           data: { courseId, timeSlotId: slotId, session, status: "DRAFT" },
         });
 
+        if (!alreadyBookedBySlot.has(slotId)) {
+          alreadyBookedBySlot.set(slotId, new Set());
+        }
+        const slotBookings = alreadyBookedBySlot.get(slotId)!;
+
+        const enrolledStudents = enrollmentsByCourse.get(courseId) ?? [];
+        const levelId = courseLevel.get(courseId);
+        const estimatedCount =
+          enrolledStudents.length === 0 && levelId
+            ? (studentsByLevel.get(levelId) ?? 0)
+            : 0;
+
         const result = await assignHallsForEntry(
           tx,
           entry.id,
           activeHalls,
-          alreadyBookedHallIds,
-          enrollmentsByCourse.get(courseId) ?? []
+          slotBookings,
+          enrolledStudents,
+          estimatedCount
         );
 
         if (result.hallOverflow) overflows.push(courseId);

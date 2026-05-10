@@ -20,10 +20,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
-interface Level {
-  id: string
-  name: string
-}
+interface School { id: string; name: string }
+interface Department { id: string; name: string; schoolId: string }
 
 interface Student {
   id: string
@@ -53,29 +51,43 @@ function useDebounce<T>(value: T, delayMs: number): T {
 export default function StudentsPage() {
   const router = useRouter()
   const [search, setSearch] = useState("")
-  const [levelId, setLevelId] = useState<string>("all")
+  const [filterSchoolId, setFilterSchoolId] = useState<string>("all")
+  const [filterDeptId, setFilterDeptId] = useState<string>("all")
   const [page, setPage] = useState(1)
   const debouncedSearch = useDebounce(search, 300)
 
-  useEffect(() => { setPage(1) }, [debouncedSearch, levelId])
+  useEffect(() => { setPage(1) }, [debouncedSearch, filterDeptId])
 
-  const { data: levels = [] } = useQuery<Level[]>({
-    queryKey: QUERY_KEYS.LEVELS(undefined),
+  const { data: schools = [] } = useQuery<School[]>({
+    queryKey: QUERY_KEYS.SCHOOLS,
     queryFn: async () => {
-      const res = await fetch("/api/levels")
+      const res = await fetch("/api/schools")
       const json = await res.json()
       return json.data ?? []
     },
   })
 
-  const levelIdParam = levelId !== "all" ? levelId : undefined
+  const { data: departments = [] } = useQuery<Department[]>({
+    queryKey: QUERY_KEYS.DEPARTMENTS(filterSchoolId !== "all" ? filterSchoolId : undefined),
+    queryFn: async () => {
+      const url =
+        filterSchoolId !== "all"
+          ? `/api/departments?school_id=${filterSchoolId}`
+          : "/api/departments"
+      const res = await fetch(url)
+      const json = await res.json()
+      return json.data ?? []
+    },
+  })
+
+  const deptIdParam = filterDeptId !== "all" ? filterDeptId : undefined
 
   const { data, isLoading } = useQuery<StudentsResponse>({
-    queryKey: [...QUERY_KEYS.STUDENTS, debouncedSearch, levelIdParam, page],
+    queryKey: [...QUERY_KEYS.STUDENTS, debouncedSearch, deptIdParam, page],
     queryFn: async () => {
       const params = new URLSearchParams()
       if (debouncedSearch) params.set("search", debouncedSearch)
-      if (levelIdParam) params.set("level_id", levelIdParam)
+      if (deptIdParam) params.set("department_id", deptIdParam)
       params.set("page", String(page))
       const res = await fetch(`/api/students?${params}`)
       const json = await res.json()
@@ -155,16 +167,45 @@ export default function StudentsPage() {
           onChange={(e) => setSearch(e.target.value)}
           className="w-64"
         />
-        <Select value={levelId} onValueChange={(v) => v != null && setLevelId(v)}>
+
+        <Select
+          value={filterSchoolId}
+          onValueChange={(v) => {
+            if (v == null) return
+            setFilterSchoolId(v)
+            setFilterDeptId("all")
+          }}
+        >
           <SelectTrigger className="w-48">
-            <SelectValue placeholder="Filter by level" />
+            <SelectValue>
+              {filterSchoolId === "all"
+                ? "All Schools"
+                : (schools.find(s => s.id === filterSchoolId)?.name ?? "School")}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Levels</SelectItem>
-            {levels.map((l) => (
-              <SelectItem key={l.id} value={l.id}>
-                {l.name}
-              </SelectItem>
+            <SelectItem value="all">All Schools</SelectItem>
+            {schools.map((s) => (
+              <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={filterDeptId}
+          onValueChange={(v) => v != null && setFilterDeptId(v)}
+        >
+          <SelectTrigger className="w-48">
+            <SelectValue>
+              {filterDeptId === "all"
+                ? "All Departments"
+                : (departments.find(d => d.id === filterDeptId)?.name ?? "Department")}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Departments</SelectItem>
+            {departments.map((d) => (
+              <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
             ))}
           </SelectContent>
         </Select>

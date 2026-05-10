@@ -238,7 +238,11 @@ export default function DepartmentsPage() {
       <div className="flex items-center gap-3">
         <Select value={filterSchoolId} onValueChange={(v) => v != null && setFilterSchoolId(v)}>
           <SelectTrigger className="w-56">
-            <SelectValue placeholder="Filter by school" />
+            <SelectValue>
+              {filterSchoolId === "all"
+                ? "All Schools"
+                : (schools.find((s) => s.id === filterSchoolId)?.name ?? "School")}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Schools</SelectItem>

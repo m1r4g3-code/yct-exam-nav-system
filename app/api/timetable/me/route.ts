@@ -13,41 +13,69 @@ export async function GET(request: NextRequest) {
   const student = await prisma.student.findUnique({ where: { authUserId: auth.id } });
   if (!student) return badRequest("Student profile not found");
 
-  // Get courses the student is enrolled in (active, this session)
+  // Try enrollment-based first; fall back to all published entries for the student's level.
+  // This makes the timetable visible even before individual course enrollment.
   const enrollments = await prisma.studentCourse.findMany({
     where: { studentId: student.id, session, deletedAt: null },
     select: { courseId: true },
   });
-  const courseIds = enrollments.map((e) => e.courseId);
 
-  if (courseIds.length === 0) return ok([]);
+  const where =
+    enrollments.length > 0
+      ? { courseId: { in: enrollments.map((e) => e.courseId) }, session, status: "PUBLISHED" as const }
+      : { course: { levelId: student.levelId }, session, status: "PUBLISHED" as const };
 
-  // Return published entries for those courses
   const entries = await prisma.timetableEntry.findMany({
-    where: { courseId: { in: courseIds }, session, status: "PUBLISHED" },
+    where,
     include: {
       course: { select: { id: true, code: true, title: true, creditUnits: true } },
       timeSlot: true,
+      // Individual seat assignments (exist when students are enrolled)
       studentAssignments: {
         where: { studentId: student.id },
         include: {
-          examHall: { select: { id: true, name: true, code: true, latitude: true, longitude: true } },
+          examHall: {
+            select: { id: true, name: true, code: true, latitude: true, longitude: true },
+          },
         },
+      },
+      // Hall-level assignments (always exist after generation)
+      hallAssignments: {
+        include: {
+          examHall: {
+            select: { id: true, name: true, code: true, latitude: true, longitude: true },
+          },
+        },
+        orderBy: { seatStart: "asc" },
+        take: 1,
       },
     },
     orderBy: [{ timeSlot: { date: "asc" } }, { timeSlot: { startTime: "asc" } }],
   });
 
-  // Decimal lat/lng → number so Leaflet coordinates work on client
-  const mapped = entries.map((e) => ({
-    ...e,
-    studentAssignments: e.studentAssignments.map((a) => ({
-      ...a,
-      examHall: a.examHall
-        ? { ...a.examHall, latitude: Number(a.examHall.latitude), longitude: Number(a.examHall.longitude) }
-        : a.examHall,
-    })),
-  }));
+  const mapped = entries.map((e) => {
+    const toNumber = (h: { id: string; name: string; code: string; latitude: unknown; longitude: unknown } | null) =>
+      h ? { ...h, latitude: Number(h.latitude), longitude: Number(h.longitude) } : null;
+
+    // Prefer individual seat assignment; fall back to hall-level assignment (null seat)
+    const studentAssignments =
+      e.studentAssignments.length > 0
+        ? e.studentAssignments.map((a) => ({
+            seatNumber: a.seatNumber as number | null,
+            examHall: toNumber(a.examHall),
+          }))
+        : e.hallAssignments.slice(0, 1).map((ha) => ({
+            seatNumber: null as number | null,
+            examHall: toNumber(ha.examHall),
+          }));
+
+    return {
+      id: e.id,
+      course: e.course,
+      timeSlot: e.timeSlot,
+      studentAssignments,
+    };
+  });
 
   return ok(mapped);
 }

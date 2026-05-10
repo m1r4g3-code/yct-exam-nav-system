@@ -26,8 +26,8 @@ interface ExamHall {
 }
 
 interface StudentAssignment {
-  seatNumber: number;
-  examHall: ExamHall;
+  seatNumber: number | null;
+  examHall: ExamHall | null;
 }
 
 interface TimetableEntry {
@@ -184,7 +184,7 @@ export default function DashboardPage() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      {assignment?.seatNumber ? (
+                      {assignment?.seatNumber != null ? (
                         <Badge className="bg-zinc-800 text-zinc-300 border-zinc-700 font-mono">
                           {assignment.seatNumber}
                         </Badge>
@@ -240,7 +240,7 @@ export default function DashboardPage() {
                         {entry.course.title}
                       </p>
                     </div>
-                    {assignment?.seatNumber && (
+                    {assignment?.seatNumber != null && (
                       <Badge className="shrink-0 bg-zinc-800 text-zinc-300 border-zinc-700 font-mono">
                         Seat {assignment.seatNumber}
                       </Badge>

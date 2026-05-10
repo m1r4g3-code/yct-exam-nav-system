@@ -314,7 +314,9 @@ export default function TimetablePage() {
       <div className="flex flex-wrap items-center gap-3">
         <Select value={session} onValueChange={(v) => v != null && setSession(v)}>
           <SelectTrigger className="w-64">
-            <SelectValue placeholder="Select session" />
+            <SelectValue>
+              {session || "Select session"}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {VALID_SESSIONS.map((s) => (
@@ -327,7 +329,9 @@ export default function TimetablePage() {
 
         <Select value={levelId} onValueChange={(v) => v != null && setLevelId(v)}>
           <SelectTrigger className="w-48">
-            <SelectValue placeholder="Filter by level" />
+            <SelectValue>
+              {levelId === "all" ? "All Levels" : (levels.find(l => l.id === levelId)?.name ?? "Level")}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Levels</SelectItem>

@@ -33,9 +33,11 @@ export async function assignHallsForEntry(
   timetableEntryId: string,
   activeHalls: ExamHall[],
   alreadyBookedHallIds: Set<string>,
-  enrollments: EnrolledStudent[]
+  enrollments: EnrolledStudent[],
+  estimatedCount = 0
 ): Promise<HallAssignmentResult> {
-  const enrolledCount = enrollments.length;
+  // Use individual enrollment count when available, fall back to level estimate
+  const enrolledCount = enrollments.length > 0 ? enrollments.length : estimatedCount;
   const hallAssignments: HallAssignmentResult["hallAssignments"] = [];
 
   const availableHalls = activeHalls
@@ -59,15 +61,18 @@ export async function assignHallsForEntry(
     alreadyBookedHallIds.add(hall.id);
     hallAssignments.push({ hallId: hall.id, hallName: hall.name, seatStart, seatEnd });
 
-    const studentsForHall = enrollments.slice(studentOffset, studentOffset + allocate);
-    await tx.studentHallAssignment.createMany({
-      data: studentsForHall.map((e, idx) => ({
-        studentId: e.student.id,
-        timetableEntryId,
-        examHallId: hall.id,
-        seatNumber: seatStart + idx,
-      })),
-    });
+    // Only create individual seat assignments when enrollment records exist
+    if (enrollments.length > 0) {
+      const studentsForHall = enrollments.slice(studentOffset, studentOffset + allocate);
+      await tx.studentHallAssignment.createMany({
+        data: studentsForHall.map((e, idx) => ({
+          studentId: e.student.id,
+          timetableEntryId,
+          examHallId: hall.id,
+          seatNumber: seatStart + idx,
+        })),
+      });
+    }
 
     studentOffset += allocate;
     remaining -= allocate;

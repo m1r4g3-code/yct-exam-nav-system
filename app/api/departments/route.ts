@@ -26,13 +26,40 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => null);
   const parsed = schema.safeParse(body);
-  if (!parsed.success) return badRequest("Validation failed", parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })));
+  if (!parsed.success)
+    return badRequest(
+      "Validation failed",
+      parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message }))
+    );
 
   try {
-    const dept = await prisma.department.create({ data: parsed.data });
+    // Create department + standard Yabatech programmes (ND & HND) + years in one transaction
+    const dept = await prisma.$transaction(async (tx) => {
+      const department = await tx.department.create({ data: parsed.data });
+
+      const nd = await tx.programme.create({
+        data: { name: "National Diploma (ND)", code: "ND", departmentId: department.id },
+      });
+      const hnd = await tx.programme.create({
+        data: { name: "Higher National Diploma (HND)", code: "HND", departmentId: department.id },
+      });
+
+      await tx.level.createMany({
+        data: [
+          { name: "ND 1", year: 1, programmeId: nd.id },
+          { name: "ND 2", year: 2, programmeId: nd.id },
+          { name: "HND 1", year: 1, programmeId: hnd.id },
+          { name: "HND 2", year: 2, programmeId: hnd.id },
+        ],
+      });
+
+      return department;
+    });
+
     return created(dept);
-  } catch (e: any) {
-    if (e.code === "P2002") return badRequest("Department code already exists");
+  } catch (e: unknown) {
+    const err = e as { code?: string };
+    if (err.code === "P2002") return badRequest("Department code already exists");
     throw e;
   }
 }

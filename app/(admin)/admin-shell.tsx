@@ -6,8 +6,6 @@ import {
   LayoutDashboard,
   Building2,
   Building,
-  BookOpen,
-  Layers,
   GraduationCap,
   DoorOpen,
   Clock,
@@ -37,8 +35,6 @@ const NAV_ITEMS = [
   { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
   { label: "Schools", href: "/admin/schools", icon: Building2 },
   { label: "Departments", href: "/admin/departments", icon: Building },
-  { label: "Programmes", href: "/admin/programmes", icon: BookOpen },
-  { label: "Levels", href: "/admin/levels", icon: Layers },
   { label: "Courses", href: "/admin/courses", icon: GraduationCap },
   { label: "Halls", href: "/admin/halls", icon: DoorOpen },
   { label: "Time Slots", href: "/admin/slots", icon: Clock },
@@ -80,7 +76,7 @@ export function AdminShell({ user, children }: AdminShellProps) {
         </SidebarHeader>
 
         <SidebarContent>
-          <SidebarMenu className="px-1">
+          <SidebarMenu className="px-2 py-1 gap-0.5">
             {NAV_ITEMS.map((item) => {
               const isActive = pathname.startsWith(item.href)
               return (
@@ -89,8 +85,9 @@ export function AdminShell({ user, children }: AdminShellProps) {
                     isActive={isActive}
                     tooltip={item.label}
                     render={<Link href={item.href} />}
+                    className="gap-3 px-3 py-2.5 text-sm"
                   >
-                    <item.icon />
+                    <item.icon className="size-4 shrink-0" />
                     <span>{item.label}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -133,7 +130,7 @@ export function AdminShell({ user, children }: AdminShellProps) {
           </nav>
         </header>
 
-        <div className="flex-1 bg-zinc-950 p-6">
+        <div className="flex-1 bg-zinc-950 p-6 md:p-8">
           {children}
         </div>
       </SidebarInset>
