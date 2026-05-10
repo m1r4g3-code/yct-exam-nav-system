@@ -83,16 +83,15 @@ export async function proxy(request: NextRequest) {
     );
   }
 
-  // Student-only routes
-  const isStudentRoute =
-    pathname.startsWith("/dashboard") ||
-    pathname.startsWith("/navigate") ||
-    pathname.startsWith("/profile") ||
+  // Student-only API routes — block with 403 JSON.
+  // Page routes (/dashboard, /navigate, /profile) are handled by their layouts
+  // which already redirect non-students to /admin/dashboard.
+  const isStudentApiRoute =
     pathname === "/api/students/me" ||
     pathname.startsWith("/api/enrollments") ||
     pathname.startsWith("/api/timetable/me");
 
-  if (isStudentRoute && role !== "student") {
+  if (isStudentApiRoute && role !== "student") {
     return NextResponse.json(
       { success: false, data: null, message: "Forbidden" },
       { status: 403 }

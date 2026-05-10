@@ -63,9 +63,10 @@ export async function POST(request: Request) {
       },
     });
     return created(enrollment, "Enrolled successfully");
-  } catch (e: any) {
-    if (e.code === "P2002") return conflict("Already enrolled in this course for this session");
-    if (e.code === "P2003") return badRequest("Course or student record not found");
+  } catch (e: unknown) {
+    const err = e as { code?: string };
+    if (err.code === "P2002") return conflict("Already enrolled in this course for this session");
+    if (err.code === "P2003") return badRequest("Course or student record not found");
     throw e;
   }
 }

@@ -14,8 +14,16 @@ const schema = z.object({
 
 export async function GET(request: NextRequest) {
   const levelId = request.nextUrl.searchParams.get("level_id") ?? undefined;
+  const departmentId = request.nextUrl.searchParams.get("department_id") ?? undefined;
+
+  const where = levelId
+    ? { levelId }
+    : departmentId
+    ? { level: { programme: { departmentId } } }
+    : undefined;
+
   const courses = await prisma.course.findMany({
-    where: levelId ? { levelId } : undefined,
+    where,
     include: { level: { select: { name: true } } },
     orderBy: { code: "asc" },
   });
@@ -33,8 +41,8 @@ export async function POST(request: Request) {
   try {
     const course = await prisma.course.create({ data: parsed.data });
     return created(course);
-  } catch (e: any) {
-    if (e.code === "P2002") return badRequest("Course code already exists");
+  } catch (e: unknown) {
+    if ((e as { code?: string }).code === "P2002") return badRequest("Course code already exists");
     throw e;
   }
 }

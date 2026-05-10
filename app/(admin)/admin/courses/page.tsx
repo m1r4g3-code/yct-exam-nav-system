@@ -10,7 +10,6 @@ import { MoreHorizontal, GraduationCap, Upload } from "lucide-react"
 import type { ColumnDef } from "@tanstack/react-table"
 
 import { QUERY_KEYS } from "@/lib/query-keys"
-import { PageHeader } from "@/components/admin/page-header"
 import { DataTable } from "@/components/admin/data-table"
 import { MobileCardList } from "@/components/admin/mobile-card-list"
 import { ConfirmDialog } from "@/components/admin/confirm-dialog"
@@ -121,12 +120,16 @@ export default function CoursesPage() {
     },
   })
 
+  const deptIdParam = filterDeptId !== "all" ? filterDeptId : undefined
   const levelIdParam = filterLevelId !== "all" ? filterLevelId : undefined
 
   const { data: courses = [], isLoading } = useQuery<Course[]>({
-    queryKey: QUERY_KEYS.COURSES(levelIdParam),
+    queryKey: ["courses", { level: levelIdParam, dept: deptIdParam }],
     queryFn: async () => {
-      const url = levelIdParam ? `/api/courses?level_id=${levelIdParam}` : "/api/courses"
+      const params = new URLSearchParams()
+      if (levelIdParam) params.set("level_id", levelIdParam)
+      else if (deptIdParam) params.set("department_id", deptIdParam)
+      const url = params.size ? `/api/courses?${params}` : "/api/courses"
       const res = await fetch(url)
       const json = await res.json()
       return json.data ?? []
@@ -190,17 +193,25 @@ export default function CoursesPage() {
     setDialogOpen(true)
   }
 
+  async function fetchCourse(url: string, method: string, body: CourseFormValues) {
+    const res = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    })
+    const json = await res.json()
+    if (!json.success) {
+      const fieldErrors: { field: string; message: string }[] = json.errors ?? []
+      const detail = fieldErrors.length
+        ? fieldErrors.map((e) => `${e.field}: ${e.message}`).join(", ")
+        : json.message
+      throw new Error(detail)
+    }
+    return json.data
+  }
+
   const createMutation = useMutation({
-    mutationFn: async (body: CourseFormValues) => {
-      const res = await fetch("/api/courses", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      })
-      const json = await res.json()
-      if (!json.success) throw new Error(json.message)
-      return json.data
-    },
+    mutationFn: (body: CourseFormValues) => fetchCourse("/api/courses", "POST", body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["courses"] })
       toast.success("Course created")
@@ -211,16 +222,7 @@ export default function CoursesPage() {
   })
 
   const updateMutation = useMutation({
-    mutationFn: async (body: CourseFormValues) => {
-      const res = await fetch(`/api/courses/${editTarget!.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      })
-      const json = await res.json()
-      if (!json.success) throw new Error(json.message)
-      return json.data
-    },
+    mutationFn: (body: CourseFormValues) => fetchCourse(`/api/courses/${editTarget!.id}`, "PUT", body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["courses"] })
       toast.success("Course updated")
@@ -265,6 +267,10 @@ export default function CoursesPage() {
   })
 
   const onSubmit = (values: CourseFormValues) => {
+    if (!values.levelId) {
+      form.setError("levelId", { message: "Please select a level" })
+      return
+    }
     if (editTarget) updateMutation.mutate(values)
     else createMutation.mutate(values)
   }

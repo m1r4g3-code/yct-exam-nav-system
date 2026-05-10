@@ -28,8 +28,8 @@ export async function POST(request: Request) {
   try {
     const hall = await prisma.examHall.create({ data: parsed.data });
     return created(hall);
-  } catch (e: any) {
-    if (e.code === "P2002") return badRequest("Hall code already exists");
+  } catch (e: unknown) {
+    if ((e as { code?: string }).code === "P2002") return badRequest("Hall code already exists");
     throw e;
   }
 }

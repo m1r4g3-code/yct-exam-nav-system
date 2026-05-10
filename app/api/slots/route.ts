@@ -33,8 +33,8 @@ export async function POST(request: Request) {
       },
     });
     return created(slot);
-  } catch (e: any) {
-    if (e.code === "P2002") return badRequest("A slot already exists for this date and start time");
+  } catch (e: unknown) {
+    if ((e as { code?: string }).code === "P2002") return badRequest("A slot already exists for this date and start time");
     throw e;
   }
 }

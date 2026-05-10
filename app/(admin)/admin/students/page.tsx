@@ -56,7 +56,7 @@ export default function StudentsPage() {
   const [page, setPage] = useState(1)
   const debouncedSearch = useDebounce(search, 300)
 
-  useEffect(() => { setPage(1) }, [debouncedSearch, filterDeptId])
+  // Page reset is handled inline in filter/search handlers (avoids setState-in-effect)
 
   const { data: schools = [] } = useQuery<School[]>({
     queryKey: QUERY_KEYS.SCHOOLS,
@@ -164,7 +164,7 @@ export default function StudentsPage() {
         <Input
           placeholder="Search by name or matric no…"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => { setSearch(e.target.value); setPage(1) }}
           className="w-64"
         />
 
@@ -174,6 +174,7 @@ export default function StudentsPage() {
             if (v == null) return
             setFilterSchoolId(v)
             setFilterDeptId("all")
+            setPage(1)
           }}
         >
           <SelectTrigger className="w-48">
@@ -193,7 +194,7 @@ export default function StudentsPage() {
 
         <Select
           value={filterDeptId}
-          onValueChange={(v) => v != null && setFilterDeptId(v)}
+          onValueChange={(v) => { if (v != null) { setFilterDeptId(v); setPage(1) } }}
         >
           <SelectTrigger className="w-48">
             <SelectValue>

@@ -9,10 +9,61 @@ import { z } from "zod";
 const bodySchema = z.object({
   session: z.string().min(4),
   force: z.boolean().optional().default(false),
+  schoolId: z.string().uuid().optional(),
+  examStartDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Format: YYYY-MM-DD")
+    .optional(),
 });
 
 function parseSemester(session: string): "FIRST" | "SECOND" {
   return session.toLowerCase().includes("second") ? "SECOND" : "FIRST";
+}
+
+/** Creates 20 weekday slots (Morning + Afternoon) starting from startDateStr. */
+async function ensureExamSlots(startDateStr: string): Promise<void> {
+  const SLOT_TIMES = [
+    { start: "08:00", end: "10:00", label: "Morning" },
+    { start: "12:00", end: "14:00", label: "Afternoon" },
+  ];
+
+  const origin = new Date(startDateStr + "T00:00:00Z");
+  const toCreate: {
+    date: Date;
+    startTime: Date;
+    endTime: Date;
+    label: string;
+  }[] = [];
+
+  let weekdays = 0;
+  let offset = 0;
+
+  while (weekdays < 20) {
+    const current = new Date(origin);
+    current.setUTCDate(origin.getUTCDate() + offset);
+    offset++;
+    const dow = current.getUTCDay();
+    if (dow === 0 || dow === 6) continue; // skip weekend
+
+    const dateLabel = current.toLocaleDateString("en-NG", {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      timeZone: "UTC",
+    });
+
+    for (const t of SLOT_TIMES) {
+      toCreate.push({
+        date: current,
+        startTime: new Date(`1970-01-01T${t.start}:00Z`),
+        endTime: new Date(`1970-01-01T${t.end}:00Z`),
+        label: `${dateLabel} ${t.label}`,
+      });
+    }
+    weekdays++;
+  }
+
+  await prisma.timeSlot.createMany({ data: toCreate, skipDuplicates: true });
 }
 
 export async function POST(request: Request) {
@@ -27,7 +78,7 @@ export async function POST(request: Request) {
       parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message }))
     );
 
-  const { session, force } = parsed.data;
+  const { session, force, schoolId, examStartDate } = parsed.data;
 
   const existingDraft = await prisma.timetableEntry.findFirst({
     where: { session, status: "DRAFT" },
@@ -44,16 +95,32 @@ export async function POST(request: Request) {
     await prisma.timetableEntry.deleteMany({ where: { session, status: "DRAFT" } });
   }
 
-  // Derive semester from session label so we only schedule the right courses
+  // Auto-create exam slots if a start date is provided.
+  // Orphaned slots (no timetable entries) are cleared first for a clean slate.
+  if (examStartDate) {
+    await prisma.timeSlot.deleteMany({ where: { timetableEntries: { none: {} } } });
+    await ensureExamSlots(examStartDate);
+  }
+
   const semester = parseSemester(session);
 
+  // Filter courses by school if requested
+  const courseWhere = {
+    semester,
+    ...(schoolId
+      ? { level: { programme: { department: { schoolId } } } }
+      : {}),
+  };
+
   const allCourses = await prisma.course.findMany({
-    where: { semester },
+    where: courseWhere,
     select: { id: true, levelId: true },
   });
 
   if (allCourses.length === 0)
-    return badRequest(`No ${semester.toLowerCase().replace("_", " ")} semester courses found`);
+    return badRequest(
+      `No ${semester.toLowerCase()} semester courses found${schoolId ? " for the selected school" : ""}`
+    );
 
   const courseIds = allCourses.map((c) => c.id);
   const courseLevel = new Map(allCourses.map((c) => [c.id, c.levelId]));
@@ -63,10 +130,13 @@ export async function POST(request: Request) {
     prisma.examHall.findMany({ where: { isActive: true }, orderBy: { capacity: "desc" } }),
   ]);
 
-  if (slots.length === 0) return badRequest("No time slots configured");
+  if (slots.length === 0)
+    return badRequest(
+      "No exam slots available. Provide an examStartDate to auto-generate slots."
+    );
   if (activeHalls.length === 0) return badRequest("No active exam halls configured");
 
-  // Level-based conflict graph: courses in same level cannot share a time slot
+  // Level-based conflict graph: courses in the same level cannot share a slot
   const graph = await buildLevelConflictGraph(courseIds);
   const { assignments, unresolved } = runDsatur(graph, slots);
 
@@ -77,7 +147,7 @@ export async function POST(request: Request) {
   });
   const studentsByLevel = new Map(levelCounts.map((r) => [r.levelId, r._count._all]));
 
-  // Pre-fetch individual enrollments for this session (may be empty — that is fine)
+  // Pre-fetch individual enrollments for this session
   const allEnrollments = await prisma.studentCourse.findMany({
     where: { session, deletedAt: null },
     include: { student: { select: { id: true, matricNumber: true } } },
@@ -90,8 +160,7 @@ export async function POST(request: Request) {
     enrollmentsByCourse.set(e.courseId, arr);
   }
 
-  const overflows: string[] = [];
-  // Track booked halls PER SLOT — halls in different slots are independent
+  const overflowCourseIds: string[] = [];
   const alreadyBookedBySlot = new Map<string, Set<string>>();
 
   await prisma.$transaction(
@@ -122,14 +191,30 @@ export async function POST(request: Request) {
           estimatedCount
         );
 
-        if (result.hallOverflow) overflows.push(courseId);
+        if (result.hallOverflow) overflowCourseIds.push(courseId);
       }
     },
     { timeout: 60_000 }
   );
 
+  // Resolve courseIds → {code, title} for the response
+  const [unresolvedCourses, overflowCourses] = await Promise.all([
+    unresolved.length > 0
+      ? prisma.course.findMany({
+          where: { id: { in: unresolved } },
+          select: { code: true, title: true },
+        })
+      : [],
+    overflowCourseIds.length > 0
+      ? prisma.course.findMany({
+          where: { id: { in: overflowCourseIds } },
+          select: { code: true, title: true },
+        })
+      : [],
+  ]);
+
   return ok(
-    { assigned: assignments.size, unresolved, overflows },
+    { assigned: assignments.size, unresolved: unresolvedCourses, overflow: overflowCourses },
     "Timetable generated successfully"
   );
 }

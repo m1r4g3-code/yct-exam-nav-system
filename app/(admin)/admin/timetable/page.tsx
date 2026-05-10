@@ -7,12 +7,13 @@ import { CalendarRange, RefreshCw, Send, Trash2 } from "lucide-react"
 import type { ColumnDef } from "@tanstack/react-table"
 
 import { QUERY_KEYS } from "@/lib/query-keys"
-import { VALID_SESSIONS, DEFAULT_SESSION } from "@/lib/constants"
+import { VALID_SESSIONS } from "@/lib/constants"
 import { DataTable } from "@/components/admin/data-table"
 import { ConfirmDialog } from "@/components/admin/confirm-dialog"
 import { StatusBadge } from "@/components/admin/status-badge"
 import { EmptyState } from "@/components/admin/empty-state"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
   Select,
@@ -30,6 +31,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog"
 
+interface School { id: string; name: string }
 
 interface Level {
   id: string
@@ -73,13 +75,27 @@ interface GenerateResult {
   overflow: { code: string; title: string }[]
 }
 
+/** Returns the next Monday as YYYY-MM-DD */
+function nextMonday(): string {
+  const today = new Date()
+  const day = today.getDay() // 0=Sun,1=Mon,...
+  const daysToMonday = day === 0 ? 1 : day === 1 ? 7 : 8 - day
+  const d = new Date(today)
+  d.setDate(today.getDate() + daysToMonday)
+  return d.toISOString().split("T")[0]
+}
+
 export default function TimetablePage() {
   const queryClient = useQueryClient()
 
   const [session, setSession] = useState<string>("")
   const [levelId, setLevelId] = useState<string>("all")
 
+  // Generate dialog state
   const [generateDialogOpen, setGenerateDialogOpen] = useState(false)
+  const [generateSchoolId, setGenerateSchoolId] = useState<string>("all")
+  const [generateExamStartDate, setGenerateExamStartDate] = useState<string>(nextMonday)
+
   const [generateResultOpen, setGenerateResultOpen] = useState(false)
   const [generateResult, setGenerateResult] = useState<GenerateResult | null>(null)
 
@@ -88,6 +104,15 @@ export default function TimetablePage() {
 
   const [editSlotEntryId, setEditSlotEntryId] = useState<string | null>(null)
   const [selectedNewSlotId, setSelectedNewSlotId] = useState<string>("")
+
+  const { data: schools = [] } = useQuery<School[]>({
+    queryKey: QUERY_KEYS.SCHOOLS,
+    queryFn: async () => {
+      const res = await fetch("/api/schools")
+      const json = await res.json()
+      return json.data ?? []
+    },
+  })
 
   const { data: levels = [] } = useQuery<Level[]>({
     queryKey: QUERY_KEYS.LEVELS(undefined),
@@ -125,11 +150,15 @@ export default function TimetablePage() {
   const hasDraft = entries.some((e) => e.status === "DRAFT")
 
   const generateMutation = useMutation({
-    mutationFn: async (force: boolean) => {
+    mutationFn: async (params: {
+      force: boolean
+      schoolId?: string
+      examStartDate?: string
+    }) => {
       const res = await fetch("/api/timetable/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ session, force }),
+        body: JSON.stringify({ session, ...params }),
       })
       const json = await res.json()
       if (!json.success) throw new Error(json.message)
@@ -361,15 +390,87 @@ export default function TimetablePage() {
         <DataTable columns={columns} data={entries} isLoading={isLoading} />
       )}
 
-      {/* Generate confirmation dialog */}
-      <ConfirmDialog
-        open={generateDialogOpen}
-        onOpenChange={setGenerateDialogOpen}
-        title="Generate Timetable"
-        description={`This will generate a new timetable for "${session}". Any existing draft entries will be deleted and replaced. Published entries are not affected unless you use force mode. Proceed?`}
-        onConfirm={() => generateMutation.mutate(true)}
-        loading={generateMutation.isPending}
-      />
+      {/* ── Generate dialog ───────────────────────────────────────────── */}
+      <Dialog open={generateDialogOpen} onOpenChange={setGenerateDialogOpen}>
+        <DialogContent className="bg-zinc-900 border-zinc-800 max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-zinc-50">Generate Timetable</DialogTitle>
+            <DialogDescription className="text-zinc-400">
+              The system will automatically create exam slots and assign courses using
+              DSatur graph coloring. Existing draft entries for{" "}
+              <span className="text-zinc-300 font-medium">&ldquo;{session}&rdquo;</span> will be
+              replaced.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-1">
+            {/* School filter */}
+            <div className="space-y-1.5">
+              <Label className="text-zinc-300">School</Label>
+              <Select
+                value={generateSchoolId}
+                onValueChange={(v) => v != null && setGenerateSchoolId(v)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue>
+                    {generateSchoolId === "all"
+                      ? "All Schools"
+                      : (schools.find((s) => s.id === generateSchoolId)?.name ?? "School")}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Schools</SelectItem>
+                  {schools.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-zinc-500">
+                Filter to one school or generate for all at once
+              </p>
+            </div>
+
+            {/* Exam start date */}
+            <div className="space-y-1.5">
+              <Label className="text-zinc-300">Exam Start Date</Label>
+              <Input
+                type="date"
+                value={generateExamStartDate}
+                onChange={(e) => setGenerateExamStartDate(e.target.value)}
+                className="bg-zinc-800 border-zinc-700 text-zinc-50"
+              />
+              <p className="text-xs text-zinc-500">
+                Mon–Fri exam slots (08:00–10:00 and 12:00–14:00) will be auto-created for
+                4 weeks from this date
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setGenerateDialogOpen(false)}
+              disabled={generateMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={generateMutation.isPending}
+              onClick={() =>
+                generateMutation.mutate({
+                  force: true,
+                  schoolId: generateSchoolId !== "all" ? generateSchoolId : undefined,
+                  examStartDate: generateExamStartDate || undefined,
+                })
+              }
+            >
+              {generateMutation.isPending ? "Generating…" : "Generate"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Generate result dialog */}
       <Dialog open={generateResultOpen} onOpenChange={setGenerateResultOpen}>
@@ -405,7 +506,7 @@ export default function TimetablePage() {
             {(generateResult?.overflow?.length ?? 0) > 0 && (
               <div>
                 <p className="text-sm font-medium text-red-400 mb-1">
-                  Overflow / No Hall ({generateResult!.overflow.length})
+                  Hall Overflow ({generateResult!.overflow.length})
                 </p>
                 <ul className="space-y-0.5 max-h-40 overflow-y-auto">
                   {generateResult!.overflow.map((c) => (

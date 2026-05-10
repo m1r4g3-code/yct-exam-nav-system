@@ -8,7 +8,6 @@ import {
   Building,
   GraduationCap,
   DoorOpen,
-  Clock,
   CalendarRange,
   Users,
   LogOut,
@@ -37,7 +36,6 @@ const NAV_ITEMS = [
   { label: "Departments", href: "/admin/departments", icon: Building },
   { label: "Courses", href: "/admin/courses", icon: GraduationCap },
   { label: "Halls", href: "/admin/halls", icon: DoorOpen },
-  { label: "Time Slots", href: "/admin/slots", icon: Clock },
   { label: "Timetable", href: "/admin/timetable", icon: CalendarRange },
   { label: "Students", href: "/admin/students", icon: Users },
 ] as const
