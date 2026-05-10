@@ -1,0 +1,249 @@
+"use client"
+
+import { useEffect, useState, Suspense } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { toast } from "sonner"
+import { Loader2 } from "lucide-react"
+import { DEFAULT_SESSION } from "@/lib/constants"
+
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
+
+type Course = {
+  id: string
+  code: string
+  title: string
+  creditUnits: number
+  semester: "FIRST" | "SECOND"
+}
+
+type StudentProfile = { id: string; levelId: string; fullName: string }
+
+type ApiResponse<T> = {
+  success: boolean
+  data: T | null
+  message: string
+  errors?: { field: string; message: string }[]
+}
+
+function CoursesContent() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const session = searchParams.get("session") ?? DEFAULT_SESSION
+
+  const [courses, setCourses] = useState<Course[]>([])
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    async function loadCourses() {
+      // level_id from URL (passed by register page) — no auth needed for course list
+      const levelId = searchParams.get("level_id")
+
+      if (!levelId) {
+        // Fallback: fetch from profile (student must be logged in)
+        try {
+          const profileRes = await fetch("/api/students/me")
+          if (!profileRes.ok) {
+            toast.error("Could not load your profile. Please sign in again.")
+            router.push("/login")
+            return
+          }
+          const profileJson: ApiResponse<StudentProfile> = await profileRes.json()
+          if (!profileJson.success || !profileJson.data) {
+            toast.error("Could not load your profile. Please sign in again.")
+            router.push("/login")
+            return
+          }
+          const res = await fetch(`/api/courses?level_id=${encodeURIComponent(profileJson.data.levelId)}`)
+          const json: ApiResponse<Course[]> = await res.json()
+          if (json.success && json.data) setCourses(json.data)
+          else toast.error("Could not load courses.")
+        } catch {
+          toast.error("Something went wrong loading your courses.")
+        } finally {
+          setLoading(false)
+        }
+        return
+      }
+
+      try {
+        const res = await fetch(`/api/courses?level_id=${encodeURIComponent(levelId)}`)
+        const json: ApiResponse<Course[]> = await res.json()
+        if (json.success && json.data) {
+          setCourses(json.data)
+        } else {
+          toast.error("Could not load courses.")
+        }
+      } catch {
+        toast.error("Something went wrong loading your courses.")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadCourses()
+  }, [router, searchParams])
+
+  function toggleCourse(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  async function handleEnroll() {
+    if (selectedIds.size === 0) return
+
+    setSubmitting(true)
+    try {
+      const results = await Promise.all(
+        Array.from(selectedIds).map(async (courseId) => {
+          const r = await fetch("/api/enrollments", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ courseId, session }),
+          })
+          const json: ApiResponse<null> = await r.json().catch(() => ({
+            success: false,
+            data: null,
+            message: `Server error (${r.status})`,
+          }))
+          return json
+        })
+      )
+
+      const failed = results.filter((r) => !r.success)
+      if (failed.length > 0) {
+        toast.error(failed[0].message ?? "Some enrollments failed.")
+        return
+      }
+
+      toast.success("Enrollment complete!")
+      router.push("/dashboard")
+    } catch {
+      toast.error("Something went wrong. Please try again.")
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-8 w-full max-w-md">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-zinc-50">Select Your Courses</h1>
+        <p className="text-sm text-zinc-400 mt-1">
+          Choose the courses you&apos;re registered for this session
+        </p>
+        <p className="text-xs text-zinc-500 mt-1">{session}</p>
+      </div>
+
+      {loading ? (
+        <div className="space-y-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-16 w-full rounded-lg bg-zinc-800" />
+          ))}
+        </div>
+      ) : courses.length === 0 ? (
+        <p className="text-sm text-zinc-400 py-8 text-center">
+          No courses available for your level.
+        </p>
+      ) : (
+        <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1 -mr-1">
+          {courses.map((course) => {
+            const selected = selectedIds.has(course.id)
+            return (
+              <label
+                key={course.id}
+                className={[
+                  "flex items-start gap-3 rounded-lg border px-4 py-3 cursor-pointer transition-colors",
+                  selected
+                    ? "border-zinc-600 bg-zinc-800"
+                    : "border-zinc-800 bg-zinc-900 hover:border-zinc-700",
+                ].join(" ")}
+              >
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-zinc-50 cursor-pointer"
+                  checked={selected}
+                  onChange={() => toggleCourse(course.id)}
+                />
+                <div className="flex flex-1 flex-col gap-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-medium text-zinc-50">
+                      {course.code}
+                    </span>
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] px-1.5 py-0 h-4 border-zinc-700 text-zinc-400"
+                    >
+                      {course.semester === "FIRST" ? "1st Sem" : "2nd Sem"}
+                    </Badge>
+                    <Badge
+                      variant="secondary"
+                      className="text-[10px] px-1.5 py-0 h-4"
+                    >
+                      {course.creditUnits} CU
+                    </Badge>
+                  </div>
+                  <span className="text-xs text-zinc-400 truncate">
+                    {course.title}
+                  </span>
+                </div>
+              </label>
+            )
+          })}
+        </div>
+      )}
+
+      <div className="mt-6 space-y-2">
+        {selectedIds.size > 0 && (
+          <p className="text-xs text-zinc-400 text-center">
+            {selectedIds.size} course{selectedIds.size !== 1 ? "s" : ""} selected
+          </p>
+        )}
+        <Button
+          className="w-full"
+          disabled={selectedIds.size === 0 || submitting || loading}
+          onClick={handleEnroll}
+        >
+          {submitting ? (
+            <>
+              <Loader2 className="size-4 animate-spin" />
+              Enrolling…
+            </>
+          ) : (
+            "Complete Enrollment"
+          )}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+export default function CoursesPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-8 w-full max-w-md">
+          <Skeleton className="h-7 w-48 mb-2 bg-zinc-800" />
+          <Skeleton className="h-4 w-64 mb-6 bg-zinc-800" />
+          <div className="space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-16 w-full rounded-lg bg-zinc-800" />
+            ))}
+          </div>
+        </div>
+      }
+    >
+      <CoursesContent />
+    </Suspense>
+  )
+}

@@ -1,0 +1,287 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum AdminRole {
+  SUPERADMIN
+  ADMIN
+}
+
+enum Semester {
+  FIRST
+  SECOND
+}
+
+enum TimetableStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum NodeType {
+  ENTRY
+  JUNCTION
+  HALL
+  LANDMARK
+}
+
+// ─── Tier 1: No Foreign Keys ─────────────────────────────────────────────────
+
+model School {
+  id          String       @id @default(uuid())
+  name        String
+  code        String       @unique
+  departments Department[]
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  @@map("schools")
+}
+
+model Admin {
+  id         String    @id @default(uuid())
+  authUserId String?   @unique @map("auth_user_id")
+  fullName   String    @map("full_name")
+  email      String    @unique
+  role       AdminRole @default(ADMIN)
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  @@map("admins")
+}
+
+model ExamHall {
+  id                 String                  @id @default(uuid())
+  name               String
+  code               String                  @unique
+  capacity           Int
+  latitude           Decimal                 @db.Decimal(10, 8)
+  longitude          Decimal                 @db.Decimal(11, 8)
+  description        String?
+  isActive           Boolean                 @default(true) @map("is_active")
+  hallAssignments    HallAssignment[]
+  studentAssignments StudentHallAssignment[]
+  navigationNode     NavigationNode?
+  createdAt          DateTime                @default(now()) @map("created_at")
+  updatedAt          DateTime                @updatedAt @map("updated_at")
+
+  @@map("exam_halls")
+}
+
+model TimeSlot {
+  id               String           @id @default(uuid())
+  date             DateTime         @db.Date
+  startTime        DateTime         @db.Time() @map("start_time")
+  endTime          DateTime         @db.Time() @map("end_time")
+  label            String
+  timetableEntries TimetableEntry[]
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+
+  @@unique([date, startTime])
+  @@map("time_slots")
+}
+
+model NavigationNode {
+  id         String           @id @default(uuid())
+  label      String
+  latitude   Decimal          @db.Decimal(10, 8)
+  longitude  Decimal          @db.Decimal(11, 8)
+  nodeType   NodeType         @map("node_type")
+  examHallId String?          @unique @map("exam_hall_id")
+  examHall   ExamHall?        @relation(fields: [examHallId], references: [id])
+  fromPaths  NavigationPath[] @relation("FromNode")
+  toPaths    NavigationPath[] @relation("ToNode")
+  createdAt  DateTime         @default(now()) @map("created_at")
+  updatedAt  DateTime         @updatedAt @map("updated_at")
+
+  @@map("navigation_nodes")
+}
+
+// ─── Tier 2 ──────────────────────────────────────────────────────────────────
+
+model Department {
+  id         String      @id @default(uuid())
+  schoolId   String      @map("school_id")
+  school     School      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  name       String
+  code       String      @unique
+  programmes Programme[]
+  students   Student[]
+  createdAt  DateTime    @default(now()) @map("created_at")
+  updatedAt  DateTime    @updatedAt @map("updated_at")
+
+  @@map("departments")
+}
+
+model NavigationPath {
+  id              String         @id @default(uuid())
+  fromNodeId      String         @map("from_node_id")
+  fromNode        NavigationNode @relation("FromNode", fields: [fromNodeId], references: [id], onDelete: Cascade)
+  toNodeId        String         @map("to_node_id")
+  toNode          NavigationNode @relation("ToNode", fields: [toNodeId], references: [id], onDelete: Cascade)
+  distanceMeters  Decimal        @map("distance_meters") @db.Decimal(8, 2)
+  pathCoordinates Json           @map("path_coordinates")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  @@index([fromNodeId])
+  @@index([toNodeId])
+  @@map("navigation_paths")
+}
+
+// ─── Tier 3 ──────────────────────────────────────────────────────────────────
+
+model Programme {
+  id           String    @id @default(uuid())
+  departmentId String    @map("department_id")
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  name         String
+  code         String
+  levels       Level[]
+  students     Student[]
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@unique([departmentId, code])
+  @@map("programmes")
+}
+
+// ─── Tier 4 ──────────────────────────────────────────────────────────────────
+
+model Level {
+  id          String    @id @default(uuid())
+  programmeId String    @map("programme_id")
+  programme   Programme @relation(fields: [programmeId], references: [id], onDelete: Cascade)
+  name        String
+  year        Int
+  courses     Course[]
+  students    Student[]
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@unique([programmeId, year])
+  @@map("levels")
+}
+
+model Student {
+  id                 String                  @id @default(uuid())
+  authUserId         String?                 @unique @map("auth_user_id")
+  matricNumber       String                  @unique @map("matric_number")
+  fullName           String                  @map("full_name")
+  email              String                  @unique
+  levelId            String                  @map("level_id")
+  level              Level                   @relation(fields: [levelId], references: [id])
+  departmentId       String                  @map("department_id")
+  department         Department              @relation(fields: [departmentId], references: [id])
+  programmeId        String                  @map("programme_id")
+  programme          Programme               @relation(fields: [programmeId], references: [id])
+  enrollments        StudentCourse[]
+  hallAssignments    StudentHallAssignment[]
+  createdAt          DateTime                @default(now()) @map("created_at")
+  updatedAt          DateTime                @updatedAt @map("updated_at")
+
+  @@map("students")
+}
+
+// ─── Tier 5 ──────────────────────────────────────────────────────────────────
+
+model Course {
+  id               String           @id @default(uuid())
+  levelId          String           @map("level_id")
+  level            Level            @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  code             String           @unique
+  title            String
+  creditUnits      Int              @map("credit_units")
+  semester         Semester
+  enrollments      StudentCourse[]
+  timetableEntries TimetableEntry[]
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+
+  @@map("courses")
+}
+
+// ─── Tier 6 ──────────────────────────────────────────────────────────────────
+
+model StudentCourse {
+  id        String    @id @default(uuid())
+  studentId String    @map("student_id")
+  student   Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  courseId  String    @map("course_id")
+  course    Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  session   String
+  deletedAt DateTime? @map("deleted_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@unique([studentId, courseId, session])
+  @@index([courseId])
+  @@index([session, deletedAt])
+  @@map("student_courses")
+}
+
+// ─── Tier 7 ──────────────────────────────────────────────────────────────────
+
+model TimetableEntry {
+  id                 String                  @id @default(uuid())
+  courseId           String                  @map("course_id")
+  course             Course                  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  timeSlotId         String                  @map("time_slot_id")
+  timeSlot           TimeSlot                @relation(fields: [timeSlotId], references: [id])
+  session            String
+  status             TimetableStatus         @default(DRAFT)
+  hallAssignments    HallAssignment[]
+  studentAssignments StudentHallAssignment[]
+  createdAt          DateTime                @default(now()) @map("created_at")
+  updatedAt          DateTime                @updatedAt @map("updated_at")
+
+  // PRD Bug Fix: ONLY unique on (courseId, session) — NOT (timeSlotId, session)
+  // Multiple courses MUST share the same slot (that is the point of graph coloring)
+  @@unique([courseId, session])
+  @@index([session, status])
+  @@index([timeSlotId])
+  @@map("timetable_entries")
+}
+
+// ─── Tier 8 ──────────────────────────────────────────────────────────────────
+
+model HallAssignment {
+  id               String         @id @default(uuid())
+  timetableEntryId String         @map("timetable_entry_id")
+  timetableEntry   TimetableEntry @relation(fields: [timetableEntryId], references: [id], onDelete: Cascade)
+  examHallId       String         @map("exam_hall_id")
+  examHall         ExamHall       @relation(fields: [examHallId], references: [id])
+  seatStart        Int            @map("seat_start")
+  seatEnd          Int            @map("seat_end")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+
+  @@index([timetableEntryId])
+  @@index([examHallId])
+  @@map("hall_assignments")
+}
+
+// ─── Tier 9 ──────────────────────────────────────────────────────────────────
+
+model StudentHallAssignment {
+  id               String         @id @default(uuid())
+  studentId        String         @map("student_id")
+  student          Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  timetableEntryId String         @map("timetable_entry_id")
+  timetableEntry   TimetableEntry @relation(fields: [timetableEntryId], references: [id], onDelete: Cascade)
+  examHallId       String         @map("exam_hall_id")
+  examHall         ExamHall       @relation(fields: [examHallId], references: [id])
+  seatNumber       Int            @map("seat_number")
+  createdAt        DateTime       @default(now()) @map("created_at")
+
+  @@unique([studentId, timetableEntryId])
+  @@index([timetableEntryId])
+  @@index([examHallId])
+  @@map("student_hall_assignments")
+}
