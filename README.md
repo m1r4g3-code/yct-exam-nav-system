@@ -1,36 +1,144 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# YCT Exam Portal
+
+Smart Examination Timetable Generator & Hall Navigation System for **Yaba College of Technology (Yabatech)**, School of Technology — Computer Science Department pilot.
+
+Live: [smart-exam-timetable.vercel.app](https://smart-exam-timetable.vercel.app)
+
+---
+
+## Features
+
+**Admin Portal**
+- Manage schools, departments, programmes, levels, courses, and exam halls
+- Bulk import courses via CSV upload
+- Auto-generate conflict-free exam timetables using the **DSatur graph-colouring algorithm**
+- Assign students to halls and seats automatically, spreading across multiple halls when needed
+- Publish timetables, manually move entries, and reset drafts
+
+**Student Portal**
+- View personal exam timetable (dates, times, hall, seat number)
+- Register for courses during onboarding
+- **Live GPS navigation** to any exam hall — auto-detects device location, finds nearest campus node, and calculates the walking route via **Dijkstra shortest path**
+- Interactive campus map powered by Leaflet + OpenStreetMap
+
+---
+
+## Stack
+
+| Layer | Technology |
+|---|---|
+| Framework | Next.js 16 (App Router) |
+| Language | TypeScript 5 |
+| Database | Supabase (hosted PostgreSQL) |
+| ORM | Prisma 7 |
+| Auth | Supabase Auth + role metadata (`admin`, `superadmin`, `student`) |
+| Styling | TailwindCSS v4 + shadcn/ui (base-maia preset) |
+| Fonts | Figtree (body) · JetBrains Mono (headings) · Geist Mono (code) |
+| Map | Leaflet.js + react-leaflet + OpenStreetMap tiles |
+| State | TanStack React Query |
+| Forms | React Hook Form + Zod |
+| Hosting | Vercel |
+
+---
 
 ## Getting Started
 
-First, run the development server:
+### 1. Clone & install
+
+```bash
+git clone https://github.com/m1r4g3-code/yct-exam-nav-system.git
+cd yct-exam-nav-system/smart-exam-timetable
+npm install
+```
+
+### 2. Environment variables
+
+Create `.env.local`:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+DATABASE_URL=your_supabase_transaction_pooler_url   # port 6543
+DIRECT_URL=your_supabase_direct_url                 # port 5432
+ADMIN_SETUP_SECRET=a_secure_random_secret
+```
+
+### 3. Database
+
+```bash
+npm run db:generate    # generate Prisma client
+npm run db:migrate     # apply migrations
+npm run db:seed        # seed demo data (schools, courses, students, nav nodes)
+```
+
+### 4. Run
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Default superadmin after seed: `admin@yabatech-examportal.com` / `Admin@2025`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## Commands
 
-To learn more about Next.js, take a look at the following resources:
+| Command | Description |
+|---|---|
+| `npm run dev` | Start dev server |
+| `npm run build` | Production build |
+| `npm run lint` | ESLint |
+| `npx tsc --noEmit` | Type check |
+| `npm run db:generate` | Regenerate Prisma client |
+| `npm run db:migrate` | Run pending migrations |
+| `npm run db:seed` | Seed demo data |
+| `npm run db:studio` | Open Prisma Studio |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Project Structure
 
-## Deploy on Vercel
+```
+app/
+  (auth)/         Login, register, course selection
+  (admin)/        Admin portal — CRUD, timetable generation
+  (student)/      Student portal — dashboard, navigation, profile
+  api/            Next.js API routes (REST)
+components/
+  ui/             shadcn/ui components
+  map/            Leaflet map (dynamic import, SSR disabled)
+lib/
+  services/       DSatur, Dijkstra, hall assigner, graph builder
+  supabase/       Browser, server, and admin Supabase clients
+prisma/
+  schema.prisma   Full DB schema (15 models)
+  seed.ts         Demo data
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Algorithms
+
+**DSatur (timetable generation)**  
+Colours an exam conflict graph — courses sharing enrolled students get different time slots. Tie-breaks by saturation → degree → course ID for deterministic output.
+
+**Dijkstra (hall navigation)**  
+In-memory bidirectional campus graph built from `navigation_nodes` + `navigation_paths`. Cached at module level. The student's live GPS position is snapped to the nearest node to pick the route start automatically.
+
+---
+
+## Deployment
+
+Deployed on Vercel. Each push to `main` triggers an automatic redeploy.
+
+To deploy your own instance:
+
+```bash
+npm i -g vercel
+vercel link
+vercel env add   # add all six env vars
+vercel --prod
+```

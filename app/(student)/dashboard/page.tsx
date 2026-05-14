@@ -66,6 +66,14 @@ function isExamDone(dateStr: string): boolean {
   return examDate < today;
 }
 
+function daysUntil(dateStr: string): number {
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  const examDate = new Date(dateStr);
+  examDate.setUTCHours(0, 0, 0, 0);
+  return Math.round((examDate.getTime() - today.getTime()) / 86_400_000);
+}
+
 function SkeletonCard() {
   return (
     <div className="rounded-xl border border-border bg-card p-5 space-y-3">
@@ -90,12 +98,26 @@ function EmptyState() {
 
 function NextExamCard({ entry }: { entry: TimetableEntry }) {
   const assignment = entry.studentAssignments[0];
+  const days = daysUntil(entry.timeSlot.date);
+  const countdownLabel =
+    days === 0 ? "Today" : days === 1 ? "Tomorrow" : days <= 7 ? `In ${days} days` : null;
+
   return (
-    <div className="rounded-xl border border-border bg-card p-5 space-y-4 ring-1 ring-border">
+    <div className="rounded-xl border border-border bg-card overflow-hidden ring-1 ring-border">
+      {/* Brand accent stripe */}
+      <div className="h-1 w-full bg-brand" />
+      <div className="p-5 space-y-4">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground">
-          Up Next
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground">
+            Up Next
+          </span>
+          {countdownLabel && (
+            <span className="text-[10px] font-mono font-medium text-brand bg-brand/10 px-1.5 py-0.5 rounded-full">
+              {countdownLabel}
+            </span>
+          )}
+        </div>
         {assignment?.seatNumber != null && (
           <Badge className="font-mono text-xs">
             Seat {assignment.seatNumber}
@@ -139,6 +161,7 @@ function NextExamCard({ entry }: { entry: TimetableEntry }) {
           Hall not assigned — check back later
         </div>
       )}
+      </div>
     </div>
   );
 }
@@ -277,6 +300,19 @@ export default function DashboardPage() {
         <EmptyState />
       ) : (
         <div className="space-y-6">
+          {/* Progress chip */}
+          {entries.length > 0 && (
+            <div className="flex items-center gap-2 text-xs">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-brand/10 text-brand font-medium px-3 py-1">
+                <CheckCircle2 className="size-3" />
+                {past.length} of {sorted.length} completed
+              </span>
+              {upcoming.length > 0 && (
+                <span className="text-muted-foreground">{upcoming.length} remaining</span>
+              )}
+            </div>
+          )}
+
           {/* Next exam */}
           {nextExam && <NextExamCard entry={nextExam} />}
 
@@ -313,7 +349,7 @@ export default function DashboardPage() {
           {/* All done state */}
           {upcoming.length === 0 && past.length > 0 && (
             <div className="flex flex-col items-center gap-2 py-8 text-center">
-              <CheckCircle2 className="size-10 text-emerald-500" />
+              <CheckCircle2 className="size-10 text-brand" />
               <p className="font-medium text-foreground">All exams completed!</p>
               <p className="text-sm text-muted-foreground">Great work this semester.</p>
             </div>

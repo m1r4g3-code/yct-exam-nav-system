@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, Polyline, CircleMarker, useMap } from "react-leaflet";
 
 // Fix Leaflet marker icons broken by webpack
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
@@ -13,16 +13,16 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
 
-// Custom pin icon for the destination hall
+// Custom pin icon for the destination hall — Yabatech brand green
 const destinationIcon = L.divIcon({
   className: "",
   html: `<div style="
     width: 36px; height: 36px;
-    background: #6366f1;
+    background: #006633;
     border: 3px solid white;
     border-radius: 50% 50% 50% 0;
     transform: rotate(-45deg);
-    box-shadow: 0 4px 12px rgba(99,102,241,0.5);
+    box-shadow: 0 4px 12px rgba(0,102,51,0.5);
   "></div>`,
   iconSize: [36, 36],
   iconAnchor: [18, 36],
@@ -47,9 +47,10 @@ export interface MapViewProps {
   halls: Array<{ id: string; name: string; lat: number; lng: number }>;
   polyline?: number[][];
   destinationHallId?: string;
+  userLocation?: [number, number];
 }
 
-export function MapView({ center, zoom = 17, halls, polyline, destinationHallId }: MapViewProps) {
+export function MapView({ center, zoom = 17, halls, polyline, destinationHallId, userLocation }: MapViewProps) {
   const typedPolyline = polyline as [number, number][] | undefined;
 
   return (
@@ -71,11 +72,20 @@ export function MapView({ center, zoom = 17, halls, polyline, destinationHallId 
           </Popup>
         </Marker>
       ))}
+      {userLocation && (
+        <CircleMarker
+          center={userLocation}
+          radius={10}
+          pathOptions={{ color: "#1d4ed8", fillColor: "#3b82f6", fillOpacity: 0.9, weight: 3 }}
+        >
+          <Popup>You are here</Popup>
+        </CircleMarker>
+      )}
       {typedPolyline && typedPolyline.length > 0 && (
         <>
           <Polyline
             positions={typedPolyline}
-            pathOptions={{ color: "#6366f1", weight: 5, lineCap: "round", lineJoin: "round" }}
+            pathOptions={{ color: "#006633", weight: 5, lineCap: "round", lineJoin: "round" }}
           />
           <MapBoundsFitter polyline={typedPolyline} />
         </>

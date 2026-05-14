@@ -1,18 +1,11 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { QUERY_KEYS } from "@/lib/query-keys";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { DynamicMap } from "@/components/map/DynamicMap";
-import { ArrowLeft, MapPinOff, Navigation, Footprints } from "lucide-react";
+import { ArrowLeft, MapPinOff, Navigation, Footprints, LocateFixed } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface NavHall {
@@ -39,7 +32,21 @@ interface PathResult {
   totalDistance: number;
 }
 
-// ─── Full-screen map layout — sits behind the student shell's fixed header/tab bar ───
+type LocationState = "detecting" | "detected" | "error" | "unavailable";
+
+function findNearestNode(lat: number, lng: number, nodes: NavNode[], excludeId: string | null): NavNode | null {
+  let nearest: NavNode | null = null;
+  let minDist = Infinity;
+  for (const node of nodes) {
+    if (node.id === excludeId) continue;
+    const dist = Math.hypot(node.latitude - lat, node.longitude - lng);
+    if (dist < minDist) {
+      minDist = dist;
+      nearest = node;
+    }
+  }
+  return nearest;
+}
 
 export default function NavigatePage({
   params,
@@ -47,7 +54,13 @@ export default function NavigatePage({
   params: Promise<{ hallId: string }>;
 }) {
   const { hallId } = use(params);
-  const [selectedNodeId, setSelectedNodeId] = useState<string>("");
+
+  // geoUnavailable is derived once at init — avoids setState in effect body
+  const [geoUnavailable] = useState(() =>
+    typeof navigator !== "undefined" && !navigator.geolocation
+  );
+  const [geoError, setGeoError] = useState(false);
+  const [userPosition, setUserPosition] = useState<[number, number] | null>(null);
 
   const { data: halls = [], isLoading: hallsLoading } = useQuery<NavHall[]>({
     queryKey: QUERY_KEYS.NAV_HALLS,
@@ -74,26 +87,49 @@ export default function NavigatePage({
     nodes.find((n) => n.examHallId === hallId)?.id ??
     null;
 
+  // Start watching device location
+  useEffect(() => {
+    if (geoUnavailable) return;
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => setUserPosition([pos.coords.latitude, pos.coords.longitude]),
+      () => setGeoError(true),
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 5000 }
+    );
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [geoUnavailable]);
+
+  // Derive nearest start node from live position + loaded nodes
+  const nearestNode = useMemo(() => {
+    if (!userPosition || nodes.length === 0) return null;
+    return findNearestNode(userPosition[0], userPosition[1], nodes, hallNodeId);
+  }, [userPosition, nodes, hallNodeId]);
+
+  // Derive display state — no setState needed
+  const locationState: LocationState = geoUnavailable
+    ? "unavailable"
+    : geoError
+    ? "error"
+    : nearestNode
+    ? "detected"
+    : "detecting";
+
   const { data: pathResult, isLoading: pathLoading } = useQuery<PathResult>({
-    queryKey: QUERY_KEYS.NAV_PATH(selectedNodeId, hallNodeId ?? ""),
+    queryKey: QUERY_KEYS.NAV_PATH(nearestNode?.id ?? "", hallNodeId ?? ""),
     queryFn: async () => {
       const res = await fetch(
-        `/api/navigation/path?from=${encodeURIComponent(selectedNodeId)}&to=${encodeURIComponent(hallNodeId!)}`
+        `/api/navigation/path?from=${encodeURIComponent(nearestNode!.id)}&to=${encodeURIComponent(hallNodeId!)}`
       );
       const json = await res.json();
       return json.data;
     },
-    enabled: !!selectedNodeId && !!hallNodeId,
+    enabled: !!nearestNode?.id && !!hallNodeId,
   });
 
   const isLoading = hallsLoading || nodesLoading;
-  const startNodes = nodes.filter((n) => n.id !== hallNodeId);
 
-  const mapCenter: [number, number] = targetHall
+  const mapCenter: [number, number] = userPosition ?? (targetHall
     ? [targetHall.latitude, targetHall.longitude]
-    : nodes[0]
-    ? [nodes[0].latitude, nodes[0].longitude]
-    : [6.516, 3.39];
+    : [6.516, 3.39]);
 
   const hallMarkers = targetHall
     ? [{ id: targetHall.id, name: targetHall.name, lat: targetHall.latitude, lng: targetHall.longitude }]
@@ -104,7 +140,7 @@ export default function NavigatePage({
     return (
       <div className="fixed inset-0 z-[40] bg-card flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="size-12 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin" />
+          <div className="size-12 rounded-full border-2 border-brand border-t-transparent animate-spin" />
           <p className="text-sm text-muted-foreground">Loading map…</p>
         </div>
       </div>
@@ -153,11 +189,11 @@ export default function NavigatePage({
           halls={hallMarkers}
           polyline={pathResult?.polylines}
           destinationHallId={hallId}
+          userLocation={userPosition ?? undefined}
         />
       </div>
 
       {/* Top overlay — back + destination info */}
-      {/* Mobile: below status bar; Desktop: below the 64px header */}
       <div className="fixed top-4 md:top-20 left-4 right-4 z-[60] flex items-start gap-2 pointer-events-none">
         <Button
           render={<Link href="/navigate" />}
@@ -170,54 +206,44 @@ export default function NavigatePage({
         </Button>
 
         <div className="pointer-events-auto flex-1 bg-card/90 backdrop-blur-md border border-border/60 rounded-xl px-4 py-2.5 shadow-lg">
-          <p className="text-[10px] uppercase tracking-widest text-indigo-400 font-medium">Destination</p>
+          <p className="text-[10px] uppercase tracking-widest text-brand font-medium">Destination</p>
           <p className="text-sm font-semibold text-foreground leading-snug">{targetHall.name}</p>
           <p className="text-xs text-muted-foreground font-mono">{targetHall.code}</p>
         </div>
       </div>
 
-      {/* Bottom sheet — starting point + route info */}
-      {/* Mobile: sits above the tab bar (bottom-[4.5rem] ≈ 72px); Desktop: at viewport bottom */}
+      {/* Bottom sheet — location status + route info */}
       <div className="fixed bottom-[4.5rem] md:bottom-0 left-0 right-0 z-[60]">
-        {/* Gradient fade from transparent to sheet background */}
-        <div className="pointer-events-none h-12 bg-gradient-to-t from-card/80 to-transparent" />
-
         <div className="bg-card/95 backdrop-blur-md border-t border-border/80 rounded-t-2xl md:rounded-none px-4 pt-3 pb-4 shadow-2xl">
           {/* Drag handle (mobile) */}
           <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-border md:hidden" />
 
-          {/* Starting point selector */}
-          <div className="space-y-1.5 mb-4">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Starting from</p>
-            <Select
-              value={selectedNodeId}
-              onValueChange={(v) => v != null && setSelectedNodeId(v)}
-            >
-              <SelectTrigger className="w-full h-11 rounded-xl">
-                <SelectValue placeholder="Choose your starting location…" />
-              </SelectTrigger>
-              <SelectContent side="top" sideOffset={8} className="max-h-52">
-                {startNodes.map((node) => (
-                  <SelectItem key={node.id} value={node.id}>
-                    {node.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          {/* Live location status */}
+          <div className="flex items-center gap-2 mb-3">
+            <LocateFixed className={`size-4 shrink-0 ${locationState === "detected" ? "text-brand" : "text-muted-foreground"}`} />
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              {locationState === "detecting" && "Detecting your location…"}
+              {locationState === "detected" && `Near: ${nearestNode?.label ?? "Unknown"}`}
+              {locationState === "error" && "Location access denied"}
+              {locationState === "unavailable" && "GPS not available on this device"}
+            </p>
+            {locationState === "detecting" && (
+              <div className="size-3 rounded-full border border-muted-foreground border-t-transparent animate-spin ml-auto" />
+            )}
           </div>
 
           {/* Route info */}
-          {selectedNodeId && pathLoading && (
+          {locationState === "detected" && nearestNode && pathLoading && (
             <div className="flex items-center gap-2.5 rounded-xl bg-muted/40 px-4 py-3">
-              <Navigation className="size-5 text-indigo-400 animate-pulse shrink-0" />
+              <Navigation className="size-5 text-brand animate-pulse shrink-0" />
               <p className="text-sm text-muted-foreground">Calculating route…</p>
             </div>
           )}
 
-          {pathResult && !pathLoading && (
-            <div className="flex items-center gap-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 px-4 py-3">
-              <div className="size-9 rounded-full bg-indigo-500/20 flex items-center justify-center shrink-0">
-                <Footprints className="size-4 text-indigo-400" />
+          {locationState === "detected" && pathResult && !pathLoading && (
+            <div className="flex items-center gap-3 rounded-xl bg-brand/10 border border-brand/20 px-4 py-3">
+              <div className="size-9 rounded-full bg-brand/20 flex items-center justify-center shrink-0">
+                <Footprints className="size-4 text-brand" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-foreground">{pathResult.totalDistance}m</p>
@@ -229,17 +255,21 @@ export default function NavigatePage({
             </div>
           )}
 
-          {selectedNodeId && !pathLoading && !pathResult && (
+          {locationState === "detected" && nearestNode && !pathLoading && !pathResult && (
             <div className="flex items-center gap-2.5 rounded-xl bg-muted/40 px-4 py-3">
               <MapPinOff className="size-5 text-muted-foreground shrink-0" />
-              <p className="text-sm text-muted-foreground">No route found between these points.</p>
+              <p className="text-sm text-muted-foreground">No route found from your location.</p>
             </div>
           )}
 
-          {!selectedNodeId && (
-            <div className="flex items-center gap-2.5 rounded-xl bg-muted/40 px-4 py-3">
-              <Navigation className="size-5 text-muted-foreground/70 shrink-0" />
-              <p className="text-sm text-muted-foreground">Select a starting point to calculate your route.</p>
+          {(locationState === "error" || locationState === "unavailable") && (
+            <div className="flex items-center gap-2.5 rounded-xl bg-destructive/10 border border-destructive/20 px-4 py-3">
+              <MapPinOff className="size-5 text-destructive shrink-0" />
+              <p className="text-sm text-muted-foreground">
+                {locationState === "error"
+                  ? "Allow location access in your browser settings to get directions."
+                  : "GPS is not supported on this device."}
+              </p>
             </div>
           )}
         </div>

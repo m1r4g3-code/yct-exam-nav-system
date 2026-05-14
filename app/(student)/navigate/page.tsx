@@ -108,10 +108,10 @@ export default function NavigateIndexPage() {
                 {/* Pin overlay */}
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="flex flex-col items-center gap-0.5">
-                    <div className="bg-white/90 text-zinc-900 font-bold text-xs px-2 py-0.5 rounded-full shadow-md">
+                    <div className="bg-card/95 text-foreground font-bold text-xs px-2 py-0.5 rounded-full shadow-md border border-border/60">
                       {hall.code}
                     </div>
-                    <MapPin className="size-7 text-red-500 drop-shadow-md fill-red-400" />
+                    <MapPin className="size-7 text-brand drop-shadow-md fill-brand/50" />
                   </div>
                 </div>
               </div>

@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Figtree } from "next/font/google";
+import { Geist_Mono, Figtree, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { cn } from "@/lib/utils";
+
+const jetbrainsMonoHeading = JetBrains_Mono({subsets:['latin'],variable:'--font-heading'});
 
 const figtree = Figtree({subsets:['latin'],variable:'--font-sans'});
 
@@ -25,7 +27,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={cn(geistMono.variable, "font-sans", figtree.variable)}
+      className={cn(geistMono.variable, "font-sans", figtree.variable, jetbrainsMonoHeading.variable)}
       suppressHydrationWarning
     >
       <body className="min-h-screen bg-background text-foreground antialiased">

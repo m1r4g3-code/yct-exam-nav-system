@@ -37,9 +37,11 @@ export function StudentShell({ user, children }: StudentShellProps) {
     <div className="min-h-screen bg-background text-foreground">
       {/* Desktop top navbar */}
       <header className="hidden md:flex fixed top-0 left-0 right-0 z-50 h-16 items-center justify-between border-b border-border bg-card px-6">
-        <span className="text-sm font-semibold tracking-wide text-foreground">
-          YCT Exam Portal
-        </span>
+        <div className="flex items-center gap-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/yabatech-crest.png" alt="Yabatech crest" className="size-8 object-contain select-none" />
+          <span className="text-sm font-semibold tracking-wide text-foreground">Exam Portal</span>
+        </div>
         <nav className="flex items-center gap-1">
           {NAV_ITEMS.map(({ label, href, icon: Icon }) => {
             const active =
@@ -53,7 +55,7 @@ export function StudentShell({ user, children }: StudentShellProps) {
                 className={cn(
                   "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm transition-colors",
                   active
-                    ? "bg-muted text-foreground"
+                    ? "bg-brand/10 text-brand"
                     : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
                 )}
               >
@@ -88,8 +90,8 @@ export function StudentShell({ user, children }: StudentShellProps) {
               href={href}
               className="flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-xs transition-colors"
             >
-              <Icon className={cn("size-5", active ? "text-foreground" : "text-muted-foreground")} />
-              <span className={active ? "text-foreground" : "text-muted-foreground"}>{label}</span>
+              <Icon className={cn("size-5", active ? "text-brand" : "text-muted-foreground")} />
+              <span className={active ? "text-brand font-medium" : "text-muted-foreground"}>{label}</span>
             </Link>
           )
         })}

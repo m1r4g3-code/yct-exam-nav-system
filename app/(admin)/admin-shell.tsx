@@ -65,11 +65,14 @@ export function AdminShell({ user, children }: AdminShellProps) {
       <Sidebar collapsible="icon">
         <SidebarHeader className="px-3 py-4">
           <div className="flex items-center gap-2 overflow-hidden">
-            <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-foreground text-background">
-              <GraduationCap className="size-4" />
-            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/yabatech-crest.png"
+              alt="Yabatech crest"
+              className="size-7 object-contain select-none shrink-0"
+            />
             <span className="truncate text-sm font-semibold text-sidebar-foreground group-data-[collapsible=icon]:hidden">
-              YCT Exam Portal
+              Exam Portal
             </span>
           </div>
         </SidebarHeader>

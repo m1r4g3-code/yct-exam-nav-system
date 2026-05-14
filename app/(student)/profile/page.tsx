@@ -106,19 +106,19 @@ export default function ProfilePage() {
     <div className="min-h-screen bg-background px-4 py-6 md:px-8 md:py-8">
       <h1 className="text-xl font-semibold text-foreground mb-6">Profile</h1>
 
-      <div className="mx-auto max-w-lg rounded-xl border border-border bg-card p-6">
+      <div className="mx-auto max-w-lg rounded-xl border border-border bg-card overflow-hidden">
         {isLoading ? (
-          <ProfileSkeleton />
+          <div className="p-6"><ProfileSkeleton /></div>
         ) : !profile ? (
-          <p className="text-center text-sm text-muted-foreground py-12">
+          <p className="text-center text-sm text-muted-foreground py-12 px-6">
             Could not load profile. Try refreshing.
           </p>
         ) : (
           <>
-            {/* Avatar + name */}
-            <div className="flex flex-col items-center gap-3 pt-2 pb-6">
+            {/* Brand gradient header */}
+            <div className="bg-gradient-to-br from-brand/15 to-brand/5 px-6 pt-8 pb-6 flex flex-col items-center gap-3 border-b border-border">
               <div className="relative group">
-                <div className="flex size-20 items-center justify-center rounded-full bg-muted select-none text-4xl">
+                <div className="flex size-20 items-center justify-center rounded-full bg-background/80 border-2 border-brand/30 select-none text-4xl shadow-sm">
                   {selectedAvatar || (
                     <span className="text-2xl font-semibold text-foreground/80">
                       {getInitials(profile.fullName)}
@@ -135,7 +135,7 @@ export default function ProfilePage() {
               </div>
               <button
                 onClick={() => setPickerOpen(true)}
-                className="text-xs text-muted-foreground hover:text-foreground/80 transition-colors"
+                className="text-[10px] text-brand/70 hover:text-brand transition-colors uppercase tracking-wide"
               >
                 Change avatar
               </button>
@@ -147,35 +147,39 @@ export default function ProfilePage() {
                   {profile.matricNumber}
                 </p>
               </div>
+              {/* Programme chip */}
+              <span className="inline-flex items-center gap-1 rounded-full bg-brand/10 text-brand text-xs font-medium px-3 py-1">
+                {profile.programme.code} · {profile.level.name}
+              </span>
             </div>
 
-            <Separator className="mb-1" />
+            <div className="p-6">
+              {/* Info rows */}
+              <div className="divide-y divide-border/60">
+                <InfoRow label="Email" value={profile.email} />
+                <InfoRow
+                  label="Programme"
+                  value={`${profile.programme.name} (${profile.programme.code})`}
+                />
+                <InfoRow label="Level" value={profile.level.name} />
+                <InfoRow
+                  label="Department"
+                  value={`${profile.department.name} (${profile.department.code})`}
+                />
+              </div>
 
-            {/* Info rows */}
-            <div className="divide-y divide-border/60">
-              <InfoRow label="Email" value={profile.email} />
-              <InfoRow
-                label="Programme"
-                value={`${profile.programme.name} (${profile.programme.code})`}
-              />
-              <InfoRow label="Level" value={profile.level.name} />
-              <InfoRow
-                label="Department"
-                value={`${profile.department.name} (${profile.department.code})`}
-              />
+              <Separator className="mt-1 mb-5" />
+
+              {/* Logout */}
+              <Button
+                variant="destructive"
+                className="w-full"
+                onClick={logout}
+              >
+                <LogOut className="size-4 mr-2" />
+                Sign out
+              </Button>
             </div>
-
-            <Separator className="mt-1 mb-5" />
-
-            {/* Logout */}
-            <Button
-              variant="destructive"
-              className="w-full"
-              onClick={logout}
-            >
-              <LogOut className="size-4 mr-2" />
-              Sign out
-            </Button>
           </>
         )}
       </div>
@@ -193,7 +197,7 @@ export default function ProfilePage() {
                 onClick={() => handleAvatarSelect(emoji)}
                 className={`flex items-center justify-center size-12 rounded-xl text-2xl transition-colors hover:bg-muted ${
                   selectedAvatar === emoji
-                    ? "bg-muted ring-2 ring-indigo-500"
+                    ? "bg-muted ring-2 ring-brand"
                     : "bg-muted/50"
                 }`}
                 aria-label={`Select avatar ${emoji}`}

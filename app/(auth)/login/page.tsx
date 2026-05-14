@@ -67,12 +67,23 @@ export default function LoginPage() {
 
   return (
     <div className="bg-card border border-border rounded-xl p-8 w-full max-w-md shadow-sm">
-      <div className="mb-6 flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">YCT Exam Portal</h1>
-          <p className="text-sm text-muted-foreground mt-1">Sign in to your account</p>
+      <div className="mb-6 relative">
+        <div className="absolute top-0 right-0">
+          <ThemeToggle />
         </div>
-        <ThemeToggle />
+        <div className="flex flex-col items-center gap-3 pt-1">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/yabatech-crest.png"
+            alt="Yabatech crest"
+            className="size-20 object-contain select-none drop-shadow-sm"
+          />
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-foreground leading-tight">Exam Portal</h1>
+            <p className="text-xs text-muted-foreground mt-0.5">Yaba College of Technology</p>
+          </div>
+          <p className="text-sm text-muted-foreground">Sign in to your account</p>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
