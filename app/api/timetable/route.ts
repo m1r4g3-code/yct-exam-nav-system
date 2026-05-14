@@ -10,17 +10,30 @@ export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const session = searchParams.get("session");
   const levelId = searchParams.get("level_id") ?? undefined;
+  const departmentId = searchParams.get("department_id") ?? undefined;
 
   if (!session) return badRequest("session query parameter is required");
 
   const entries = await prisma.timetableEntry.findMany({
     where: {
       session,
-      ...(levelId && { course: { levelId } }),
+      ...(levelId
+        ? { course: { levelId } }
+        : departmentId
+        ? { course: { level: { programme: { departmentId } } } }
+        : {}),
     },
     include: {
       course: {
-        include: { level: { select: { id: true, name: true, year: true } } },
+        include: {
+          level: {
+            include: {
+              programme: {
+                include: { department: { select: { id: true, name: true } } },
+              },
+            },
+          },
+        },
       },
       timeSlot: true,
       hallAssignments: {

@@ -177,21 +177,21 @@ export default function LevelsPage() {
       accessorKey: "name",
       header: "Name",
       cell: ({ row }) => (
-        <span className="font-medium text-zinc-50">{row.original.name}</span>
+        <span className="font-medium text-foreground">{row.original.name}</span>
       ),
     },
     {
       accessorKey: "year",
       header: "Year",
       cell: ({ row }) => (
-        <span className="text-zinc-400">{row.original.year}</span>
+        <span className="text-muted-foreground">{row.original.year}</span>
       ),
     },
     {
       id: "programme",
       header: "Programme",
       cell: ({ row }) => (
-        <span className="text-zinc-400">
+        <span className="text-muted-foreground">
           {row.original.programme?.name ?? getProgName(row.original.programmeId)}
         </span>
       ),
@@ -202,19 +202,19 @@ export default function LevelsPage() {
       cell: ({ row }) => (
         <div className="flex justify-end">
           <DropdownMenu>
-            <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" className="text-zinc-400 hover:text-zinc-50" />}>
+            <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-foreground" />}>
                 <MoreHorizontal className="size-4" />
                 <span className="sr-only">Open menu</span>
               </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800">
+            <DropdownMenuContent align="end">
               <DropdownMenuItem
-                className="text-zinc-300 focus:bg-zinc-800 focus:text-zinc-50"
+                className="text-foreground/70 focus:bg-muted focus:text-foreground"
                 onClick={() => openEdit(row.original)}
               >
                 Edit
               </DropdownMenuItem>
               <DropdownMenuItem
-                className="text-red-400 focus:bg-zinc-800 focus:text-red-400"
+                className="text-destructive focus:bg-muted focus:text-destructive"
                 onClick={() => setDeleteTarget(row.original)}
               >
                 Delete
@@ -269,25 +269,25 @@ export default function LevelsPage() {
               renderCard={(level) => (
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="font-medium text-zinc-50">{level.name}</p>
-                    <p className="text-sm text-zinc-400">Year {level.year}</p>
-                    <p className="text-xs text-zinc-500 mt-1">
+                    <p className="font-medium text-foreground">{level.name}</p>
+                    <p className="text-sm text-muted-foreground">Year {level.year}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
                       {level.programme?.name ?? getProgName(level.programmeId)}
                     </p>
                   </div>
                   <DropdownMenu>
-                    <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" className="text-zinc-400" />}>
+                    <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" className="text-muted-foreground" />}>
                     <MoreHorizontal className="size-4" />
                   </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800">
+                    <DropdownMenuContent align="end">
                       <DropdownMenuItem
-                        className="text-zinc-300 focus:bg-zinc-800"
+                        className="text-foreground/70 focus:bg-muted"
                         onClick={() => openEdit(level)}
                       >
                         Edit
                       </DropdownMenuItem>
                       <DropdownMenuItem
-                        className="text-red-400 focus:bg-zinc-800"
+                        className="text-destructive focus:bg-muted"
                         onClick={() => setDeleteTarget(level)}
                       >
                         Delete
@@ -302,15 +302,15 @@ export default function LevelsPage() {
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="bg-zinc-900 border-zinc-800">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-zinc-50">
+            <DialogTitle>
               {editTarget ? "Edit Level" : "Add Level"}
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-1.5">
-              <Label className="text-zinc-300">Programme</Label>
+              <Label className="text-foreground/70">Programme</Label>
               <Select
                 value={form.watch("programmeId")}
                 onValueChange={(v) => v != null && form.setValue("programmeId", v, { shouldValidate: true })}
@@ -327,23 +327,23 @@ export default function LevelsPage() {
                 </SelectContent>
               </Select>
               {form.formState.errors.programmeId && (
-                <p className="text-sm text-red-400">{form.formState.errors.programmeId.message}</p>
+                <p className="text-sm text-destructive">{form.formState.errors.programmeId.message}</p>
               )}
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-zinc-300">Name</Label>
+              <Label className="text-foreground/70">Name</Label>
               <Input placeholder="e.g. 100 Level" {...form.register("name")} />
               {form.formState.errors.name && (
-                <p className="text-sm text-red-400">{form.formState.errors.name.message}</p>
+                <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>
               )}
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-zinc-300">Year (1–4)</Label>
+              <Label className="text-foreground/70">Year (1–4)</Label>
               <Input type="number" min={1} max={4} {...form.register("year", { valueAsNumber: true })} />
               {form.formState.errors.year && (
-                <p className="text-sm text-red-400">{form.formState.errors.year.message}</p>
+                <p className="text-sm text-destructive">{form.formState.errors.year.message}</p>
               )}
             </div>
 

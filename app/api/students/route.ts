@@ -9,10 +9,17 @@ export async function GET(request: NextRequest) {
 
   const departmentId = request.nextUrl.searchParams.get("department_id") ?? undefined;
   const levelId = request.nextUrl.searchParams.get("level_id") ?? undefined;
+  const search = request.nextUrl.searchParams.get("search") ?? undefined;
   const page = parseInt(request.nextUrl.searchParams.get("page") ?? "1", 10);
   const limit = 50;
 
   const where = {
+    ...(search && {
+      OR: [
+        { fullName: { contains: search, mode: "insensitive" as const } },
+        { matricNumber: { contains: search, mode: "insensitive" as const } },
+      ],
+    }),
     ...(departmentId && { departmentId }),
     ...(levelId && { levelId }),
   };

@@ -50,33 +50,33 @@ export default function StudentDetailPage() {
         <Button
           variant="ghost"
           size="icon-sm"
-          className="text-zinc-400 hover:text-zinc-50"
+          className="text-muted-foreground hover:text-foreground"
           onClick={() => router.back()}
         >
           <ArrowLeft className="size-4" />
         </Button>
         <div>
-          <h1 className="text-xl font-semibold text-zinc-50">Student Profile</h1>
-          <p className="text-sm text-zinc-400 mt-0.5">Enrollment details</p>
+          <h1 className="text-xl font-semibold text-foreground">Student Profile</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Enrollment details</p>
         </div>
       </div>
 
       {/* Profile card */}
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5 space-y-4">
+      <div className="rounded-xl border border-border bg-card p-5 space-y-4">
         <div className="flex items-center gap-3">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-zinc-800">
-            <User className="size-5 text-zinc-400" />
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted">
+            <User className="size-5 text-muted-foreground" />
           </div>
           <div>
             {isLoading ? (
               <>
-                <Skeleton className="h-5 w-40 bg-zinc-800" />
-                <Skeleton className="h-4 w-32 bg-zinc-800 mt-1" />
+                <Skeleton className="h-5 w-40" />
+                <Skeleton className="h-4 w-32 mt-1" />
               </>
             ) : (
               <>
-                <p className="font-semibold text-zinc-50">{student?.fullName}</p>
-                <p className="font-mono text-sm text-zinc-400">{student?.matricNumber}</p>
+                <p className="font-semibold text-foreground">{student?.fullName}</p>
+                <p className="font-mono text-sm text-muted-foreground">{student?.matricNumber}</p>
               </>
             )}
           </div>
@@ -90,11 +90,11 @@ export default function StudentDetailPage() {
             { label: "Level", value: student?.level?.name },
           ].map(({ label, value }) => (
             <div key={label}>
-              <p className="text-zinc-500 text-xs">{label}</p>
+              <p className="text-muted-foreground text-xs">{label}</p>
               {isLoading ? (
-                <Skeleton className="h-4 w-24 bg-zinc-800 mt-0.5" />
+                <Skeleton className="h-4 w-24 mt-0.5" />
               ) : (
-                <p className="text-zinc-200 mt-0.5">{value ?? "—"}</p>
+                <p className="text-foreground/70 mt-0.5">{value ?? "—"}</p>
               )}
             </div>
           ))}
@@ -104,44 +104,44 @@ export default function StudentDetailPage() {
       {/* Enrollments */}
       <div>
         <div className="flex items-center gap-2 mb-3">
-          <BookOpen className="size-4 text-zinc-400" />
-          <h2 className="text-sm font-medium text-zinc-300">Enrollments</h2>
+          <BookOpen className="size-4 text-muted-foreground" />
+          <h2 className="text-sm font-medium text-foreground/70">Enrollments</h2>
         </div>
 
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden">
+        <div className="rounded-xl border border-border bg-card overflow-hidden">
           <Table>
             <TableHeader>
-              <TableRow className="border-zinc-800 hover:bg-transparent">
-                <TableHead className="text-zinc-400">Course Code</TableHead>
-                <TableHead className="text-zinc-400">Course Title</TableHead>
-                <TableHead className="text-zinc-400">Session</TableHead>
+              <TableRow className="border-border hover:bg-transparent">
+                <TableHead className="text-muted-foreground">Course Code</TableHead>
+                <TableHead className="text-muted-foreground">Course Title</TableHead>
+                <TableHead className="text-muted-foreground">Session</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 Array.from({ length: 4 }).map((_, i) => (
-                  <TableRow key={i} className="border-zinc-800">
+                  <TableRow key={i} className="border-border">
                     {Array.from({ length: 3 }).map((__, j) => (
                       <TableCell key={j}>
-                        <Skeleton className="h-4 w-full bg-zinc-800" />
+                        <Skeleton className="h-4 w-full" />
                       </TableCell>
                     ))}
                   </TableRow>
                 ))
               ) : student?.enrollments?.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={3} className="py-8 text-center text-zinc-500 text-sm">
+                  <TableCell colSpan={3} className="py-8 text-center text-muted-foreground text-sm">
                     No enrollments yet
                   </TableCell>
                 </TableRow>
               ) : (
                 student?.enrollments?.map((enrollment) => (
-                  <TableRow key={enrollment.id} className="border-zinc-800 hover:bg-zinc-800/40">
-                    <TableCell className="font-mono text-zinc-50 font-medium">
+                  <TableRow key={enrollment.id} className="border-border hover:bg-muted/40">
+                    <TableCell className="font-mono text-foreground font-medium">
                       {enrollment.course.code}
                     </TableCell>
-                    <TableCell className="text-zinc-300">{enrollment.course.title}</TableCell>
-                    <TableCell className="text-zinc-400">{enrollment.session}</TableCell>
+                    <TableCell className="text-foreground/70">{enrollment.course.title}</TableCell>
+                    <TableCell className="text-muted-foreground">{enrollment.session}</TableCell>
                   </TableRow>
                 ))
               )}

@@ -12,6 +12,7 @@ import {
   Users,
   LogOut,
 } from "lucide-react"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 import {
   Sidebar,
@@ -64,7 +65,7 @@ export function AdminShell({ user, children }: AdminShellProps) {
       <Sidebar collapsible="icon">
         <SidebarHeader className="px-3 py-4">
           <div className="flex items-center gap-2 overflow-hidden">
-            <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-zinc-50 text-zinc-950">
+            <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-foreground text-background">
               <GraduationCap className="size-4" />
             </div>
             <span className="truncate text-sm font-semibold text-sidebar-foreground group-data-[collapsible=icon]:hidden">
@@ -120,15 +121,18 @@ export function AdminShell({ user, children }: AdminShellProps) {
       </Sidebar>
 
       <SidebarInset>
-        <header className="flex h-12 shrink-0 items-center gap-2 border-b border-zinc-800 px-4">
-          <SidebarTrigger className="text-zinc-400 hover:text-zinc-50" />
-          <Separator orientation="vertical" className="mx-1 h-4 bg-zinc-800" />
-          <nav className="flex items-center text-sm text-zinc-400">
-            <span className="text-zinc-50 font-medium">{activePage}</span>
+        <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-4">
+          <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
+          <Separator orientation="vertical" className="mx-1 h-4 bg-border" />
+          <nav className="flex items-center text-sm text-muted-foreground">
+            <span className="text-foreground font-medium">{activePage}</span>
           </nav>
+          <div className="ml-auto">
+            <ThemeToggle className="text-muted-foreground hover:text-foreground" />
+          </div>
         </header>
 
-        <div className="flex-1 bg-zinc-950 p-6 md:p-8">
+        <div className="flex-1 bg-background p-6 md:p-8">
           {children}
         </div>
       </SidebarInset>

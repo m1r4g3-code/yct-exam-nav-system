@@ -22,7 +22,7 @@ export function MobileCardList<TData>({
         {Array.from({ length: skeletonCount }).map((_, index) => (
           <div
             key={index}
-            className="space-y-2 rounded-lg border border-zinc-800 bg-zinc-900 p-4"
+            className="space-y-2 rounded-lg border border-border bg-card p-4"
           >
             <Skeleton className="h-4 w-1/3" />
             <Skeleton className="h-4 w-2/3" />
@@ -37,7 +37,7 @@ export function MobileCardList<TData>({
       {items.map((item, index) => (
         <div
           key={index}
-          className="rounded-lg border border-zinc-800 bg-zinc-900 p-4"
+          className="rounded-lg border border-border bg-card p-4"
         >
           {renderCard(item, index)}
         </div>

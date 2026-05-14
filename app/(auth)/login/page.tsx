@@ -12,6 +12,7 @@ import { Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { ThemeToggle } from "@/components/theme-toggle"
 import { createClient } from "@/lib/supabase/client"
 
 const loginSchema = z.object({
@@ -65,17 +66,18 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-8 w-full max-w-md">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-zinc-50">YCT Exam Portal</h1>
-        <p className="text-sm text-zinc-400 mt-1">Sign in to your account</p>
+    <div className="bg-card border border-border rounded-xl p-8 w-full max-w-md shadow-sm">
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">YCT Exam Portal</h1>
+          <p className="text-sm text-muted-foreground mt-1">Sign in to your account</p>
+        </div>
+        <ThemeToggle />
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="space-y-1.5">
-          <Label htmlFor="email" className="text-zinc-300">
-            Email
-          </Label>
+          <Label htmlFor="email">Email</Label>
           <Input
             id="email"
             type="email"
@@ -85,14 +87,12 @@ export default function LoginPage() {
             {...register("email")}
           />
           {errors.email && (
-            <p className="text-sm text-red-400 mt-1">{errors.email.message}</p>
+            <p className="text-sm text-destructive mt-1">{errors.email.message}</p>
           )}
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="password" className="text-zinc-300">
-            Password
-          </Label>
+          <Label htmlFor="password">Password</Label>
           <Input
             id="password"
             type="password"
@@ -102,17 +102,11 @@ export default function LoginPage() {
             {...register("password")}
           />
           {errors.password && (
-            <p className="text-sm text-red-400 mt-1">
-              {errors.password.message}
-            </p>
+            <p className="text-sm text-destructive mt-1">{errors.password.message}</p>
           )}
         </div>
 
-        <Button
-          type="submit"
-          className="w-full mt-2"
-          disabled={isSubmitting}
-        >
+        <Button type="submit" className="w-full mt-2" disabled={isSubmitting}>
           {isSubmitting ? (
             <>
               <Loader2 className="size-4 animate-spin" />
@@ -124,11 +118,11 @@ export default function LoginPage() {
         </Button>
       </form>
 
-      <p className="text-sm text-zinc-400 mt-6 text-center">
+      <p className="text-sm text-muted-foreground mt-6 text-center">
         Don&apos;t have an account?{" "}
         <Link
           href="/register"
-          className="text-zinc-200 underline underline-offset-4 hover:text-zinc-50"
+          className="text-foreground/80 underline underline-offset-4 hover:text-foreground"
         >
           Register
         </Link>

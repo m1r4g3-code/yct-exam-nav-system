@@ -174,21 +174,21 @@ export default function HallsPage() {
       accessorKey: "name",
       header: "Name",
       cell: ({ row }) => (
-        <span className="font-medium text-zinc-50">{row.original.name}</span>
+        <span className="font-medium text-foreground">{row.original.name}</span>
       ),
     },
     {
       accessorKey: "code",
       header: "Code",
       cell: ({ row }) => (
-        <span className="font-mono text-sm text-zinc-400">{row.original.code}</span>
+        <span className="font-mono text-sm text-muted-foreground">{row.original.code}</span>
       ),
     },
     {
       accessorKey: "capacity",
       header: "Capacity",
       cell: ({ row }) => (
-        <span className="text-zinc-400">{row.original.capacity.toLocaleString()}</span>
+        <span className="text-muted-foreground">{row.original.capacity.toLocaleString()}</span>
       ),
     },
     {
@@ -198,7 +198,7 @@ export default function HallsPage() {
         row.original.isActive ? (
           <Badge className="border-emerald-500/30 bg-emerald-500/15 text-emerald-400">Active</Badge>
         ) : (
-          <Badge variant="outline" className="border-zinc-700 text-zinc-500">Inactive</Badge>
+          <Badge variant="outline" className="border-border text-muted-foreground">Inactive</Badge>
         ),
     },
     {
@@ -207,19 +207,19 @@ export default function HallsPage() {
       cell: ({ row }) => (
         <div className="flex justify-end">
           <DropdownMenu>
-            <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" className="text-zinc-400 hover:text-zinc-50" />}>
+            <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-foreground" />}>
                 <MoreHorizontal className="size-4" />
                 <span className="sr-only">Open menu</span>
               </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800">
+            <DropdownMenuContent align="end">
               <DropdownMenuItem
-                className="text-zinc-300 focus:bg-zinc-800 focus:text-zinc-50"
+                className="text-foreground/70 focus:bg-muted focus:text-foreground"
                 onClick={() => openEdit(row.original)}
               >
                 Edit
               </DropdownMenuItem>
               <DropdownMenuItem
-                className="text-red-400 focus:bg-zinc-800 focus:text-red-400"
+                className="text-destructive focus:bg-muted focus:text-destructive"
                 onClick={() => setDeleteTarget(row.original)}
               >
                 Delete
@@ -258,23 +258,23 @@ export default function HallsPage() {
               renderCard={(hall) => (
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="font-medium text-zinc-50">{hall.name}</p>
-                    <p className="text-sm text-zinc-400">{hall.code} · {hall.capacity.toLocaleString()} seats</p>
+                    <p className="font-medium text-foreground">{hall.name}</p>
+                    <p className="text-sm text-muted-foreground">{hall.code} · {hall.capacity.toLocaleString()} seats</p>
                     <div className="mt-1">
                       {hall.isActive ? (
                         <Badge className="border-emerald-500/30 bg-emerald-500/15 text-emerald-400 text-xs">Active</Badge>
                       ) : (
-                        <Badge variant="outline" className="border-zinc-700 text-zinc-500 text-xs">Inactive</Badge>
+                        <Badge variant="outline" className="border-border text-muted-foreground text-xs">Inactive</Badge>
                       )}
                     </div>
                   </div>
                   <DropdownMenu>
-                    <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" className="text-zinc-400" />}>
+                    <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" className="text-muted-foreground" />}>
                     <MoreHorizontal className="size-4" />
                   </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800">
-                      <DropdownMenuItem className="text-zinc-300 focus:bg-zinc-800" onClick={() => openEdit(hall)}>Edit</DropdownMenuItem>
-                      <DropdownMenuItem className="text-red-400 focus:bg-zinc-800" onClick={() => setDeleteTarget(hall)}>Delete</DropdownMenuItem>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem className="text-foreground/70 focus:bg-muted" onClick={() => openEdit(hall)}>Edit</DropdownMenuItem>
+                      <DropdownMenuItem className="text-destructive focus:bg-muted" onClick={() => setDeleteTarget(hall)}>Delete</DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
@@ -285,43 +285,43 @@ export default function HallsPage() {
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="bg-zinc-900 border-zinc-800">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-zinc-50">{editTarget ? "Edit Hall" : "Add Hall"}</DialogTitle>
+            <DialogTitle>{editTarget ? "Edit Hall" : "Add Hall"}</DialogTitle>
           </DialogHeader>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-zinc-300">Name</Label>
+                <Label className="text-foreground/70">Name</Label>
                 <Input placeholder="e.g. Main Auditorium" {...form.register("name")} />
-                {form.formState.errors.name && <p className="text-sm text-red-400">{form.formState.errors.name.message}</p>}
+                {form.formState.errors.name && <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>}
               </div>
               <div className="space-y-1.5">
-                <Label className="text-zinc-300">Code</Label>
+                <Label className="text-foreground/70">Code</Label>
                 <Input placeholder="e.g. MA-01" {...form.register("code")} />
-                {form.formState.errors.code && <p className="text-sm text-red-400">{form.formState.errors.code.message}</p>}
+                {form.formState.errors.code && <p className="text-sm text-destructive">{form.formState.errors.code.message}</p>}
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-zinc-300">Capacity</Label>
+              <Label className="text-foreground/70">Capacity</Label>
               <Input type="number" min={1} {...form.register("capacity", { valueAsNumber: true })} />
-              {form.formState.errors.capacity && <p className="text-sm text-red-400">{form.formState.errors.capacity.message}</p>}
+              {form.formState.errors.capacity && <p className="text-sm text-destructive">{form.formState.errors.capacity.message}</p>}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-zinc-300">Latitude</Label>
+                <Label className="text-foreground/70">Latitude</Label>
                 <Input type="number" step="any" placeholder="e.g. 6.5244" {...form.register("latitude", { valueAsNumber: true })} />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-zinc-300">Longitude</Label>
+                <Label className="text-foreground/70">Longitude</Label>
                 <Input type="number" step="any" placeholder="e.g. 3.3792" {...form.register("longitude", { valueAsNumber: true })} />
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-zinc-300">Description (optional)</Label>
+              <Label className="text-foreground/70">Description (optional)</Label>
               <Input placeholder="Additional notes about the hall" {...form.register("description")} />
             </div>
 
@@ -329,10 +329,10 @@ export default function HallsPage() {
               <input
                 id="isActive"
                 type="checkbox"
-                className="size-4 rounded border-zinc-600 accent-zinc-50"
+                className="size-4 rounded border-border accent-foreground"
                 {...form.register("isActive")}
               />
-              <Label htmlFor="isActive" className="text-zinc-300 cursor-pointer">Active</Label>
+              <Label htmlFor="isActive" className="text-foreground/70 cursor-pointer">Active</Label>
             </div>
 
             <DialogFooter>

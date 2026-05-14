@@ -147,14 +147,14 @@ export default function SchoolsPage() {
       accessorKey: "name",
       header: "Name",
       cell: ({ row }) => (
-        <span className="font-medium text-zinc-50">{row.original.name}</span>
+        <span className="font-medium text-foreground">{row.original.name}</span>
       ),
     },
     {
       accessorKey: "code",
       header: "Code",
       cell: ({ row }) => (
-        <span className="text-zinc-400">{row.original.code}</span>
+        <span className="text-muted-foreground">{row.original.code}</span>
       ),
     },
     {
@@ -163,19 +163,16 @@ export default function SchoolsPage() {
       cell: ({ row }) => (
         <div className="flex justify-end">
           <DropdownMenu>
-            <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" className="text-zinc-400 hover:text-zinc-50" />}>
-                <MoreHorizontal className="size-4" />
-                <span className="sr-only">Open menu</span>
-              </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800">
-              <DropdownMenuItem
-                className="text-zinc-300 focus:bg-zinc-800 focus:text-zinc-50"
-                onClick={() => openEdit(row.original)}
-              >
+            <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-foreground" />}>
+              <MoreHorizontal className="size-4" />
+              <span className="sr-only">Open menu</span>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => openEdit(row.original)}>
                 Edit
               </DropdownMenuItem>
               <DropdownMenuItem
-                className="text-red-400 focus:bg-zinc-800 focus:text-red-400"
+                className="text-destructive focus:text-destructive"
                 onClick={() => setDeleteTarget(row.original)}
               >
                 Delete
@@ -214,22 +211,17 @@ export default function SchoolsPage() {
               renderCard={(school) => (
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="font-medium text-zinc-50">{school.name}</p>
-                    <p className="text-sm text-zinc-400">{school.code}</p>
+                    <p className="font-medium text-foreground">{school.name}</p>
+                    <p className="text-sm text-muted-foreground">{school.code}</p>
                   </div>
                   <DropdownMenu>
-                    <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" className="text-zinc-400" />}>
-                    <MoreHorizontal className="size-4" />
-                  </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800">
+                    <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" className="text-muted-foreground" />}>
+                      <MoreHorizontal className="size-4" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => openEdit(school)}>Edit</DropdownMenuItem>
                       <DropdownMenuItem
-                        className="text-zinc-300 focus:bg-zinc-800"
-                        onClick={() => openEdit(school)}
-                      >
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="text-red-400 focus:bg-zinc-800"
+                        className="text-destructive focus:text-destructive"
                         onClick={() => setDeleteTarget(school)}
                       >
                         Delete
@@ -244,40 +236,27 @@ export default function SchoolsPage() {
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="bg-zinc-900 border-zinc-800">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-zinc-50">
-              {editTarget ? "Edit School" : "Add School"}
-            </DialogTitle>
+            <DialogTitle>{editTarget ? "Edit School" : "Add School"}</DialogTitle>
           </DialogHeader>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-1.5">
-              <Label className="text-zinc-300">Name</Label>
-              <Input
-                placeholder="e.g. School of Engineering"
-                {...form.register("name")}
-              />
+              <Label>Name</Label>
+              <Input placeholder="e.g. School of Engineering" {...form.register("name")} />
               {form.formState.errors.name && (
-                <p className="text-sm text-red-400">{form.formState.errors.name.message}</p>
+                <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>
               )}
             </div>
             <div className="space-y-1.5">
-              <Label className="text-zinc-300">Code</Label>
-              <Input
-                placeholder="e.g. SOE"
-                {...form.register("code")}
-              />
+              <Label>Code</Label>
+              <Input placeholder="e.g. SOE" {...form.register("code")} />
               {form.formState.errors.code && (
-                <p className="text-sm text-red-400">{form.formState.errors.code.message}</p>
+                <p className="text-sm text-destructive">{form.formState.errors.code.message}</p>
               )}
             </div>
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setDialogOpen(false)}
-                disabled={isSaving}
-              >
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} disabled={isSaving}>
                 Cancel
               </Button>
               <Button type="submit" disabled={isSaving}>

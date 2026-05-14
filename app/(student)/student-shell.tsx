@@ -4,6 +4,7 @@ import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { ClipboardList, Navigation, BookMarked, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { ThemeToggle } from "@/components/theme-toggle"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
 import { useQueryClient } from "@tanstack/react-query"
@@ -33,10 +34,10 @@ export function StudentShell({ user, children }: StudentShellProps) {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-50">
+    <div className="min-h-screen bg-background text-foreground">
       {/* Desktop top navbar */}
-      <header className="hidden md:flex fixed top-0 left-0 right-0 z-50 h-16 items-center justify-between border-b border-zinc-800 bg-zinc-900 px-6">
-        <span className="text-sm font-semibold tracking-wide text-zinc-50">
+      <header className="hidden md:flex fixed top-0 left-0 right-0 z-50 h-16 items-center justify-between border-b border-border bg-card px-6">
+        <span className="text-sm font-semibold tracking-wide text-foreground">
           YCT Exam Portal
         </span>
         <nav className="flex items-center gap-1">
@@ -52,8 +53,8 @@ export function StudentShell({ user, children }: StudentShellProps) {
                 className={cn(
                   "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm transition-colors",
                   active
-                    ? "bg-zinc-800 text-zinc-50"
-                    : "text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200"
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
                 )}
               >
                 <Icon className="size-4" />
@@ -62,8 +63,9 @@ export function StudentShell({ user, children }: StudentShellProps) {
             )
           })}
         </nav>
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-zinc-500 hidden lg:block">{user.email}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground hidden lg:block">{user.email}</span>
+          <ThemeToggle className="text-muted-foreground hover:text-foreground" />
           <Button variant="outline" size="sm" onClick={handleLogout}>
             Sign out
           </Button>
@@ -74,7 +76,7 @@ export function StudentShell({ user, children }: StudentShellProps) {
       <main className="pb-20 md:pb-0 md:pt-16">{children}</main>
 
       {/* Mobile bottom tab bar */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 flex md:hidden border-t border-zinc-800 bg-zinc-900">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 flex md:hidden border-t border-border bg-card">
         {NAV_ITEMS.map(({ label, href, icon: Icon }) => {
           const active =
             href === "/dashboard"
@@ -86,8 +88,8 @@ export function StudentShell({ user, children }: StudentShellProps) {
               href={href}
               className="flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-xs transition-colors"
             >
-              <Icon className={cn("size-5", active ? "text-zinc-50" : "text-zinc-500")} />
-              <span className={active ? "text-zinc-50" : "text-zinc-500"}>{label}</span>
+              <Icon className={cn("size-5", active ? "text-foreground" : "text-muted-foreground")} />
+              <span className={active ? "text-foreground" : "text-muted-foreground"}>{label}</span>
             </Link>
           )
         })}

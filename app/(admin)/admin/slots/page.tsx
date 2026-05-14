@@ -166,28 +166,28 @@ export default function SlotsPage() {
       accessorKey: "label",
       header: "Label",
       cell: ({ row }) => (
-        <span className="font-medium text-zinc-50">{row.original.label}</span>
+        <span className="font-medium text-foreground">{row.original.label}</span>
       ),
     },
     {
       accessorKey: "date",
       header: "Date",
       cell: ({ row }) => (
-        <span className="text-zinc-400">{formatDate(row.original.date)}</span>
+        <span className="text-muted-foreground">{formatDate(row.original.date)}</span>
       ),
     },
     {
       accessorKey: "startTime",
       header: "Start",
       cell: ({ row }) => (
-        <span className="font-mono text-sm text-zinc-400">{row.original.startTime}</span>
+        <span className="font-mono text-sm text-muted-foreground">{row.original.startTime}</span>
       ),
     },
     {
       accessorKey: "endTime",
       header: "End",
       cell: ({ row }) => (
-        <span className="font-mono text-sm text-zinc-400">{row.original.endTime}</span>
+        <span className="font-mono text-sm text-muted-foreground">{row.original.endTime}</span>
       ),
     },
     {
@@ -196,19 +196,19 @@ export default function SlotsPage() {
       cell: ({ row }) => (
         <div className="flex justify-end">
           <DropdownMenu>
-            <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" className="text-zinc-400 hover:text-zinc-50" />}>
+            <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-foreground" />}>
                 <MoreHorizontal className="size-4" />
                 <span className="sr-only">Open menu</span>
               </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800">
+            <DropdownMenuContent align="end">
               <DropdownMenuItem
-                className="text-zinc-300 focus:bg-zinc-800 focus:text-zinc-50"
+                className="text-foreground/70 focus:bg-muted focus:text-foreground"
                 onClick={() => openEdit(row.original)}
               >
                 Edit
               </DropdownMenuItem>
               <DropdownMenuItem
-                className="text-red-400 focus:bg-zinc-800 focus:text-red-400"
+                className="text-destructive focus:bg-muted focus:text-destructive"
                 onClick={() => setDeleteTarget(row.original)}
               >
                 Delete
@@ -247,19 +247,19 @@ export default function SlotsPage() {
               renderCard={(slot) => (
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="font-medium text-zinc-50">{slot.label}</p>
-                    <p className="text-sm text-zinc-400">{formatDate(slot.date)}</p>
-                    <p className="font-mono text-xs text-zinc-500 mt-1">
+                    <p className="font-medium text-foreground">{slot.label}</p>
+                    <p className="text-sm text-muted-foreground">{formatDate(slot.date)}</p>
+                    <p className="font-mono text-xs text-muted-foreground mt-1">
                       {slot.startTime} – {slot.endTime}
                     </p>
                   </div>
                   <DropdownMenu>
-                    <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" className="text-zinc-400" />}>
+                    <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" className="text-muted-foreground" />}>
                     <MoreHorizontal className="size-4" />
                   </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800">
-                      <DropdownMenuItem className="text-zinc-300 focus:bg-zinc-800" onClick={() => openEdit(slot)}>Edit</DropdownMenuItem>
-                      <DropdownMenuItem className="text-red-400 focus:bg-zinc-800" onClick={() => setDeleteTarget(slot)}>Delete</DropdownMenuItem>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem className="text-foreground/70 focus:bg-muted" onClick={() => openEdit(slot)}>Edit</DropdownMenuItem>
+                      <DropdownMenuItem className="text-destructive focus:bg-muted" onClick={() => setDeleteTarget(slot)}>Delete</DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
@@ -270,33 +270,33 @@ export default function SlotsPage() {
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="bg-zinc-900 border-zinc-800">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-zinc-50">{editTarget ? "Edit Time Slot" : "Add Time Slot"}</DialogTitle>
+            <DialogTitle>{editTarget ? "Edit Time Slot" : "Add Time Slot"}</DialogTitle>
           </DialogHeader>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-1.5">
-              <Label className="text-zinc-300">Label</Label>
+              <Label className="text-foreground/70">Label</Label>
               <Input placeholder="e.g. Monday Morning" {...form.register("label")} />
-              {form.formState.errors.label && <p className="text-sm text-red-400">{form.formState.errors.label.message}</p>}
+              {form.formState.errors.label && <p className="text-sm text-destructive">{form.formState.errors.label.message}</p>}
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-zinc-300">Date (YYYY-MM-DD)</Label>
+              <Label className="text-foreground/70">Date (YYYY-MM-DD)</Label>
               <Input placeholder="2025-01-20" {...form.register("date")} />
-              {form.formState.errors.date && <p className="text-sm text-red-400">{form.formState.errors.date.message}</p>}
+              {form.formState.errors.date && <p className="text-sm text-destructive">{form.formState.errors.date.message}</p>}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-zinc-300">Start Time (HH:MM)</Label>
+                <Label className="text-foreground/70">Start Time (HH:MM)</Label>
                 <Input placeholder="08:00" {...form.register("startTime")} />
-                {form.formState.errors.startTime && <p className="text-sm text-red-400">{form.formState.errors.startTime.message}</p>}
+                {form.formState.errors.startTime && <p className="text-sm text-destructive">{form.formState.errors.startTime.message}</p>}
               </div>
               <div className="space-y-1.5">
-                <Label className="text-zinc-300">End Time (HH:MM)</Label>
+                <Label className="text-foreground/70">End Time (HH:MM)</Label>
                 <Input placeholder="10:00" {...form.register("endTime")} />
-                {form.formState.errors.endTime && <p className="text-sm text-red-400">{form.formState.errors.endTime.message}</p>}
+                {form.formState.errors.endTime && <p className="text-sm text-destructive">{form.formState.errors.endTime.message}</p>}
               </div>
             </div>
 

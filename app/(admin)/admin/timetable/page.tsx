@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { CalendarRange, RefreshCw, Send, Trash2 } from "lucide-react"
@@ -15,6 +15,7 @@ import { EmptyState } from "@/components/admin/empty-state"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import {
   Select,
   SelectContent,
@@ -33,11 +34,6 @@ import {
 
 interface School { id: string; name: string }
 
-interface Level {
-  id: string
-  name: string
-}
-
 interface TimeSlotOption {
   id: string
   label: string
@@ -54,7 +50,12 @@ interface TimetableEntry {
     id: string
     code: string
     title: string
-    level: { id: string; name: string; year: number }
+    level: {
+      id: string
+      name: string
+      year: number
+      programme: { department: { id: string; name: string } }
+    }
   }
   timeSlot: {
     id: string
@@ -75,41 +76,35 @@ interface GenerateResult {
   overflow: { code: string; title: string }[]
 }
 
-/** Returns the next Monday as YYYY-MM-DD */
 function nextMonday(): string {
   const today = new Date()
-  const day = today.getDay() // 0=Sun,1=Mon,...
+  const day = today.getDay()
   const daysToMonday = day === 0 ? 1 : day === 1 ? 7 : 8 - day
   const d = new Date(today)
   d.setDate(today.getDate() + daysToMonday)
   return d.toISOString().split("T")[0]
 }
 
-/** Format an ISO date string (e.g. "2024-01-15T00:00:00.000Z") as "Mon, 15 Jan 2024" */
 function formatDate(iso: string): string {
-  const d = new Date(iso)
-  return d.toLocaleDateString("en-NG", {
+  return new Date(iso).toLocaleDateString("en-NG", {
     weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC",
   })
 }
 
-/** Format an ISO time string (e.g. "1970-01-01T08:00:00.000Z") as "8:00 AM" */
 function formatTime(iso: string): string {
   const d = new Date(iso)
   const h = d.getUTCHours()
   const m = d.getUTCMinutes()
   const ampm = h >= 12 ? "PM" : "AM"
-  const hour = h % 12 || 12
-  return `${hour}:${m.toString().padStart(2, "0")} ${ampm}`
+  return `${h % 12 || 12}:${m.toString().padStart(2, "0")} ${ampm}`
 }
 
 export default function TimetablePage() {
   const queryClient = useQueryClient()
 
   const [session, setSession] = useState<string>("")
-  const [levelId, setLevelId] = useState<string>("all")
+  const [activeTab, setActiveTab] = useState<string>("all")
 
-  // Generate dialog state
   const [generateDialogOpen, setGenerateDialogOpen] = useState(false)
   const [generateSchoolId, setGenerateSchoolId] = useState<string>("all")
   const [generateExamStartDate, setGenerateExamStartDate] = useState<string>(nextMonday)
@@ -132,15 +127,6 @@ export default function TimetablePage() {
     },
   })
 
-  const { data: levels = [] } = useQuery<Level[]>({
-    queryKey: QUERY_KEYS.LEVELS(undefined),
-    queryFn: async () => {
-      const res = await fetch("/api/levels")
-      const json = await res.json()
-      return json.data ?? []
-    },
-  })
-
   const { data: slots = [] } = useQuery<TimeSlotOption[]>({
     queryKey: QUERY_KEYS.SLOTS,
     queryFn: async () => {
@@ -150,21 +136,11 @@ export default function TimetablePage() {
     },
   })
 
-  // Deduplicate levels by name — multiple departments each create ND1/ND2/HND1/HND2,
-  // resulting in duplicate names when all levels are fetched without a programme filter.
-  const uniqueLevels = levels.filter(
-    (l, i, arr) => arr.findIndex((x) => x.name === l.name) === i
-  )
-
-  const levelIdParam = levelId !== "all" ? levelId : undefined
-
   const { data: entries = [], isLoading } = useQuery<TimetableEntry[]>({
-    queryKey: QUERY_KEYS.TIMETABLE(session || undefined, levelIdParam),
+    queryKey: QUERY_KEYS.TIMETABLE(session || undefined),
     queryFn: async () => {
       if (!session) return []
-      const params = new URLSearchParams({ session })
-      if (levelIdParam) params.set("level_id", levelIdParam)
-      const res = await fetch(`/api/timetable?${params}`)
+      const res = await fetch(`/api/timetable?session=${encodeURIComponent(session)}`)
       const json = await res.json()
       return json.data ?? []
     },
@@ -173,12 +149,36 @@ export default function TimetablePage() {
 
   const hasDraft = entries.some((e) => e.status === "DRAFT")
 
+  const departments = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const e of entries) {
+      const dept = e.course.level.programme.department
+      if (!map.has(dept.id)) map.set(dept.id, dept.name)
+    }
+    return Array.from(map.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+  }, [entries])
+
+  const visibleEntries = useMemo(() => {
+    const filtered = activeTab === "all"
+      ? entries
+      : entries.filter((e) => e.course.level.programme.department.id === activeTab)
+    // Sort: ND before HND, then by year within programme, then date, then time
+    return [...filtered].sort((a, b) => {
+      const levelKey = (name: string, year: number) =>
+        name.startsWith("HND") ? year + 10 : year
+      const lvl = levelKey(a.course.level.name, a.course.level.year) -
+                  levelKey(b.course.level.name, b.course.level.year)
+      if (lvl !== 0) return lvl
+      const dateDiff = new Date(a.timeSlot.date).getTime() - new Date(b.timeSlot.date).getTime()
+      if (dateDiff !== 0) return dateDiff
+      return new Date(a.timeSlot.startTime).getTime() - new Date(b.timeSlot.startTime).getTime()
+    })
+  }, [entries, activeTab])
+
   const generateMutation = useMutation({
-    mutationFn: async (params: {
-      force: boolean
-      schoolId?: string
-      examStartDate?: string
-    }) => {
+    mutationFn: async (params: { force: boolean; schoolId?: string; examStartDate?: string }) => {
       const res = await fetch("/api/timetable/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -199,8 +199,7 @@ export default function TimetablePage() {
 
   const publishMutation = useMutation({
     mutationFn: async () => {
-      const encoded = encodeURIComponent(session)
-      const res = await fetch(`/api/timetable/${encoded}/publish`, { method: "PUT" })
+      const res = await fetch(`/api/timetable/${encodeURIComponent(session)}/publish`, { method: "PUT" })
       const json = await res.json()
       if (!json.success) throw new Error(json.message)
     },
@@ -214,8 +213,7 @@ export default function TimetablePage() {
 
   const resetMutation = useMutation({
     mutationFn: async () => {
-      const encoded = encodeURIComponent(session)
-      const res = await fetch(`/api/timetable/${encoded}/reset`, { method: "DELETE" })
+      const res = await fetch(`/api/timetable/${encodeURIComponent(session)}/reset`, { method: "DELETE" })
       const json = await res.json()
       if (!json.success) throw new Error(json.message)
     },
@@ -248,38 +246,43 @@ export default function TimetablePage() {
 
   const columns: ColumnDef<TimetableEntry>[] = [
     {
+      accessorKey: "course.code",
       id: "courseCode",
       header: "Code",
       cell: ({ row }) => (
-        <span className="font-mono text-sm font-medium text-zinc-50">{row.original.course.code}</span>
+        <span className="font-mono text-sm font-medium text-foreground">{row.original.course.code}</span>
       ),
     },
     {
+      accessorKey: "course.title",
       id: "courseTitle",
       header: "Title",
       cell: ({ row }) => (
-        <span className="text-zinc-300">{row.original.course.title}</span>
+        <span className="text-foreground/80">{row.original.course.title}</span>
       ),
     },
     {
+      accessorKey: "course.level.name",
       id: "levelName",
       header: "Level",
       cell: ({ row }) => (
-        <span className="text-zinc-400">{row.original.course.level.name}</span>
+        <span className="text-muted-foreground text-sm">{row.original.course.level.name}</span>
       ),
     },
     {
+      accessorKey: "timeSlot.date",
       id: "date",
       header: "Date",
       cell: ({ row }) => (
-        <span className="text-zinc-400">{formatDate(row.original.timeSlot.date)}</span>
+        <span className="text-muted-foreground text-sm">{formatDate(row.original.timeSlot.date)}</span>
       ),
     },
     {
+      accessorKey: "timeSlot.startTime",
       id: "startTime",
       header: "Time",
       cell: ({ row }) => (
-        <span className="text-sm text-zinc-400">
+        <span className="text-sm text-muted-foreground">
           {formatTime(row.original.timeSlot.startTime)} – {formatTime(row.original.timeSlot.endTime)}
         </span>
       ),
@@ -288,7 +291,7 @@ export default function TimetablePage() {
       id: "halls",
       header: "Halls",
       cell: ({ row }) => (
-        <span className="text-zinc-400 text-sm">
+        <span className="text-muted-foreground text-sm">
           {row.original.hallAssignments.map((ha) => ha.examHall.name).join(", ") || "—"}
         </span>
       ),
@@ -305,7 +308,7 @@ export default function TimetablePage() {
         <Button
           variant="ghost"
           size="sm"
-          className="text-zinc-400 hover:text-zinc-50"
+          className="text-muted-foreground hover:text-foreground"
           onClick={() => {
             setEditSlotEntryId(row.original.id)
             setSelectedNewSlotId(row.original.timeSlotId)
@@ -317,32 +320,36 @@ export default function TimetablePage() {
     },
   ]
 
+  const allColumns: ColumnDef<TimetableEntry>[] = [
+    {
+      accessorKey: "course.level.programme.department.name",
+      id: "deptName",
+      header: "Department",
+      cell: ({ row }) => (
+        <span className="text-muted-foreground text-sm font-medium">
+          {row.original.course.level.programme.department.name}
+        </span>
+      ),
+    },
+    ...columns,
+  ]
+
   return (
     <div className="space-y-6">
       <div className="flex flex-row items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold text-zinc-50">Timetable</h1>
-          <p className="mt-0.5 text-sm text-zinc-400">Generate and manage examination timetables</p>
+          <h1 className="text-xl font-semibold text-foreground">Timetable</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">Generate and manage examination timetables</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setGenerateDialogOpen(true)}
-            disabled={!session}
-          >
+          <Button variant="outline" size="sm" onClick={() => setGenerateDialogOpen(true)} disabled={!session}>
             <RefreshCw className="mr-1.5 size-4" />
             Generate
           </Button>
 
           {hasDraft && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPublishDialogOpen(true)}
-              disabled={publishMutation.isPending}
-            >
+            <Button variant="outline" size="sm" onClick={() => setPublishDialogOpen(true)} disabled={publishMutation.isPending}>
               <Send className="mr-1.5 size-4" />
               Publish All
             </Button>
@@ -352,50 +359,27 @@ export default function TimetablePage() {
             <Button
               variant="outline"
               size="sm"
-              className="text-red-400 border-red-900 hover:bg-red-950 hover:text-red-300"
+              className="text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
               onClick={() => setResetDialogOpen(true)}
               disabled={!session}
             >
               <Trash2 className="mr-1.5 size-4" />
-              Reset Draft
+              Reset All
             </Button>
           )}
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
-        <Select value={session} onValueChange={(v) => v != null && setSession(v)}>
-          <SelectTrigger className="w-64">
-            <SelectValue>
-              {session || "Select session"}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {VALID_SESSIONS.map((s) => (
-              <SelectItem key={s} value={s}>
-                {s}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={levelId} onValueChange={(v) => v != null && setLevelId(v)}>
-          <SelectTrigger className="w-48">
-            <SelectValue>
-              {levelId === "all" ? "All Levels" : (uniqueLevels.find(l => l.id === levelId)?.name ?? "Level")}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Levels</SelectItem>
-            {uniqueLevels.map((l) => (
-              <SelectItem key={l.id} value={l.id}>
-                {l.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      <Select value={session} onValueChange={(v) => { if (v != null) { setSession(v); setActiveTab("all") } }}>
+        <SelectTrigger className="w-64">
+          <SelectValue>{session || "Select session"}</SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          {VALID_SESSIONS.map((s) => (
+            <SelectItem key={s} value={s}>{s}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
 
       {!session ? (
         <EmptyState
@@ -411,30 +395,51 @@ export default function TimetablePage() {
           action={{ label: "Generate", onClick: () => setGenerateDialogOpen(true) }}
         />
       ) : (
-        <DataTable columns={columns} data={entries} isLoading={isLoading} />
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <div className="overflow-x-auto pb-1">
+            <TabsList className="w-max">
+              <TabsTrigger value="all">All ({entries.length})</TabsTrigger>
+              {departments.map((d) => {
+                const count = entries.filter(
+                  (e) => e.course.level.programme.department.id === d.id
+                ).length
+                return (
+                  <TabsTrigger key={d.id} value={d.id}>
+                    {d.name} ({count})
+                  </TabsTrigger>
+                )
+              })}
+            </TabsList>
+          </div>
+
+          <TabsContent value="all" className="mt-4">
+            <DataTable columns={allColumns} data={visibleEntries} isLoading={isLoading} />
+          </TabsContent>
+
+          {departments.map((d) => (
+            <TabsContent key={d.id} value={d.id} className="mt-4">
+              <DataTable columns={columns} data={visibleEntries} isLoading={isLoading} />
+            </TabsContent>
+          ))}
+        </Tabs>
       )}
 
-      {/* ── Generate dialog ───────────────────────────────────────────── */}
+      {/* Generate dialog */}
       <Dialog open={generateDialogOpen} onOpenChange={setGenerateDialogOpen}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 max-w-md">
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-zinc-50">Generate Timetable</DialogTitle>
-            <DialogDescription className="text-zinc-400">
-              The system will automatically create exam slots and assign courses using
-              DSatur graph coloring. Existing draft entries for{" "}
-              <span className="text-zinc-300 font-medium">&ldquo;{session}&rdquo;</span> will be
-              replaced.
+            <DialogTitle>Generate Timetable</DialogTitle>
+            <DialogDescription>
+              The system will automatically create exam slots and assign courses using DSatur graph
+              coloring. Existing draft entries for{" "}
+              <span className="text-foreground font-medium">&ldquo;{session}&rdquo;</span> will be replaced.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-1">
-            {/* School filter */}
             <div className="space-y-1.5">
-              <Label className="text-zinc-300">School</Label>
-              <Select
-                value={generateSchoolId}
-                onValueChange={(v) => v != null && setGenerateSchoolId(v)}
-              >
+              <Label>School</Label>
+              <Select value={generateSchoolId} onValueChange={(v) => v != null && setGenerateSchoolId(v)}>
                 <SelectTrigger className="w-full">
                   <SelectValue>
                     {generateSchoolId === "all"
@@ -445,39 +450,28 @@ export default function TimetablePage() {
                 <SelectContent>
                   <SelectItem value="all">All Schools</SelectItem>
                   {schools.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.name}
-                    </SelectItem>
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-zinc-500">
-                Filter to one school or generate for all at once
-              </p>
+              <p className="text-xs text-muted-foreground">Filter to one school or generate for all at once</p>
             </div>
 
-            {/* Exam start date */}
             <div className="space-y-1.5">
-              <Label className="text-zinc-300">Exam Start Date</Label>
+              <Label>Exam Start Date</Label>
               <Input
                 type="date"
                 value={generateExamStartDate}
                 onChange={(e) => setGenerateExamStartDate(e.target.value)}
-                className="bg-zinc-800 border-zinc-700 text-zinc-50"
               />
-              <p className="text-xs text-zinc-500">
-                Mon–Fri exam slots (8:00 AM–10:00 AM and 12:00 PM–2:00 PM) will be auto-created
-                for 2 weeks (10 days) from this date
+              <p className="text-xs text-muted-foreground">
+                Mon–Fri slots (8:00 AM–10:00 AM and 12:00 PM–2:00 PM) auto-created for 2 weeks from this date
               </p>
             </div>
           </div>
 
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setGenerateDialogOpen(false)}
-              disabled={generateMutation.isPending}
-            >
+            <Button variant="outline" onClick={() => setGenerateDialogOpen(false)} disabled={generateMutation.isPending}>
               Cancel
             </Button>
             <Button
@@ -498,29 +492,27 @@ export default function TimetablePage() {
 
       {/* Generate result dialog */}
       <Dialog open={generateResultOpen} onOpenChange={setGenerateResultOpen}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 max-w-lg">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-zinc-50">Generation Complete</DialogTitle>
-            <DialogDescription className="text-zinc-400">
-              Timetable generation finished for {session}.
-            </DialogDescription>
+            <DialogTitle>Generation Complete</DialogTitle>
+            <DialogDescription>Timetable generation finished for {session}.</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
-            <p className="text-sm text-zinc-300">
-              <span className="font-medium text-emerald-400">{generateResult?.assigned ?? 0}</span>{" "}
+            <p className="text-sm text-foreground">
+              <span className="font-medium text-emerald-600 dark:text-emerald-400">{generateResult?.assigned ?? 0}</span>{" "}
               courses assigned successfully.
             </p>
 
             {(generateResult?.unresolved?.length ?? 0) > 0 && (
               <div>
-                <p className="text-sm font-medium text-amber-400 mb-1">
+                <p className="text-sm font-medium text-amber-600 dark:text-amber-400 mb-1">
                   Unresolved ({generateResult!.unresolved.length})
                 </p>
                 <ul className="space-y-0.5 max-h-40 overflow-y-auto">
                   {generateResult!.unresolved.map((c) => (
-                    <li key={c.code} className="text-xs text-zinc-400">
-                      <span className="font-mono text-zinc-300">{c.code}</span> — {c.title}
+                    <li key={c.code} className="text-xs text-muted-foreground">
+                      <span className="font-mono text-foreground/80">{c.code}</span> — {c.title}
                     </li>
                   ))}
                 </ul>
@@ -529,13 +521,13 @@ export default function TimetablePage() {
 
             {(generateResult?.overflow?.length ?? 0) > 0 && (
               <div>
-                <p className="text-sm font-medium text-red-400 mb-1">
+                <p className="text-sm font-medium text-destructive mb-1">
                   Hall Overflow ({generateResult!.overflow.length})
                 </p>
                 <ul className="space-y-0.5 max-h-40 overflow-y-auto">
                   {generateResult!.overflow.map((c) => (
-                    <li key={c.code} className="text-xs text-zinc-400">
-                      <span className="font-mono text-zinc-300">{c.code}</span> — {c.title}
+                    <li key={c.code} className="text-xs text-muted-foreground">
+                      <span className="font-mono text-foreground/80">{c.code}</span> — {c.title}
                     </li>
                   ))}
                 </ul>
@@ -549,7 +541,6 @@ export default function TimetablePage() {
         </DialogContent>
       </Dialog>
 
-      {/* Publish confirmation */}
       <ConfirmDialog
         open={publishDialogOpen}
         onOpenChange={setPublishDialogOpen}
@@ -559,12 +550,11 @@ export default function TimetablePage() {
         loading={publishMutation.isPending}
       />
 
-      {/* Reset confirmation */}
       <ConfirmDialog
         open={resetDialogOpen}
         onOpenChange={setResetDialogOpen}
-        title="Reset Draft"
-        description={`Delete all DRAFT entries for "${session}"? Published entries will not be affected.`}
+        title="Reset Timetable"
+        description={`Delete ALL timetable entries (draft and published) for "${session}"? This cannot be undone. You will need to regenerate and republish.`}
         onConfirm={() => resetMutation.mutate()}
         loading={resetMutation.isPending}
       />
@@ -573,18 +563,15 @@ export default function TimetablePage() {
       <Dialog
         open={!!editSlotEntryId}
         onOpenChange={(v) => {
-          if (!v) {
-            setEditSlotEntryId(null)
-            setSelectedNewSlotId("")
-          }
+          if (!v) { setEditSlotEntryId(null); setSelectedNewSlotId("") }
         }}
       >
-        <DialogContent className="bg-zinc-900 border-zinc-800">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-zinc-50">Move to Different Slot</DialogTitle>
+            <DialogTitle>Move to Different Slot</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
-            <Label className="text-zinc-300">Select Time Slot</Label>
+            <Label>Select Time Slot</Label>
             <Select value={selectedNewSlotId} onValueChange={(v) => v != null && setSelectedNewSlotId(v)}>
               <SelectTrigger>
                 <SelectValue placeholder="Choose a slot" />
@@ -601,10 +588,7 @@ export default function TimetablePage() {
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => {
-                setEditSlotEntryId(null)
-                setSelectedNewSlotId("")
-              }}
+              onClick={() => { setEditSlotEntryId(null); setSelectedNewSlotId("") }}
               disabled={moveSlotMutation.isPending}
             >
               Cancel

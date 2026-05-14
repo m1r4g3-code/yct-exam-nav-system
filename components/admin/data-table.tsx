@@ -1,11 +1,15 @@
 "use client"
 
+import { useState } from "react"
 import {
   type ColumnDef,
+  type SortingState,
   flexRender,
   getCoreRowModel,
+  getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
+import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react"
 import {
   Table,
   TableBody,
@@ -27,44 +31,71 @@ export function DataTable<TData, TValue = unknown>({
   data,
   isLoading = false,
 }: DataTableProps<TData, TValue>) {
+  const [sorting, setSorting] = useState<SortingState>([])
+
   const table = useReactTable({
     data,
     columns,
+    state: { sorting },
+    onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
   })
 
   return (
-    <div className="rounded-xl border border-zinc-800 overflow-hidden">
+    <div className="rounded-xl border border-border overflow-hidden">
+      <div className="overflow-x-auto">
       <Table>
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
-            <TableRow key={headerGroup.id} className="border-zinc-800 hover:bg-transparent bg-zinc-900/50">
-              {headerGroup.headers.map((header) => (
-                <TableHead key={header.id} className="text-zinc-400 font-medium px-5 py-3.5 text-xs uppercase tracking-wide">
-                  {header.isPlaceholder
-                    ? null
-                    : flexRender(header.column.columnDef.header, header.getContext())}
-                </TableHead>
-              ))}
+            <TableRow key={headerGroup.id} className="border-border hover:bg-transparent bg-muted/50">
+              {headerGroup.headers.map((header) => {
+                const canSort = header.column.getCanSort()
+                const sorted = header.column.getIsSorted()
+                return (
+                  <TableHead
+                    key={header.id}
+                    className="text-muted-foreground font-medium px-5 py-3.5 text-xs uppercase tracking-wide"
+                  >
+                    {header.isPlaceholder ? null : canSort ? (
+                      <button
+                        className="flex items-center gap-1.5 hover:text-foreground transition-colors select-none"
+                        onClick={header.column.getToggleSortingHandler()}
+                      >
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        {sorted === "asc" ? (
+                          <ArrowUp className="size-3" />
+                        ) : sorted === "desc" ? (
+                          <ArrowDown className="size-3" />
+                        ) : (
+                          <ArrowUpDown className="size-3 opacity-40" />
+                        )}
+                      </button>
+                    ) : (
+                      flexRender(header.column.columnDef.header, header.getContext())
+                    )}
+                  </TableHead>
+                )
+              })}
             </TableRow>
           ))}
         </TableHeader>
         <TableBody>
           {isLoading ? (
             Array.from({ length: 5 }).map((_, rowIndex) => (
-              <TableRow key={rowIndex} className="border-zinc-800">
+              <TableRow key={rowIndex} className="border-border">
                 {columns.map((_, colIndex) => (
                   <TableCell key={colIndex} className="px-5 py-4">
-                    <Skeleton className="h-4 w-full bg-zinc-800" />
+                    <Skeleton className="h-4 w-full" />
                   </TableCell>
                 ))}
               </TableRow>
             ))
           ) : table.getRowModel().rows.length === 0 ? (
-            <TableRow className="border-zinc-800 hover:bg-transparent">
+            <TableRow className="border-border hover:bg-transparent">
               <TableCell
                 colSpan={columns.length}
-                className="h-24 text-center text-sm text-zinc-500"
+                className="h-24 text-center text-sm text-muted-foreground"
               >
                 No results.
               </TableCell>
@@ -73,7 +104,7 @@ export function DataTable<TData, TValue = unknown>({
             table.getRowModel().rows.map((row) => (
               <TableRow
                 key={row.id}
-                className="border-zinc-800 hover:bg-zinc-800/40 transition-colors"
+                className="border-border hover:bg-muted/40 transition-colors"
                 data-state={row.getIsSelected() ? "selected" : undefined}
               >
                 {row.getVisibleCells().map((cell) => (
@@ -86,6 +117,7 @@ export function DataTable<TData, TValue = unknown>({
           )}
         </TableBody>
       </Table>
+      </div>
     </div>
   )
 }

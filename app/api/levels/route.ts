@@ -12,8 +12,16 @@ const schema = z.object({
 
 export async function GET(request: NextRequest) {
   const programmeId = request.nextUrl.searchParams.get("programme_id") ?? undefined;
+  const departmentId = request.nextUrl.searchParams.get("department_id") ?? undefined;
+
+  const where = departmentId
+    ? { programme: { departmentId } }
+    : programmeId
+    ? { programmeId }
+    : undefined;
+
   const levels = await prisma.level.findMany({
-    where: programmeId ? { programmeId } : undefined,
+    where,
     include: { programme: { select: { name: true, code: true } } },
     orderBy: [{ programme: { name: "asc" } }, { year: "asc" }],
   });

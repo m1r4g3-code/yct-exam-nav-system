@@ -282,21 +282,21 @@ export default function CoursesPage() {
       accessorKey: "code",
       header: "Code",
       cell: ({ row }) => (
-        <span className="font-mono text-sm font-medium text-zinc-50">{row.original.code}</span>
+        <span className="font-mono text-sm font-medium text-foreground">{row.original.code}</span>
       ),
     },
     {
       accessorKey: "title",
       header: "Title",
       cell: ({ row }) => (
-        <span className="text-zinc-300">{row.original.title}</span>
+        <span className="text-foreground/70">{row.original.title}</span>
       ),
     },
     {
       accessorKey: "creditUnits",
       header: "Credits",
       cell: ({ row }) => (
-        <span className="text-zinc-400">{row.original.creditUnits}</span>
+        <span className="text-muted-foreground">{row.original.creditUnits}</span>
       ),
     },
     {
@@ -320,19 +320,19 @@ export default function CoursesPage() {
       cell: ({ row }) => (
         <div className="flex justify-end">
           <DropdownMenu>
-            <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" className="text-zinc-400 hover:text-zinc-50" />}>
+            <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-foreground" />}>
                 <MoreHorizontal className="size-4" />
                 <span className="sr-only">Open menu</span>
               </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800">
+            <DropdownMenuContent align="end">
               <DropdownMenuItem
-                className="text-zinc-300 focus:bg-zinc-800 focus:text-zinc-50"
+                className="text-foreground/70 focus:bg-muted focus:text-foreground"
                 onClick={() => openEdit(row.original)}
               >
                 Edit
               </DropdownMenuItem>
               <DropdownMenuItem
-                className="text-red-400 focus:bg-zinc-800 focus:text-red-400"
+                className="text-destructive focus:bg-muted focus:text-destructive"
                 onClick={() => setDeleteTarget(row.original)}
               >
                 Delete
@@ -348,8 +348,8 @@ export default function CoursesPage() {
     <div className="space-y-6">
       <div className="flex flex-row items-start justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-zinc-50">Courses</h1>
-          <p className="mt-0.5 text-sm text-zinc-400">Manage courses within levels</p>
+          <h1 className="text-xl font-semibold text-foreground">Courses</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">Manage courses within levels</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} disabled={uploadMutation.isPending}>
@@ -451,19 +451,19 @@ export default function CoursesPage() {
               renderCard={(course) => (
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="font-mono text-sm font-medium text-zinc-50">{course.code}</p>
-                    <p className="text-sm text-zinc-300">{course.title}</p>
-                    <p className="text-xs text-zinc-500 mt-1">
+                    <p className="font-mono text-sm font-medium text-foreground">{course.code}</p>
+                    <p className="text-sm text-foreground/70">{course.title}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
                       {course.creditUnits} credits · {course.semester === "FIRST" ? "First" : "Second"} Semester
                     </p>
                   </div>
                   <DropdownMenu>
-                    <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" className="text-zinc-400" />}>
+                    <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" className="text-muted-foreground" />}>
                     <MoreHorizontal className="size-4" />
                   </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800">
-                      <DropdownMenuItem className="text-zinc-300 focus:bg-zinc-800" onClick={() => openEdit(course)}>Edit</DropdownMenuItem>
-                      <DropdownMenuItem className="text-red-400 focus:bg-zinc-800" onClick={() => setDeleteTarget(course)}>Delete</DropdownMenuItem>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem className="text-foreground/70 focus:bg-muted" onClick={() => openEdit(course)}>Edit</DropdownMenuItem>
+                      <DropdownMenuItem className="text-destructive focus:bg-muted" onClick={() => setDeleteTarget(course)}>Delete</DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
@@ -474,15 +474,15 @@ export default function CoursesPage() {
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="bg-zinc-900 border-zinc-800">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-zinc-50">{editTarget ? "Edit Course" : "Add Course"}</DialogTitle>
+            <DialogTitle>{editTarget ? "Edit Course" : "Add Course"}</DialogTitle>
           </DialogHeader>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             {/* Cascade selects for level */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-zinc-300">School</Label>
+                <Label className="text-foreground/70">School</Label>
                 <Select value={formSchoolId} onValueChange={(v) => { if (v == null) return; setFormSchoolId(v); setFormDeptId(""); setFormProgId(""); form.setValue("levelId", "") }}>
                   <SelectTrigger>
                     <SelectValue>
@@ -495,7 +495,7 @@ export default function CoursesPage() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-zinc-300">Department</Label>
+                <Label className="text-foreground/70">Department</Label>
                 <Select value={formDeptId} onValueChange={(v) => { if (v == null) return; setFormDeptId(v); setFormProgId(""); form.setValue("levelId", "") }} disabled={!formSchoolId}>
                   <SelectTrigger>
                     <SelectValue>
@@ -508,7 +508,7 @@ export default function CoursesPage() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-zinc-300">Programme</Label>
+                <Label className="text-foreground/70">Programme</Label>
                 <Select value={formProgId} onValueChange={(v) => { if (v == null) return; setFormProgId(v); form.setValue("levelId", "") }} disabled={!formDeptId}>
                   <SelectTrigger>
                     <SelectValue>
@@ -521,7 +521,7 @@ export default function CoursesPage() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-zinc-300">Level</Label>
+                <Label className="text-foreground/70">Level</Label>
                 <Select value={form.watch("levelId")} onValueChange={(v) => v != null && form.setValue("levelId", v, { shouldValidate: true })} disabled={!formProgId}>
                   <SelectTrigger>
                     <SelectValue>
@@ -533,31 +533,31 @@ export default function CoursesPage() {
                   </SelectContent>
                 </Select>
                 {form.formState.errors.levelId && (
-                  <p className="text-sm text-red-400">{form.formState.errors.levelId.message}</p>
+                  <p className="text-sm text-destructive">{form.formState.errors.levelId.message}</p>
                 )}
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-zinc-300">Course Code</Label>
+              <Label className="text-foreground/70">Course Code</Label>
               <Input placeholder="e.g. CSC 201" {...form.register("code")} />
-              {form.formState.errors.code && <p className="text-sm text-red-400">{form.formState.errors.code.message}</p>}
+              {form.formState.errors.code && <p className="text-sm text-destructive">{form.formState.errors.code.message}</p>}
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-zinc-300">Title</Label>
+              <Label className="text-foreground/70">Title</Label>
               <Input placeholder="e.g. Data Structures and Algorithms" {...form.register("title")} />
-              {form.formState.errors.title && <p className="text-sm text-red-400">{form.formState.errors.title.message}</p>}
+              {form.formState.errors.title && <p className="text-sm text-destructive">{form.formState.errors.title.message}</p>}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-zinc-300">Credit Units</Label>
+                <Label className="text-foreground/70">Credit Units</Label>
                 <Input type="number" min={1} {...form.register("creditUnits", { valueAsNumber: true })} />
-                {form.formState.errors.creditUnits && <p className="text-sm text-red-400">{form.formState.errors.creditUnits.message}</p>}
+                {form.formState.errors.creditUnits && <p className="text-sm text-destructive">{form.formState.errors.creditUnits.message}</p>}
               </div>
               <div className="space-y-1.5">
-                <Label className="text-zinc-300">Semester</Label>
+                <Label className="text-foreground/70">Semester</Label>
                 <Select value={form.watch("semester")} onValueChange={(v) => form.setValue("semester", v as "FIRST" | "SECOND", { shouldValidate: true })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>

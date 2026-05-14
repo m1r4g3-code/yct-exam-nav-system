@@ -42,7 +42,7 @@ function TableSkeleton() {
         <TableRow key={i}>
           {Array.from({ length: 5 }).map((__, j) => (
             <TableCell key={j}>
-              <Skeleton className="h-4 w-full bg-zinc-800" />
+              <Skeleton className="h-4 w-full" />
             </TableCell>
           ))}
         </TableRow>
@@ -57,11 +57,11 @@ function CardSkeleton() {
       {Array.from({ length: 5 }).map((_, i) => (
         <div
           key={i}
-          className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 space-y-2"
+          className="rounded-xl border border-border bg-card p-4 space-y-2"
         >
-          <Skeleton className="h-5 w-28 bg-zinc-800" />
-          <Skeleton className="h-4 w-full bg-zinc-800" />
-          <Skeleton className="h-4 w-1/2 bg-zinc-800" />
+          <Skeleton className="h-5 w-28" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-1/2" />
         </div>
       ))}
     </>
@@ -89,17 +89,17 @@ export default function CoursesPage() {
   );
 
   return (
-    <div className="min-h-screen bg-zinc-950 px-4 py-6 md:px-8 md:py-8">
+    <div className="min-h-screen bg-background px-4 py-6 md:px-8 md:py-8">
       {/* Header */}
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-zinc-50">My Courses</h1>
-          <p className="text-sm text-zinc-400 mt-0.5">
+          <h1 className="text-xl font-semibold text-foreground">My Courses</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
             Enrolled courses for the selected session
           </p>
         </div>
         <Select value={session} onValueChange={(v) => v != null && setSession(v)}>
-          <SelectTrigger className="w-full sm:w-72 bg-zinc-900 border-zinc-700 text-zinc-50">
+          <SelectTrigger className="w-full sm:w-72">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -113,15 +113,15 @@ export default function CoursesPage() {
       </div>
 
       {/* Desktop table */}
-      <div className="hidden md:block rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden">
+      <div className="hidden md:block rounded-xl border border-border bg-card overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow className="border-zinc-800 hover:bg-transparent">
-              <TableHead className="text-zinc-400">Code</TableHead>
-              <TableHead className="text-zinc-400">Title</TableHead>
-              <TableHead className="text-zinc-400">Credits</TableHead>
-              <TableHead className="text-zinc-400">Semester</TableHead>
-              <TableHead className="text-zinc-400">Level</TableHead>
+            <TableRow className="border-border hover:bg-transparent">
+              <TableHead className="text-muted-foreground">Code</TableHead>
+              <TableHead className="text-muted-foreground">Title</TableHead>
+              <TableHead className="text-muted-foreground">Credits</TableHead>
+              <TableHead className="text-muted-foreground">Semester</TableHead>
+              <TableHead className="text-muted-foreground">Level</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -137,21 +137,21 @@ export default function CoursesPage() {
               enrollments.map((e) => (
                 <TableRow
                   key={e.id}
-                  className="border-zinc-800 hover:bg-zinc-800/40"
+                  className="border-border hover:bg-muted/40"
                 >
-                  <TableCell className="font-mono font-medium text-zinc-50">
+                  <TableCell className="font-mono font-medium text-foreground">
                     {e.course.code}
                   </TableCell>
-                  <TableCell className="text-zinc-200 max-w-[260px] whitespace-normal">
+                  <TableCell className="text-foreground/80 max-w-[260px] whitespace-normal">
                     {e.course.title}
                   </TableCell>
-                  <TableCell className="text-zinc-300">
+                  <TableCell className="text-foreground/80">
                     {e.course.creditUnits}
                   </TableCell>
-                  <TableCell className="text-zinc-300">
+                  <TableCell className="text-foreground/80">
                     {e.course.semester}
                   </TableCell>
-                  <TableCell className="text-zinc-300">
+                  <TableCell className="text-foreground/80">
                     {e.course.level.name}
                   </TableCell>
                 </TableRow>
@@ -171,20 +171,20 @@ export default function CoursesPage() {
           enrollments.map((e) => (
             <div
               key={e.id}
-              className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 space-y-1"
+              className="rounded-xl border border-border bg-card p-4 space-y-1"
             >
               <div className="flex items-start justify-between gap-2">
-                <span className="font-mono font-semibold text-zinc-50 text-base">
+                <span className="font-mono font-semibold text-foreground text-base">
                   {e.course.code}
                 </span>
-                <span className="shrink-0 rounded-md bg-zinc-800 px-2 py-0.5 text-xs text-zinc-300">
+                <span className="shrink-0 rounded-md bg-muted px-2 py-0.5 text-xs text-foreground/80">
                   {e.course.creditUnits} cr
                 </span>
               </div>
-              <p className="text-sm text-zinc-300 leading-snug">
+              <p className="text-sm text-foreground/80 leading-snug">
                 {e.course.title}
               </p>
-              <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-zinc-500 pt-1">
+              <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground pt-1">
                 <span>{e.course.semester}</span>
                 <span>{e.course.level.name}</span>
               </div>
@@ -196,9 +196,9 @@ export default function CoursesPage() {
       {/* Total credit units footer */}
       {!isLoading && enrollments.length > 0 && (
         <div className="mt-4 flex justify-end">
-          <span className="rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-2 text-sm text-zinc-300">
+          <span className="rounded-lg border border-border bg-card px-4 py-2 text-sm text-foreground/80">
             Total credit units:{" "}
-            <span className="font-semibold text-zinc-50">{totalCreditUnits}</span>
+            <span className="font-semibold text-foreground">{totalCreditUnits}</span>
           </span>
         </div>
       )}
@@ -209,8 +209,8 @@ export default function CoursesPage() {
 function EmptyState() {
   return (
     <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
-      <BookMarked className="size-10 text-zinc-600" />
-      <p className="text-zinc-400 text-sm max-w-xs">
+      <BookMarked className="size-10 text-muted-foreground/70" />
+      <p className="text-muted-foreground text-sm max-w-xs">
         No courses enrolled for this session.
       </p>
     </div>

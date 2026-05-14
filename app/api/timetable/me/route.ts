@@ -13,16 +13,21 @@ export async function GET(request: NextRequest) {
   const student = await prisma.student.findUnique({ where: { authUserId: auth.id } });
   if (!student) return badRequest("Student profile not found");
 
-  // Try enrollment-based first; fall back to all published entries for the student's level.
-  // This makes the timetable visible even before individual course enrollment.
+  // Scope timetable to courses the student is actually enrolled in for this
+  // session. This keeps the timetable consistent with the Courses tab — a
+  // student who registered for 4 out of 6 level courses sees 4 exam entries,
+  // not all 6. Falls back to the full level timetable only when the student
+  // has no enrollment records (e.g. fresh account before first registration).
   const enrollments = await prisma.studentCourse.findMany({
     where: { studentId: student.id, session, deletedAt: null },
     select: { courseId: true },
   });
 
+  const enrolledCourseIds = enrollments.map((e) => e.courseId);
+
   const where =
-    enrollments.length > 0
-      ? { courseId: { in: enrollments.map((e) => e.courseId) }, session, status: "PUBLISHED" as const }
+    enrolledCourseIds.length > 0
+      ? { courseId: { in: enrolledCourseIds }, session, status: "PUBLISHED" as const }
       : { course: { levelId: student.levelId }, session, status: "PUBLISHED" as const };
 
   const entries = await prisma.timetableEntry.findMany({

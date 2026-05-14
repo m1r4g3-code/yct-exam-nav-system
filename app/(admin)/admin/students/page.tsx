@@ -22,6 +22,7 @@ import {
 
 interface School { id: string; name: string }
 interface Department { id: string; name: string; schoolId: string }
+interface Level { id: string; name: string }
 
 interface Student {
   id: string
@@ -53,6 +54,7 @@ export default function StudentsPage() {
   const [search, setSearch] = useState("")
   const [filterSchoolId, setFilterSchoolId] = useState<string>("all")
   const [filterDeptId, setFilterDeptId] = useState<string>("all")
+  const [filterLevelId, setFilterLevelId] = useState<string>("all")
   const [page, setPage] = useState(1)
   const debouncedSearch = useDebounce(search, 300)
 
@@ -80,14 +82,27 @@ export default function StudentsPage() {
     },
   })
 
+  const { data: deptLevels = [] } = useQuery<Level[]>({
+    queryKey: QUERY_KEYS.DEPT_LEVELS(filterDeptId !== "all" ? filterDeptId : undefined),
+    queryFn: async () => {
+      if (filterDeptId === "all") return []
+      const res = await fetch(`/api/levels?department_id=${filterDeptId}`)
+      const json = await res.json()
+      return json.data ?? []
+    },
+    enabled: filterDeptId !== "all",
+  })
+
   const deptIdParam = filterDeptId !== "all" ? filterDeptId : undefined
+  const levelIdParam = filterLevelId !== "all" ? filterLevelId : undefined
 
   const { data, isLoading } = useQuery<StudentsResponse>({
-    queryKey: [...QUERY_KEYS.STUDENTS, debouncedSearch, deptIdParam, page],
+    queryKey: [...QUERY_KEYS.STUDENTS, debouncedSearch, deptIdParam, levelIdParam, page],
     queryFn: async () => {
       const params = new URLSearchParams()
       if (debouncedSearch) params.set("search", debouncedSearch)
       if (deptIdParam) params.set("department_id", deptIdParam)
+      if (levelIdParam) params.set("level_id", levelIdParam)
       params.set("page", String(page))
       const res = await fetch(`/api/students?${params}`)
       const json = await res.json()
@@ -111,28 +126,28 @@ export default function StudentsPage() {
       accessorKey: "matricNumber",
       header: "Matric No",
       cell: ({ row }) => (
-        <span className="font-mono text-sm font-medium text-zinc-50">{row.original.matricNumber}</span>
+        <span className="font-mono text-sm font-medium text-foreground">{row.original.matricNumber}</span>
       ),
     },
     {
       accessorKey: "fullName",
       header: "Full Name",
       cell: ({ row }) => (
-        <span className="text-zinc-300">{row.original.fullName}</span>
+        <span className="text-foreground/70">{row.original.fullName}</span>
       ),
     },
     {
       id: "department",
       header: "Department",
       cell: ({ row }) => (
-        <span className="text-zinc-400">{row.original.department?.name ?? "—"}</span>
+        <span className="text-muted-foreground">{row.original.department?.name ?? "—"}</span>
       ),
     },
     {
       id: "level",
       header: "Level",
       cell: ({ row }) => (
-        <span className="text-zinc-400">{row.original.level?.name ?? "—"}</span>
+        <span className="text-muted-foreground">{row.original.level?.name ?? "—"}</span>
       ),
     },
     {
@@ -143,7 +158,7 @@ export default function StudentsPage() {
           <Button
             variant="ghost"
             size="sm"
-            className="text-zinc-400 hover:text-zinc-50"
+            className="text-muted-foreground hover:text-foreground"
             onClick={() => handleRowClick(row.original)}
           >
             View
@@ -156,8 +171,8 @@ export default function StudentsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-zinc-50">Students</h1>
-        <p className="mt-0.5 text-sm text-zinc-400">View registered students</p>
+        <h1 className="text-xl font-semibold text-foreground">Students</h1>
+        <p className="mt-0.5 text-sm text-muted-foreground">View registered students</p>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
@@ -194,7 +209,13 @@ export default function StudentsPage() {
 
         <Select
           value={filterDeptId}
-          onValueChange={(v) => { if (v != null) { setFilterDeptId(v); setPage(1) } }}
+          onValueChange={(v) => {
+            if (v != null) {
+              setFilterDeptId(v)
+              setFilterLevelId("all")
+              setPage(1)
+            }
+          }}
         >
           <SelectTrigger className="w-48">
             <SelectValue>
@@ -207,6 +228,28 @@ export default function StudentsPage() {
             <SelectItem value="all">All Departments</SelectItem>
             {departments.map((d) => (
               <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={filterLevelId}
+          onValueChange={(v) => { if (v != null) { setFilterLevelId(v); setPage(1) } }}
+          disabled={filterDeptId === "all"}
+        >
+          <SelectTrigger className="w-40">
+            <SelectValue>
+              {filterDeptId === "all"
+                ? "Select dept first"
+                : filterLevelId === "all"
+                ? "All Levels"
+                : (deptLevels.find(l => l.id === filterLevelId)?.name ?? "Level")}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Levels</SelectItem>
+            {deptLevels.map((l) => (
+              <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -232,9 +275,9 @@ export default function StudentsPage() {
                   className="w-full text-left"
                   onClick={() => handleRowClick(student)}
                 >
-                  <p className="font-medium text-zinc-50">{student.fullName}</p>
-                  <p className="font-mono text-sm text-zinc-400">{student.matricNumber}</p>
-                  <p className="text-xs text-zinc-500 mt-1">
+                  <p className="font-medium text-foreground">{student.fullName}</p>
+                  <p className="font-mono text-sm text-muted-foreground">{student.matricNumber}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
                     {student.department?.name ?? "—"} · {student.level?.name ?? "—"}
                   </p>
                 </button>
@@ -244,7 +287,7 @@ export default function StudentsPage() {
 
           {totalPages > 1 && (
             <div className="flex items-center justify-between pt-2">
-              <p className="text-sm text-zinc-400">
+              <p className="text-sm text-muted-foreground">
                 Page {data?.page ?? 1} of {totalPages}
               </p>
               <div className="flex items-center gap-2">

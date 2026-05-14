@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { requireAdminUser, isErrorResponse } from "@/lib/auth";
-import { ok, badRequest, forbidden } from "@/lib/api-response";
+import { ok, badRequest } from "@/lib/api-response";
 import { VALID_SESSIONS } from "@/lib/constants";
 import type { RouteContext } from "@/lib/route-types";
 
@@ -18,17 +18,10 @@ export async function DELETE(
     return badRequest("Invalid session");
   }
 
-  const published = await prisma.timetableEntry.findFirst({
-    where: { session, status: "PUBLISHED" },
-    select: { id: true },
-  });
-  if (published) {
-    return forbidden("Cannot reset a published timetable. Revert to draft first.");
-  }
-
+  // Delete all entries (draft and published) so the admin can regenerate from scratch
   const { count } = await prisma.timetableEntry.deleteMany({
-    where: { session, status: "DRAFT" },
+    where: { session },
   });
 
-  return ok({ deleted: count }, `Reset ${count} draft timetable entries`);
+  return ok({ deleted: count }, `Deleted ${count} timetable entries`);
 }

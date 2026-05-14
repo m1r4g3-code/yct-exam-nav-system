@@ -52,6 +52,43 @@ export async function buildLevelConflictGraph(
 }
 
 /**
+ * Synchronous variant — builds the level-based conflict graph from
+ * already-loaded course data. Use this when courses are pre-fetched to
+ * avoid a redundant DB round-trip.
+ */
+export function buildLevelConflictGraphSync(
+  courses: { id: string; levelId: string }[]
+): ConflictGraph {
+  const courseIds = courses.map((c) => c.id);
+  const byLevel = new Map<string, string[]>();
+  for (const c of courses) {
+    const arr = byLevel.get(c.levelId) ?? [];
+    arr.push(c.id);
+    byLevel.set(c.levelId, arr);
+  }
+
+  const adjacency = new Map<string, Set<string>>(courseIds.map((id) => [id, new Set()]));
+  const degree = new Map<string, number>(courseIds.map((id) => [id, 0]));
+
+  for (const levelCourses of byLevel.values()) {
+    for (let i = 0; i < levelCourses.length; i++) {
+      for (let j = i + 1; j < levelCourses.length; j++) {
+        const a = levelCourses[i];
+        const b = levelCourses[j];
+        if (!adjacency.get(a)!.has(b)) {
+          adjacency.get(a)!.add(b);
+          adjacency.get(b)!.add(a);
+          degree.set(a, (degree.get(a) ?? 0) + 1);
+          degree.set(b, (degree.get(b) ?? 0) + 1);
+        }
+      }
+    }
+  }
+
+  return { adjacency, degree };
+}
+
+/**
  * Enrollment-based conflict graph: courses share an edge when at least
  * one student is enrolled in both. Used as a fallback when enrollments exist.
  */

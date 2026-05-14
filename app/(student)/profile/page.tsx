@@ -45,10 +45,10 @@ function getInitials(name: string): string {
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col gap-0.5 py-3">
-      <span className="text-xs text-zinc-500 uppercase tracking-wide">
+      <span className="text-xs text-muted-foreground uppercase tracking-wide">
         {label}
       </span>
-      <span className="text-sm text-zinc-200">{value}</span>
+      <span className="text-sm text-foreground/80">{value}</span>
     </div>
   );
 }
@@ -57,15 +57,15 @@ function ProfileSkeleton() {
   return (
     <div className="space-y-4">
       <div className="flex flex-col items-center gap-3 pt-4 pb-6">
-        <Skeleton className="size-20 rounded-full bg-zinc-800" />
-        <Skeleton className="h-6 w-48 bg-zinc-800" />
-        <Skeleton className="h-4 w-32 bg-zinc-800" />
+        <Skeleton className="size-20 rounded-full" />
+        <Skeleton className="h-6 w-48" />
+        <Skeleton className="h-4 w-32" />
       </div>
-      <Separator className="bg-zinc-800" />
+      <Separator />
       {Array.from({ length: 4 }).map((_, i) => (
         <div key={i} className="py-2 space-y-1">
-          <Skeleton className="h-3 w-20 bg-zinc-800" />
-          <Skeleton className="h-4 w-52 bg-zinc-800" />
+          <Skeleton className="h-3 w-20" />
+          <Skeleton className="h-4 w-52" />
         </div>
       ))}
     </div>
@@ -103,14 +103,14 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 px-4 py-6 md:px-8 md:py-8">
-      <h1 className="text-xl font-semibold text-zinc-50 mb-6">Profile</h1>
+    <div className="min-h-screen bg-background px-4 py-6 md:px-8 md:py-8">
+      <h1 className="text-xl font-semibold text-foreground mb-6">Profile</h1>
 
-      <div className="mx-auto max-w-lg rounded-xl border border-zinc-800 bg-zinc-900 p-6">
+      <div className="mx-auto max-w-lg rounded-xl border border-border bg-card p-6">
         {isLoading ? (
           <ProfileSkeleton />
         ) : !profile ? (
-          <p className="text-center text-sm text-zinc-500 py-12">
+          <p className="text-center text-sm text-muted-foreground py-12">
             Could not load profile. Try refreshing.
           </p>
         ) : (
@@ -118,9 +118,9 @@ export default function ProfilePage() {
             {/* Avatar + name */}
             <div className="flex flex-col items-center gap-3 pt-2 pb-6">
               <div className="relative group">
-                <div className="flex size-20 items-center justify-center rounded-full bg-zinc-800 select-none text-4xl">
+                <div className="flex size-20 items-center justify-center rounded-full bg-muted select-none text-4xl">
                   {selectedAvatar || (
-                    <span className="text-2xl font-semibold text-zinc-300">
+                    <span className="text-2xl font-semibold text-foreground/80">
                       {getInitials(profile.fullName)}
                     </span>
                   )}
@@ -135,24 +135,24 @@ export default function ProfilePage() {
               </div>
               <button
                 onClick={() => setPickerOpen(true)}
-                className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+                className="text-xs text-muted-foreground hover:text-foreground/80 transition-colors"
               >
                 Change avatar
               </button>
               <div className="text-center">
-                <h2 className="text-xl font-semibold text-zinc-50">
+                <h2 className="text-xl font-semibold text-foreground">
                   {profile.fullName}
                 </h2>
-                <p className="text-sm text-zinc-400 mt-0.5">
+                <p className="text-sm text-muted-foreground mt-0.5">
                   {profile.matricNumber}
                 </p>
               </div>
             </div>
 
-            <Separator className="bg-zinc-800 mb-1" />
+            <Separator className="mb-1" />
 
             {/* Info rows */}
-            <div className="divide-y divide-zinc-800/60">
+            <div className="divide-y divide-border/60">
               <InfoRow label="Email" value={profile.email} />
               <InfoRow
                 label="Programme"
@@ -165,7 +165,7 @@ export default function ProfilePage() {
               />
             </div>
 
-            <Separator className="bg-zinc-800 mt-1 mb-5" />
+            <Separator className="mt-1 mb-5" />
 
             {/* Logout */}
             <Button
@@ -182,19 +182,19 @@ export default function ProfilePage() {
 
       {/* Avatar picker dialog */}
       <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 max-w-sm">
+        <DialogContent className="bg-card border-border max-w-sm">
           <DialogHeader>
-            <DialogTitle className="text-zinc-50">Choose an Avatar</DialogTitle>
+            <DialogTitle className="text-foreground">Choose an Avatar</DialogTitle>
           </DialogHeader>
           <div className="grid grid-cols-6 gap-2 py-2">
             {AVATARS.map((emoji) => (
               <button
                 key={emoji}
                 onClick={() => handleAvatarSelect(emoji)}
-                className={`flex items-center justify-center size-12 rounded-xl text-2xl transition-colors hover:bg-zinc-700 ${
+                className={`flex items-center justify-center size-12 rounded-xl text-2xl transition-colors hover:bg-muted ${
                   selectedAvatar === emoji
-                    ? "bg-zinc-700 ring-2 ring-indigo-500"
-                    : "bg-zinc-800"
+                    ? "bg-muted ring-2 ring-indigo-500"
+                    : "bg-muted/50"
                 }`}
                 aria-label={`Select avatar ${emoji}`}
               >
@@ -205,7 +205,7 @@ export default function ProfilePage() {
           {selectedAvatar && (
             <button
               onClick={clearAvatar}
-              className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors text-center w-full mt-1"
+              className="text-xs text-muted-foreground hover:text-foreground/80 transition-colors text-center w-full mt-1"
             >
               Remove avatar (use initials)
             </button>

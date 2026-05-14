@@ -9,6 +9,7 @@ import { DEFAULT_SESSION } from "@/lib/constants"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 type Course = {
   id: string
@@ -136,23 +137,26 @@ function CoursesContent() {
   }
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-8 w-full max-w-md">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-zinc-50">Select Your Courses</h1>
-        <p className="text-sm text-zinc-400 mt-1">
-          Choose the courses you&apos;re registered for this session
-        </p>
-        <p className="text-xs text-zinc-500 mt-1">{session}</p>
+    <div className="bg-card border border-border rounded-xl p-8 w-full max-w-md shadow-sm">
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Select Your Courses</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Choose the courses you&apos;re registered for this session
+          </p>
+          <p className="text-xs text-muted-foreground/70 mt-1">{session}</p>
+        </div>
+        <ThemeToggle />
       </div>
 
       {loading ? (
         <div className="space-y-3">
           {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-16 w-full rounded-lg bg-zinc-800" />
+            <Skeleton key={i} className="h-16 w-full rounded-lg" />
           ))}
         </div>
       ) : courses.length === 0 ? (
-        <p className="text-sm text-zinc-400 py-8 text-center">
+        <p className="text-sm text-muted-foreground py-8 text-center">
           No courses available for your level.
         </p>
       ) : (
@@ -165,24 +169,24 @@ function CoursesContent() {
                 className={[
                   "flex items-start gap-3 rounded-lg border px-4 py-3 cursor-pointer transition-colors",
                   selected
-                    ? "border-zinc-600 bg-zinc-800"
-                    : "border-zinc-800 bg-zinc-900 hover:border-zinc-700",
+                    ? "border-primary/50 bg-primary/10"
+                    : "border-border bg-card hover:border-border/70 hover:bg-muted/40",
                 ].join(" ")}
               >
                 <input
                   type="checkbox"
-                  className="mt-0.5 h-4 w-4 shrink-0 accent-zinc-50 cursor-pointer"
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-primary cursor-pointer"
                   checked={selected}
                   onChange={() => toggleCourse(course.id)}
                 />
                 <div className="flex flex-1 flex-col gap-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-medium text-zinc-50">
+                    <span className="text-sm font-medium text-foreground">
                       {course.code}
                     </span>
                     <Badge
                       variant="outline"
-                      className="text-[10px] px-1.5 py-0 h-4 border-zinc-700 text-zinc-400"
+                      className="text-[10px] px-1.5 py-0 h-4 border-border text-muted-foreground"
                     >
                       {course.semester === "FIRST" ? "1st Sem" : "2nd Sem"}
                     </Badge>
@@ -193,7 +197,7 @@ function CoursesContent() {
                       {course.creditUnits} CU
                     </Badge>
                   </div>
-                  <span className="text-xs text-zinc-400 truncate">
+                  <span className="text-xs text-muted-foreground truncate">
                     {course.title}
                   </span>
                 </div>
@@ -205,7 +209,7 @@ function CoursesContent() {
 
       <div className="mt-6 space-y-2">
         {selectedIds.size > 0 && (
-          <p className="text-xs text-zinc-400 text-center">
+          <p className="text-xs text-muted-foreground text-center">
             {selectedIds.size} course{selectedIds.size !== 1 ? "s" : ""} selected
           </p>
         )}
@@ -232,12 +236,12 @@ export default function CoursesPage() {
   return (
     <Suspense
       fallback={
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-8 w-full max-w-md">
-          <Skeleton className="h-7 w-48 mb-2 bg-zinc-800" />
-          <Skeleton className="h-4 w-64 mb-6 bg-zinc-800" />
+        <div className="bg-card border border-border rounded-xl p-8 w-full max-w-md shadow-sm">
+          <Skeleton className="h-7 w-48 mb-2" />
+          <Skeleton className="h-4 w-64 mb-6" />
           <div className="space-y-3">
             {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-16 w-full rounded-lg bg-zinc-800" />
+              <Skeleton key={i} className="h-16 w-full rounded-lg" />
             ))}
           </div>
         </div>

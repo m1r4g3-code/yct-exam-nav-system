@@ -14,6 +14,7 @@ import { Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { ThemeToggle } from "@/components/theme-toggle"
 import {
   Select,
   SelectContent,
@@ -41,16 +42,9 @@ const registerSchema = z
 
 type RegisterFormValues = z.infer<typeof registerSchema>
 
-type Programme = {
-  id: string
-  name: string
-}
-
-type Level = {
-  id: string
-  name: string
-}
-
+type Department = { id: string; name: string; code: string }
+type Programme = { id: string; name: string }
+type Level = { id: string; name: string }
 type ApiResponse<T> = {
   success: boolean
   data: T | null
@@ -61,9 +55,13 @@ type ApiResponse<T> = {
 export default function RegisterPage() {
   const router = useRouter()
 
+  const [departments, setDepartments] = useState<Department[]>([])
   const [programmes, setProgrammes] = useState<Programme[]>([])
   const [levels, setLevels] = useState<Level[]>([])
-  const [loadingProgrammes, setLoadingProgrammes] = useState(true)
+
+  const [selectedDeptId, setSelectedDeptId] = useState<string>("")
+  const [loadingDepts, setLoadingDepts] = useState(true)
+  const [loadingProgrammes, setLoadingProgrammes] = useState(false)
   const [loadingLevels, setLoadingLevels] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -72,6 +70,7 @@ export default function RegisterPage() {
     handleSubmit,
     control,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -88,29 +87,55 @@ export default function RegisterPage() {
 
   const programmeId = watch("programmeId")
 
-  // Fetch programmes on mount
+  // Fetch all departments on mount
   useEffect(() => {
-    async function fetchProgrammes() {
+    async function fetchDepartments() {
       try {
-        const res = await fetch("/api/programmes")
+        const res = await fetch("/api/departments")
+        const json: ApiResponse<Department[]> = await res.json()
+        if (json.success && json.data) setDepartments(json.data)
+      } catch {
+        toast.error("Failed to load departments.")
+      } finally {
+        setLoadingDepts(false)
+      }
+    }
+    fetchDepartments()
+  }, [])
+
+  // Fetch programmes when department changes
+  useEffect(() => {
+    if (!selectedDeptId) {
+      setProgrammes([])
+      setValue("programmeId", "")
+      setValue("levelId", "")
+      setLevels([])
+      return
+    }
+
+    async function fetchProgrammes() {
+      setLoadingProgrammes(true)
+      try {
+        const res = await fetch(
+          `/api/programmes?department_id=${encodeURIComponent(selectedDeptId)}`
+        )
         const json: ApiResponse<Programme[]> = await res.json()
-        if (json.success && json.data) {
-          setProgrammes(json.data)
-        }
+        if (json.success && json.data) setProgrammes(json.data)
       } catch {
         toast.error("Failed to load programmes.")
       } finally {
         setLoadingProgrammes(false)
       }
     }
-
     fetchProgrammes()
-  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDeptId])
 
   // Fetch levels when programmeId changes
   useEffect(() => {
     if (!programmeId) {
       setLevels([])
+      setValue("levelId", "")
       return
     }
 
@@ -121,17 +146,15 @@ export default function RegisterPage() {
           `/api/levels?programme_id=${encodeURIComponent(programmeId)}`
         )
         const json: ApiResponse<Level[]> = await res.json()
-        if (json.success && json.data) {
-          setLevels(json.data)
-        }
+        if (json.success && json.data) setLevels(json.data)
       } catch {
         toast.error("Failed to load levels.")
       } finally {
         setLoadingLevels(false)
       }
     }
-
     fetchLevels()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [programmeId])
 
   async function onSubmit(values: RegisterFormValues) {
@@ -169,7 +192,6 @@ export default function RegisterPage() {
         return
       }
 
-      // Refresh the router so the server picks up the new session cookie
       router.refresh()
       router.push(
         `/register/courses?session=${encodeURIComponent(DEFAULT_SESSION)}&level_id=${encodeURIComponent(values.levelId)}`
@@ -182,18 +204,19 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-8 w-full max-w-md">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-zinc-50">YCT Exam Portal</h1>
-        <p className="text-sm text-zinc-400 mt-1">Create your student account</p>
+    <div className="bg-card border border-border rounded-xl p-8 w-full max-w-md shadow-sm">
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">YCT Exam Portal</h1>
+          <p className="text-sm text-muted-foreground mt-1">Create your student account</p>
+        </div>
+        <ThemeToggle />
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         {/* Full Name */}
         <div className="space-y-1.5">
-          <Label htmlFor="fullName" className="text-zinc-300">
-            Full Name
-          </Label>
+          <Label htmlFor="fullName">Full Name</Label>
           <Input
             id="fullName"
             type="text"
@@ -203,17 +226,13 @@ export default function RegisterPage() {
             {...register("fullName")}
           />
           {errors.fullName && (
-            <p className="text-sm text-red-400 mt-1">
-              {errors.fullName.message}
-            </p>
+            <p className="text-sm text-destructive mt-1">{errors.fullName.message}</p>
           )}
         </div>
 
         {/* Matric Number */}
         <div className="space-y-1.5">
-          <Label htmlFor="matricNumber" className="text-zinc-300">
-            Matric Number
-          </Label>
+          <Label htmlFor="matricNumber">Matric Number</Label>
           <Input
             id="matricNumber"
             type="text"
@@ -223,17 +242,13 @@ export default function RegisterPage() {
             {...register("matricNumber")}
           />
           {errors.matricNumber && (
-            <p className="text-sm text-red-400 mt-1">
-              {errors.matricNumber.message}
-            </p>
+            <p className="text-sm text-destructive mt-1">{errors.matricNumber.message}</p>
           )}
         </div>
 
         {/* Email */}
         <div className="space-y-1.5">
-          <Label htmlFor="email" className="text-zinc-300">
-            Email
-          </Label>
+          <Label htmlFor="email">Email</Label>
           <Input
             id="email"
             type="email"
@@ -243,34 +258,79 @@ export default function RegisterPage() {
             {...register("email")}
           />
           {errors.email && (
-            <p className="text-sm text-red-400 mt-1">{errors.email.message}</p>
+            <p className="text-sm text-destructive mt-1">{errors.email.message}</p>
           )}
+        </div>
+
+        {/* Department */}
+        <div className="space-y-1.5">
+          <Label>Department</Label>
+          <Select
+            value={selectedDeptId}
+            onValueChange={(v) => {
+              if (v == null) return
+              setSelectedDeptId(v)
+              setValue("programmeId", "")
+              setValue("levelId", "")
+            }}
+          >
+            <SelectTrigger className="w-full h-9">
+              <SelectValue
+                placeholder={loadingDepts ? "Loading…" : "Select your department"}
+              >
+                {departments.find((d) => d.id === selectedDeptId)?.name}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {loadingDepts ? (
+                <SelectItem value="__loading__" disabled>Loading…</SelectItem>
+              ) : (
+                departments.map((d) => (
+                  <SelectItem key={d.id} value={d.id}>
+                    {d.name}
+                  </SelectItem>
+                ))
+              )}
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Programme */}
         <div className="space-y-1.5">
-          <Label htmlFor="programmeId" className="text-zinc-300">
-            Programme
-          </Label>
+          <Label htmlFor="programmeId">Programme</Label>
           <Controller
             name="programmeId"
             control={control}
             render={({ field }) => (
-              <Select value={field.value} onValueChange={field.onChange}>
+              <Select
+                value={field.value}
+                onValueChange={(v) => {
+                  if (v == null) return
+                  field.onChange(v)
+                  setValue("levelId", "")
+                }}
+                disabled={!selectedDeptId || loadingProgrammes}
+              >
                 <SelectTrigger
                   id="programmeId"
                   className="w-full h-9"
                   aria-invalid={!!errors.programmeId}
                 >
-                  <SelectValue placeholder="Select a programme">
+                  <SelectValue
+                    placeholder={
+                      !selectedDeptId
+                        ? "Select a department first"
+                        : loadingProgrammes
+                        ? "Loading…"
+                        : "Select a programme"
+                    }
+                  >
                     {programmes.find((p) => p.id === field.value)?.name}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {loadingProgrammes ? (
-                    <SelectItem value="__loading__" disabled>
-                      Loading…
-                    </SelectItem>
+                    <SelectItem value="__loading__" disabled>Loading…</SelectItem>
                   ) : (
                     programmes.map((p) => (
                       <SelectItem key={p.id} value={p.id}>
@@ -283,17 +343,13 @@ export default function RegisterPage() {
             )}
           />
           {errors.programmeId && (
-            <p className="text-sm text-red-400 mt-1">
-              {errors.programmeId.message}
-            </p>
+            <p className="text-sm text-destructive mt-1">{errors.programmeId.message}</p>
           )}
         </div>
 
         {/* Level */}
         <div className="space-y-1.5">
-          <Label htmlFor="levelId" className="text-zinc-300">
-            Level
-          </Label>
+          <Label htmlFor="levelId">Level</Label>
           <Controller
             name="levelId"
             control={control}
@@ -313,8 +369,8 @@ export default function RegisterPage() {
                       !programmeId
                         ? "Select a programme first"
                         : loadingLevels
-                          ? "Loading…"
-                          : "Select a level"
+                        ? "Loading…"
+                        : "Select a level"
                     }
                   >
                     {levels.find((l) => l.id === field.value)?.name}
@@ -322,9 +378,7 @@ export default function RegisterPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {loadingLevels ? (
-                    <SelectItem value="__loading__" disabled>
-                      Loading…
-                    </SelectItem>
+                    <SelectItem value="__loading__" disabled>Loading…</SelectItem>
                   ) : (
                     levels.map((l) => (
                       <SelectItem key={l.id} value={l.id}>
@@ -337,17 +391,13 @@ export default function RegisterPage() {
             )}
           />
           {errors.levelId && (
-            <p className="text-sm text-red-400 mt-1">
-              {errors.levelId.message}
-            </p>
+            <p className="text-sm text-destructive mt-1">{errors.levelId.message}</p>
           )}
         </div>
 
         {/* Password */}
         <div className="space-y-1.5">
-          <Label htmlFor="password" className="text-zinc-300">
-            Password
-          </Label>
+          <Label htmlFor="password">Password</Label>
           <Input
             id="password"
             type="password"
@@ -357,17 +407,13 @@ export default function RegisterPage() {
             {...register("password")}
           />
           {errors.password && (
-            <p className="text-sm text-red-400 mt-1">
-              {errors.password.message}
-            </p>
+            <p className="text-sm text-destructive mt-1">{errors.password.message}</p>
           )}
         </div>
 
         {/* Confirm Password */}
         <div className="space-y-1.5">
-          <Label htmlFor="confirmPassword" className="text-zinc-300">
-            Confirm Password
-          </Label>
+          <Label htmlFor="confirmPassword">Confirm Password</Label>
           <Input
             id="confirmPassword"
             type="password"
@@ -377,17 +423,11 @@ export default function RegisterPage() {
             {...register("confirmPassword")}
           />
           {errors.confirmPassword && (
-            <p className="text-sm text-red-400 mt-1">
-              {errors.confirmPassword.message}
-            </p>
+            <p className="text-sm text-destructive mt-1">{errors.confirmPassword.message}</p>
           )}
         </div>
 
-        <Button
-          type="submit"
-          className="w-full mt-2"
-          disabled={isSubmitting}
-        >
+        <Button type="submit" className="w-full mt-2" disabled={isSubmitting}>
           {isSubmitting ? (
             <>
               <Loader2 className="size-4 animate-spin" />
@@ -399,11 +439,11 @@ export default function RegisterPage() {
         </Button>
       </form>
 
-      <p className="text-sm text-zinc-400 mt-6 text-center">
+      <p className="text-sm text-muted-foreground mt-6 text-center">
         Already have an account?{" "}
         <Link
           href="/login"
-          className="text-zinc-200 underline underline-offset-4 hover:text-zinc-50"
+          className="text-foreground/80 underline underline-offset-4 hover:text-foreground"
         >
           Sign in
         </Link>

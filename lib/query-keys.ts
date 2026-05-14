@@ -7,6 +7,7 @@ export const QUERY_KEYS = {
   DEPARTMENTS: (schoolId?: string) => ["departments", schoolId] as const,
   PROGRAMMES: (departmentId?: string) => ["programmes", departmentId] as const,
   LEVELS: (programmeId?: string) => ["levels", programmeId] as const,
+  DEPT_LEVELS: (departmentId?: string) => ["levels", "dept", departmentId] as const,
 
   // Courses
   COURSES: (levelId?: string) => ["courses", levelId] as const,
@@ -22,8 +23,8 @@ export const QUERY_KEYS = {
   SLOTS: ["slots"] as const,
 
   // Timetable
-  TIMETABLE: (session?: string, levelId?: string) =>
-    ["timetable", session, levelId] as const,
+  TIMETABLE: (session?: string, levelId?: string, deptId?: string) =>
+    ["timetable", session, levelId, deptId] as const,
   MY_TIMETABLE: (session?: string) => ["timetable", "me", session] as const,
 
   // Navigation

@@ -194,21 +194,21 @@ export default function DepartmentsPage() {
       accessorKey: "name",
       header: "Name",
       cell: ({ row }) => (
-        <span className="font-medium text-zinc-50">{row.original.name}</span>
+        <span className="font-medium text-foreground">{row.original.name}</span>
       ),
     },
     {
       accessorKey: "code",
       header: "Code",
       cell: ({ row }) => (
-        <span className="text-zinc-400">{row.original.code}</span>
+        <span className="text-muted-foreground">{row.original.code}</span>
       ),
     },
     {
       id: "school",
       header: "School",
       cell: ({ row }) => (
-        <span className="text-zinc-400">
+        <span className="text-muted-foreground">
           {row.original.school?.name ?? getSchoolName(row.original.schoolId)}
         </span>
       ),
@@ -219,19 +219,19 @@ export default function DepartmentsPage() {
       cell: ({ row }) => (
         <div className="flex justify-end">
           <DropdownMenu>
-            <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" className="text-zinc-400 hover:text-zinc-50" />}>
+            <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-foreground" />}>
                 <MoreHorizontal className="size-4" />
                 <span className="sr-only">Open menu</span>
               </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800">
+            <DropdownMenuContent align="end">
               <DropdownMenuItem
-                className="text-zinc-300 focus:bg-zinc-800 focus:text-zinc-50"
+                className="text-foreground/70 focus:bg-muted focus:text-foreground"
                 onClick={() => openEdit(row.original)}
               >
                 Edit
               </DropdownMenuItem>
               <DropdownMenuItem
-                className="text-red-400 focus:bg-zinc-800 focus:text-red-400"
+                className="text-destructive focus:bg-muted focus:text-destructive"
                 onClick={() => setDeleteTarget(row.original)}
               >
                 Delete
@@ -247,8 +247,8 @@ export default function DepartmentsPage() {
     <div className="space-y-6">
       <div className="flex flex-row items-start justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-zinc-50">Departments</h1>
-          <p className="mt-0.5 text-sm text-zinc-400">Manage departments within schools</p>
+          <h1 className="text-xl font-semibold text-foreground">Departments</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">Manage departments within schools</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} disabled={uploadMutation.isPending}>
@@ -311,25 +311,25 @@ export default function DepartmentsPage() {
               renderCard={(dept) => (
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="font-medium text-zinc-50">{dept.name}</p>
-                    <p className="text-sm text-zinc-400">{dept.code}</p>
-                    <p className="text-xs text-zinc-500 mt-1">
+                    <p className="font-medium text-foreground">{dept.name}</p>
+                    <p className="text-sm text-muted-foreground">{dept.code}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
                       {dept.school?.name ?? getSchoolName(dept.schoolId)}
                     </p>
                   </div>
                   <DropdownMenu>
-                    <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" className="text-zinc-400" />}>
+                    <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" className="text-muted-foreground" />}>
                     <MoreHorizontal className="size-4" />
                   </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800">
+                    <DropdownMenuContent align="end">
                       <DropdownMenuItem
-                        className="text-zinc-300 focus:bg-zinc-800"
+                        className="text-foreground/70 focus:bg-muted"
                         onClick={() => openEdit(dept)}
                       >
                         Edit
                       </DropdownMenuItem>
                       <DropdownMenuItem
-                        className="text-red-400 focus:bg-zinc-800"
+                        className="text-destructive focus:bg-muted"
                         onClick={() => setDeleteTarget(dept)}
                       >
                         Delete
@@ -344,15 +344,15 @@ export default function DepartmentsPage() {
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="bg-zinc-900 border-zinc-800">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-zinc-50">
+            <DialogTitle>
               {editTarget ? "Edit Department" : "Add Department"}
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-1.5">
-              <Label className="text-zinc-300">School</Label>
+              <Label className="text-foreground/70">School</Label>
               <Select
                 value={form.watch("schoolId")}
                 onValueChange={(v) => v != null && form.setValue("schoolId", v, { shouldValidate: true })}
@@ -369,21 +369,21 @@ export default function DepartmentsPage() {
                 </SelectContent>
               </Select>
               {form.formState.errors.schoolId && (
-                <p className="text-sm text-red-400">{form.formState.errors.schoolId.message}</p>
+                <p className="text-sm text-destructive">{form.formState.errors.schoolId.message}</p>
               )}
             </div>
             <div className="space-y-1.5">
-              <Label className="text-zinc-300">Name</Label>
+              <Label className="text-foreground/70">Name</Label>
               <Input placeholder="e.g. Computer Science" {...form.register("name")} />
               {form.formState.errors.name && (
-                <p className="text-sm text-red-400">{form.formState.errors.name.message}</p>
+                <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>
               )}
             </div>
             <div className="space-y-1.5">
-              <Label className="text-zinc-300">Code</Label>
+              <Label className="text-foreground/70">Code</Label>
               <Input placeholder="e.g. CSC" {...form.register("code")} />
               {form.formState.errors.code && (
-                <p className="text-sm text-red-400">{form.formState.errors.code.message}</p>
+                <p className="text-sm text-destructive">{form.formState.errors.code.message}</p>
               )}
             </div>
             <DialogFooter>
