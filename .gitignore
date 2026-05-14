@@ -38,3 +38,4 @@ Thumbs.db
 
 # Turbopack / Next.js cache
 .turbo/
+.vercel
