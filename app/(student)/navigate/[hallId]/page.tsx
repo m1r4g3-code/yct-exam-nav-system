@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, useEffect, useMemo } from "react";
+import { use, useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { QUERY_KEYS } from "@/lib/query-keys";
@@ -61,6 +61,9 @@ export default function NavigatePage({
   );
   const [geoError, setGeoError] = useState(false);
   const [userPosition, setUserPosition] = useState<[number, number] | null>(null);
+  // Only update state when user moves >5m — prevents constant re-renders when stationary
+  // 0.00005 degrees ≈ 5.5m at equatorial latitude
+  const lastPosRef = useRef<[number, number] | null>(null);
 
   const { data: halls = [], isLoading: hallsLoading } = useQuery<NavHall[]>({
     queryKey: QUERY_KEYS.NAV_HALLS,
@@ -91,7 +94,15 @@ export default function NavigatePage({
   useEffect(() => {
     if (geoUnavailable) return;
     const watchId = navigator.geolocation.watchPosition(
-      (pos) => setUserPosition([pos.coords.latitude, pos.coords.longitude]),
+      (pos) => {
+        const next: [number, number] = [pos.coords.latitude, pos.coords.longitude];
+        if (lastPosRef.current) {
+          const d = Math.hypot(next[0] - lastPosRef.current[0], next[1] - lastPosRef.current[1]);
+          if (d < 0.00005) return; // skip update if <~5m movement
+        }
+        lastPosRef.current = next;
+        setUserPosition(next);
+      },
       () => setGeoError(true),
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 5000 }
     );

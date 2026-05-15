@@ -9,12 +9,11 @@ import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { toast } from "sonner"
-import { Loader2 } from "lucide-react"
+import { Loader2, Eye, EyeOff } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ThemeToggle } from "@/components/theme-toggle"
 import {
   Select,
   SelectContent,
@@ -64,6 +63,8 @@ export default function RegisterPage() {
   const [loadingProgrammes, setLoadingProgrammes] = useState(false)
   const [loadingLevels, setLoadingLevels] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   const {
     register,
@@ -205,12 +206,9 @@ export default function RegisterPage() {
 
   return (
     <div className="bg-card border border-border rounded-xl p-8 w-full max-w-md shadow-sm">
-      <div className="mb-6 flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">YCT Exam Portal</h1>
-          <p className="text-sm text-muted-foreground mt-1">Create your student account</p>
-        </div>
-        <ThemeToggle />
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-foreground">YCT Exam Portal</h1>
+        <p className="text-sm text-muted-foreground mt-1">Create your student account</p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -398,14 +396,26 @@ export default function RegisterPage() {
         {/* Password */}
         <div className="space-y-1.5">
           <Label htmlFor="password">Password</Label>
-          <Input
-            id="password"
-            type="password"
-            placeholder="••••••••"
-            autoComplete="new-password"
-            aria-invalid={!!errors.password}
-            {...register("password")}
-          />
+          <div className="relative">
+            <Input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              placeholder="••••••••"
+              autoComplete="new-password"
+              aria-invalid={!!errors.password}
+              className="pr-10"
+              {...register("password")}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              tabIndex={-1}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            </button>
+          </div>
           {errors.password && (
             <p className="text-sm text-destructive mt-1">{errors.password.message}</p>
           )}
@@ -414,14 +424,26 @@ export default function RegisterPage() {
         {/* Confirm Password */}
         <div className="space-y-1.5">
           <Label htmlFor="confirmPassword">Confirm Password</Label>
-          <Input
-            id="confirmPassword"
-            type="password"
-            placeholder="••••••••"
-            autoComplete="new-password"
-            aria-invalid={!!errors.confirmPassword}
-            {...register("confirmPassword")}
-          />
+          <div className="relative">
+            <Input
+              id="confirmPassword"
+              type={showConfirmPassword ? "text" : "password"}
+              placeholder="••••••••"
+              autoComplete="new-password"
+              aria-invalid={!!errors.confirmPassword}
+              className="pr-10"
+              {...register("confirmPassword")}
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword((v) => !v)}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              tabIndex={-1}
+              aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+            >
+              {showConfirmPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            </button>
+          </div>
           {errors.confirmPassword && (
             <p className="text-sm text-destructive mt-1">{errors.confirmPassword.message}</p>
           )}

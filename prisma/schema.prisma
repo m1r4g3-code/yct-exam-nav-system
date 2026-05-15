@@ -221,6 +221,7 @@ model StudentCourse {
   createdAt DateTime  @default(now()) @map("created_at")
 
   @@unique([studentId, courseId, session])
+  @@index([studentId])
   @@index([courseId])
   @@index([session, deletedAt])
   @@map("student_courses")
@@ -281,6 +282,7 @@ model StudentHallAssignment {
   createdAt        DateTime       @default(now()) @map("created_at")
 
   @@unique([studentId, timetableEntryId])
+  @@index([studentId])
   @@index([timetableEntryId])
   @@index([examHallId])
   @@map("student_hall_assignments")

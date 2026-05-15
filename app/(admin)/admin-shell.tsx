@@ -87,7 +87,7 @@ export function AdminShell({ user, children }: AdminShellProps) {
                     isActive={isActive}
                     tooltip={item.label}
                     render={<Link href={item.href} />}
-                    className="gap-3 px-3 py-2.5 text-sm"
+                    className="gap-3 px-3.5 py-3 text-sm"
                   >
                     <item.icon className="size-4 shrink-0" />
                     <span>{item.label}</span>

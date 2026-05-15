@@ -15,6 +15,8 @@ const schema = z.object({
 export async function GET(request: NextRequest) {
   const levelId = request.nextUrl.searchParams.get("level_id") ?? undefined;
   const departmentId = request.nextUrl.searchParams.get("department_id") ?? undefined;
+  const page = Math.max(1, parseInt(request.nextUrl.searchParams.get("page") ?? "1"));
+  const limit = Math.min(500, Math.max(1, parseInt(request.nextUrl.searchParams.get("limit") ?? "500")));
 
   const where = levelId
     ? { levelId }
@@ -26,6 +28,8 @@ export async function GET(request: NextRequest) {
     where,
     include: { level: { select: { name: true } } },
     orderBy: { code: "asc" },
+    take: limit,
+    skip: (page - 1) * limit,
   });
   return ok(courses);
 }

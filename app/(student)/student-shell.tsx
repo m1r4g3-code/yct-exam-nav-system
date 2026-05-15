@@ -53,7 +53,7 @@ export function StudentShell({ user, children }: StudentShellProps) {
                 key={href}
                 href={href}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm transition-colors",
+                  "flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm transition-colors",
                   active
                     ? "bg-brand/10 text-brand"
                     : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
@@ -88,7 +88,7 @@ export function StudentShell({ user, children }: StudentShellProps) {
             <Link
               key={href}
               href={href}
-              className="flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-xs transition-colors"
+              className="flex flex-1 flex-col items-center justify-center gap-0.5 py-3 text-xs transition-colors"
             >
               <Icon className={cn("size-5", active ? "text-brand" : "text-muted-foreground")} />
               <span className={active ? "text-brand font-medium" : "text-muted-foreground"}>{label}</span>

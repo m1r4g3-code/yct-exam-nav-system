@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { requireAdminUser, isErrorResponse } from "@/lib/auth";
-import { ok, badRequest, conflict as conflictRes } from "@/lib/api-response";
+import { ok, badRequest, conflict as conflictRes, serverError } from "@/lib/api-response";
 import { buildLevelConflictGraphSync } from "@/lib/services/graph-builder";
 import { runDsatur } from "@/lib/services/timetable-generator";
 import { planHallAssignments } from "@/lib/services/hall-assigner";
@@ -71,6 +71,7 @@ export async function POST(request: Request) {
   const auth = await requireAdminUser();
   if (isErrorResponse(auth)) return auth;
 
+  try {
   const body = await request.json().catch(() => null);
   const parsed = bodySchema.safeParse(body);
   if (!parsed.success)
@@ -231,4 +232,8 @@ export async function POST(request: Request) {
     },
     "Timetable generated successfully"
   );
+  } catch (err) {
+    console.error("[timetable/generate]", err);
+    return serverError("Timetable generation failed. Please try again.");
+  }
 }
