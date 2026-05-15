@@ -226,7 +226,9 @@ export async function POST(request: Request) {
         : ok(payload, "Timetable generated successfully");
     } finally {
       // Release the per-session lock regardless of success or failure
-      await prisma.generationLock.delete({ where: { session } }).catch(() => {});
+      await prisma.generationLock.delete({ where: { session } }).catch((e) => {
+        console.error("[lock-release-error]", e);
+      });
     }
   } catch (err) {
     console.error("[timetable/generate]", err);

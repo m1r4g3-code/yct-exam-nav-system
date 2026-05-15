@@ -36,7 +36,7 @@ export function MobileCardList<TData>({
     <div className="flex flex-col gap-3">
       {items.map((item, index) => (
         <div
-          key={index}
+          key={(item as { id?: string | number }).id ?? index}
           className="rounded-lg border border-border bg-card p-4"
         >
           {renderCard(item, index)}

@@ -282,7 +282,7 @@ export default function DashboardPage() {
   // Default to the most recent active session once loaded
   const effectiveSession = session || activeSessions[0]?.name || "";
 
-  const { data: entries = [], isLoading } = useQuery<TimetableEntry[]>({
+  const { data: entries = [], isLoading, isError } = useQuery<TimetableEntry[]>({
     queryKey: QUERY_KEYS.MY_TIMETABLE(effectiveSession),
     queryFn: async () => {
       const res = await fetch(`/api/timetable/me?session=${encodeURIComponent(effectiveSession)}`);
@@ -348,6 +348,11 @@ export default function DashboardPage() {
 
       {isLoading ? (
         <SkeletonRows />
+      ) : isError ? (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-6 text-center">
+          <p className="text-sm font-medium text-destructive">Failed to load timetable</p>
+          <p className="text-xs text-muted-foreground mt-1">Check your connection and refresh the page.</p>
+        </div>
       ) : entries.length === 0 ? (
         <EmptyState />
       ) : (

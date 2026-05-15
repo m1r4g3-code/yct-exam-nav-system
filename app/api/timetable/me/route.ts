@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { requireStudentUser, isErrorResponse } from "@/lib/auth";
-import { ok, badRequest, serverError } from "@/lib/api-response";
+import { ok, badRequest, notFound, serverError } from "@/lib/api-response";
 import type { NextRequest } from "next/server";
 
 export async function GET(request: NextRequest) {
@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   if (!session) return badRequest("session query parameter is required");
 
   const student = await prisma.student.findUnique({ where: { authUserId: auth.id } });
-  if (!student) return badRequest("Student profile not found");
+  if (!student) return notFound("Student profile not found");
 
   // Scope timetable to courses the student is actually enrolled in for this
   // session. This keeps the timetable consistent with the Courses tab — a

@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { requireStudentUser, isErrorResponse } from "@/lib/auth";
-import { ok, created, badRequest, conflict } from "@/lib/api-response";
+import { ok, created, badRequest, notFound, conflict } from "@/lib/api-response";
 import { z } from "zod";
 import type { NextRequest } from "next/server";
 
@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
   const session = request.nextUrl.searchParams.get("session") ?? undefined;
 
   const student = await prisma.student.findUnique({ where: { authUserId: auth.id } });
-  if (!student) return badRequest("Student profile not found");
+  if (!student) return notFound("Student profile not found");
 
   const enrollments = await prisma.studentCourse.findMany({
     where: { studentId: student.id, ...(session && { session }), deletedAt: null },
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
   if (!sessionRecord) return badRequest(`Unknown session: "${parsed.data.session}"`);
 
   const student = await prisma.student.findUnique({ where: { authUserId: auth.id } });
-  if (!student) return badRequest("Student profile not found");
+  if (!student) return notFound("Student profile not found");
 
   const course = await prisma.course.findUnique({
     where: { id: parsed.data.courseId },

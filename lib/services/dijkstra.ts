@@ -9,10 +9,13 @@ export interface PathResult {
 type Edge = { to: string; weight: number; polyline: number[][] };
 type Graph = Map<string, Edge[]>;
 
+const GRAPH_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
 let cachedGraph: Graph | null = null;
+let cacheExpiresAt = 0;
 
 async function loadGraph(): Promise<Graph> {
-  if (cachedGraph) return cachedGraph;
+  if (cachedGraph && Date.now() < cacheExpiresAt) return cachedGraph;
 
   const paths = await prisma.navigationPath.findMany({
     select: { fromNodeId: true, toNodeId: true, distanceMeters: true, pathCoordinates: true },
@@ -32,11 +35,13 @@ async function loadGraph(): Promise<Graph> {
   }
 
   cachedGraph = graph;
+  cacheExpiresAt = Date.now() + GRAPH_TTL_MS;
   return graph;
 }
 
 export function invalidateNavCache() {
   cachedGraph = null;
+  cacheExpiresAt = 0;
 }
 
 // ── O(log N) min-heap priority queue ────────────────────────────────────────

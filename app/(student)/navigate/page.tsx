@@ -51,10 +51,11 @@ function hallAccentColor(code: string): string {
 }
 
 export default function NavigateIndexPage() {
-  const { data: halls = [], isLoading } = useQuery<NavHall[]>({
+  const { data: halls = [], isLoading, isError } = useQuery<NavHall[]>({
     queryKey: QUERY_KEYS.NAV_HALLS,
     queryFn: async () => {
       const res = await fetch("/api/navigation/halls");
+      if (!res.ok) throw new Error(`${res.status}`);
       const json = await res.json();
       return json.data ?? [];
     },
@@ -81,6 +82,11 @@ export default function NavigateIndexPage() {
               </div>
             </div>
           ))}
+        </div>
+      ) : isError ? (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-8 text-center">
+          <p className="text-sm font-medium text-destructive">Failed to load halls</p>
+          <p className="text-xs text-muted-foreground mt-1">Check your connection and refresh the page.</p>
         </div>
       ) : halls.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">

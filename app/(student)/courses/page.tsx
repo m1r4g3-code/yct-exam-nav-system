@@ -85,12 +85,13 @@ export default function CoursesPage() {
   const activeSessions = sessions.filter((s) => s.isActive);
   const effectiveSession = session || activeSessions[0]?.name || "";
 
-  const { data: enrollments = [], isLoading } = useQuery<Enrollment[]>({
+  const { data: enrollments = [], isLoading, isError: enrollmentsError } = useQuery<Enrollment[]>({
     queryKey: QUERY_KEYS.MY_ENROLLMENTS(effectiveSession),
     queryFn: async () => {
       const res = await fetch(
         `/api/enrollments?session=${encodeURIComponent(effectiveSession)}`
       );
+      if (!res.ok) throw new Error(`${res.status}`);
       const json = await res.json();
       return json.data ?? [];
     },
@@ -141,6 +142,13 @@ export default function CoursesPage() {
           <TableBody>
             {isLoading ? (
               <TableSkeleton />
+            ) : enrollmentsError ? (
+              <TableRow>
+                <TableCell colSpan={5} className="py-16 text-center">
+                  <p className="text-sm font-medium text-destructive">Failed to load courses</p>
+                  <p className="text-xs text-muted-foreground mt-1">Check your connection and refresh.</p>
+                </TableCell>
+              </TableRow>
             ) : enrollments.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="py-16 text-center">
@@ -179,6 +187,11 @@ export default function CoursesPage() {
       <div className="flex md:hidden flex-col gap-3">
         {isLoading ? (
           <CardSkeleton />
+        ) : enrollmentsError ? (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-6 text-center">
+            <p className="text-sm font-medium text-destructive">Failed to load courses</p>
+            <p className="text-xs text-muted-foreground mt-1">Check your connection and refresh.</p>
+          </div>
         ) : enrollments.length === 0 ? (
           <EmptyState />
         ) : (

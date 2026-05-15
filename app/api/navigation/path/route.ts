@@ -1,6 +1,9 @@
 import { ok, badRequest, notFound, serverError } from "@/lib/api-response";
 import { dijkstra } from "@/lib/services/dijkstra";
+import { z } from "zod";
 import type { NextRequest } from "next/server";
+
+const uuidSchema = z.string().uuid();
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
@@ -8,6 +11,8 @@ export async function GET(request: NextRequest) {
   const to = searchParams.get("to");
 
   if (!from || !to) return badRequest("from and to query parameters are required");
+  if (!uuidSchema.safeParse(from).success || !uuidSchema.safeParse(to).success)
+    return badRequest("from and to must be valid node UUIDs");
   if (from === to) return badRequest("from and to must be different nodes");
 
   try {

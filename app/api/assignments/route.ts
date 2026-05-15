@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getAuthUser, isErrorResponse } from "@/lib/auth";
-import { ok, badRequest, forbidden, serverError } from "@/lib/api-response";
+import { ok, badRequest, notFound, forbidden, serverError } from "@/lib/api-response";
 import type { NextRequest } from "next/server";
 
 export async function GET(request: NextRequest) {
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
 
   if (role === "student") {
     const student = await prisma.student.findUnique({ where: { authUserId: auth.id } });
-    if (!student) return badRequest("Student profile not found");
+    if (!student) return notFound("Student profile not found");
 
     const assignments = await prisma.studentHallAssignment.findMany({
       where: { studentId: student.id, timetableEntry: { session, status: "PUBLISHED" } },

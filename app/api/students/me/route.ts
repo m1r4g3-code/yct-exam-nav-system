@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { requireStudentUser, isErrorResponse } from "@/lib/auth";
-import { ok, badRequest, serverError } from "@/lib/api-response";
+import { ok, notFound, serverError } from "@/lib/api-response";
 
 export async function GET() {
   try {
@@ -16,7 +16,7 @@ export async function GET() {
       },
     });
 
-    if (!student) return badRequest("Student profile not found");
+    if (!student) return notFound("Student profile not found");
     return ok(student);
   } catch (err) {
     console.error("[route-error]", err);

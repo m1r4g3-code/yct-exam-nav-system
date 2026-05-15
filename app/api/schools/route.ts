@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { requireAdminUser, isErrorResponse } from "@/lib/auth";
-import { ok, created, badRequest } from "@/lib/api-response";
+import { ok, created, badRequest, conflict, serverError } from "@/lib/api-response";
 import { z } from "zod";
 
 const schoolSchema = z.object({
@@ -21,14 +21,13 @@ export async function POST(request: Request) {
   const parsed = schoolSchema.safeParse(body);
   if (!parsed.success) return badRequest("Validation failed", parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })));
 
-  const school = await prisma.school.create({ data: parsed.data }).catch((e) => {
-    if (e.code === "P2002") throw new Error("code_exists");
-    throw e;
-  }).catch((e) => {
-    if (e.message === "code_exists") return null;
-    throw e;
-  });
-
-  if (!school) return badRequest("School code already exists");
-  return created(school);
+  try {
+    const school = await prisma.school.create({ data: parsed.data });
+    return created(school);
+  } catch (e: unknown) {
+    const err = e as { code?: string };
+    if (err.code === "P2002") return conflict("School code already exists");
+    console.error("[route-error]", e);
+    return serverError();
+  }
 }

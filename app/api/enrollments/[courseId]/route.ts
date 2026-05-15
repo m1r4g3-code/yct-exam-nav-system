@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { requireStudentUser, isErrorResponse } from "@/lib/auth";
-import { ok, badRequest, notFound, forbidden, serverError } from "@/lib/api-response";
+import { ok, notFound, badRequest, forbidden, serverError } from "@/lib/api-response";
 import type { RouteContext } from "@/lib/route-types";
 
 export async function DELETE(
@@ -16,7 +16,7 @@ export async function DELETE(
   if (!session) return badRequest("session query parameter is required");
 
   const student = await prisma.student.findUnique({ where: { authUserId: auth.id } });
-  if (!student) return badRequest("Student profile not found");
+  if (!student) return notFound("Student profile not found");
 
   const enrollment = await prisma.studentCourse.findUnique({
     where: { studentId_courseId_session: { studentId: student.id, courseId, session } },

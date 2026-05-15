@@ -34,18 +34,20 @@ enum NodeType {
 // ─── Tier 1: No Foreign Keys ─────────────────────────────────────────────────
 
 model Session {
-  id        String   @id @default(uuid())
-  name      String   @unique
-  isActive  Boolean  @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id              String           @id @default(uuid())
+  name            String           @unique
+  isActive        Boolean          @default(true) @map("is_active")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  generationLocks GenerationLock[]
 
   @@map("sessions")
 }
 
 model GenerationLock {
-  session   String   @id
-  startedAt DateTime @default(now()) @map("started_at")
+  session    String   @id
+  sessionRef Session  @relation(fields: [session], references: [name], onDelete: Cascade)
+  startedAt  DateTime @default(now()) @map("started_at")
 
   @@map("generation_locks")
 }
@@ -222,6 +224,7 @@ model Course {
   createdAt        DateTime         @default(now()) @map("created_at")
   updatedAt        DateTime         @updatedAt @map("updated_at")
 
+  @@index([levelId])
   @@map("courses")
 }
 
@@ -239,6 +242,7 @@ model StudentCourse {
 
   @@unique([studentId, courseId, session])
   @@index([studentId])
+  @@index([studentId, session])
   @@index([courseId])
   @@index([session, deletedAt])
   @@map("student_courses")
