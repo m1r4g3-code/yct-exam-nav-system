@@ -26,12 +26,16 @@ export async function GET(request: NextRequest) {
 
   const enrolledCourseIds = enrollments.map((e) => e.courseId);
 
-  if (enrolledCourseIds.length === 0) return ok([], "No enrollments found for this session");
-
-  const where = { courseId: { in: enrolledCourseIds }, session, status: "PUBLISHED" as const };
+  // When the student has no course enrollments for this session (e.g. enrolled in
+  // a different semester, or fresh account), fall back to all published entries for
+  // their level. They will see the exam schedule without individual seat numbers.
+  const entryWhere =
+    enrolledCourseIds.length > 0
+      ? { courseId: { in: enrolledCourseIds }, session, status: "PUBLISHED" as const }
+      : { course: { levelId: student.levelId }, session, status: "PUBLISHED" as const };
 
   const entries = await prisma.timetableEntry.findMany({
-    where,
+    where: entryWhere,
     include: {
       course: { select: { id: true, code: true, title: true, creditUnits: true } },
       timeSlot: true,

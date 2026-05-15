@@ -660,7 +660,10 @@ export default function TimetablePage() {
                 ))}
               </div>
             ) : assignments.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-8 text-center">No seat assignments found for this session.</p>
+              <div className="py-8 text-center space-y-1">
+                <p className="text-sm text-muted-foreground">No individual seat assignments for this session.</p>
+                <p className="text-xs text-muted-foreground/60">Seat assignments are generated per enrolled student. If students have not yet enrolled in courses for this session, regenerate the timetable after they enrol.</p>
+              </div>
             ) : (
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-background border-b border-border">
