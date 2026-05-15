@@ -1,8 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { prisma } from "@/lib/prisma";
-import { ok, badRequest, unauthorized, serverError } from "@/lib/api-response";
-import { z } from "zod";
+import { ok, unauthorized, serverError } from "@/lib/api-response";
 
 // GET /api/auth — return current session user
 export async function GET() {

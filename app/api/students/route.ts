@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { requireAdminUser, isErrorResponse } from "@/lib/auth";
-import { ok, badRequest } from "@/lib/api-response";
+import { ok } from "@/lib/api-response";
 import type { NextRequest } from "next/server";
 
 export async function GET(request: NextRequest) {

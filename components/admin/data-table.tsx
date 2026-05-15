@@ -1,4 +1,5 @@
 "use client"
+/* eslint-disable react-hooks/incompatible-library -- @tanstack/react-table's useReactTable() is not annotated for React Compiler; Compiler already skips this component and behaviour is correct */
 
 import { useState } from "react"
 import {

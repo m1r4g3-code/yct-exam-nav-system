@@ -1,4 +1,5 @@
 "use client"
+/* eslint-disable react-hooks/incompatible-library -- react-hook-form's form.watch() is not yet annotated for React Compiler; behaviour is correct and Compiler already skips this component */
 
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"

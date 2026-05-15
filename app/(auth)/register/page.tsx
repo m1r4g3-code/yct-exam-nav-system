@@ -1,11 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, startTransition } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { DEFAULT_SESSION } from "@/lib/constants"
-import { useForm, Controller } from "react-hook-form"
+import { useForm, useWatch, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { toast } from "sonner"
@@ -70,7 +70,6 @@ export default function RegisterPage() {
     register,
     handleSubmit,
     control,
-    watch,
     setValue,
     formState: { errors },
   } = useForm<RegisterFormValues>({
@@ -86,7 +85,7 @@ export default function RegisterPage() {
     },
   })
 
-  const programmeId = watch("programmeId")
+  const programmeId = useWatch({ control, name: "programmeId" })
 
   // Fetch all departments on mount
   useEffect(() => {
@@ -107,10 +106,12 @@ export default function RegisterPage() {
   // Fetch programmes when department changes
   useEffect(() => {
     if (!selectedDeptId) {
-      setProgrammes([])
-      setValue("programmeId", "")
-      setValue("levelId", "")
-      setLevels([])
+      startTransition(() => {
+        setProgrammes([])
+        setValue("programmeId", "")
+        setValue("levelId", "")
+        setLevels([])
+      })
       return
     }
 
@@ -135,8 +136,10 @@ export default function RegisterPage() {
   // Fetch levels when programmeId changes
   useEffect(() => {
     if (!programmeId) {
-      setLevels([])
-      setValue("levelId", "")
+      startTransition(() => {
+        setLevels([])
+        setValue("levelId", "")
+      })
       return
     }
 
