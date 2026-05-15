@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { requireAdminUser, isErrorResponse } from "@/lib/auth";
-import { ok, badRequest, notFound } from "@/lib/api-response";
+import { ok, badRequest, notFound, serverError } from "@/lib/api-response";
 import type { RouteContext } from "@/lib/route-types";
 
 // [id] is the session string (URL-encoded)
@@ -8,6 +8,7 @@ export async function PUT(
   _request: Request,
   ctx: RouteContext<"/api/timetable/[id]/publish">
 ) {
+  try {
   const auth = await requireAdminUser();
   if (isErrorResponse(auth)) return auth;
 
@@ -70,4 +71,8 @@ export async function PUT(
   });
 
   return ok({ published: drafts.length }, `Published ${drafts.length} timetable entries`);
+  } catch (err) {
+    console.error("[route-error]", err);
+    return serverError();
+  }
 }

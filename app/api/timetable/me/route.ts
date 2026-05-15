@@ -1,9 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { requireStudentUser, isErrorResponse } from "@/lib/auth";
-import { ok, badRequest } from "@/lib/api-response";
+import { ok, badRequest, serverError } from "@/lib/api-response";
 import type { NextRequest } from "next/server";
 
 export async function GET(request: NextRequest) {
+  try {
   const auth = await requireStudentUser();
   if (isErrorResponse(auth)) return auth;
 
@@ -82,4 +83,8 @@ export async function GET(request: NextRequest) {
   });
 
   return ok(mapped);
+  } catch (err) {
+    console.error("[route-error]", err);
+    return serverError();
+  }
 }

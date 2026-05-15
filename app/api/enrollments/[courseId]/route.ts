@@ -1,12 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { requireStudentUser, isErrorResponse } from "@/lib/auth";
-import { ok, badRequest, notFound, forbidden } from "@/lib/api-response";
+import { ok, badRequest, notFound, forbidden, serverError } from "@/lib/api-response";
 import type { RouteContext } from "@/lib/route-types";
 
 export async function DELETE(
   request: Request,
   ctx: RouteContext<"/api/enrollments/[courseId]">
 ) {
+  try {
   const auth = await requireStudentUser();
   if (isErrorResponse(auth)) return auth;
 
@@ -35,4 +36,8 @@ export async function DELETE(
   });
 
   return ok(null, "Course dropped successfully");
+  } catch (err) {
+    console.error("[route-error]", err);
+    return serverError();
+  }
 }

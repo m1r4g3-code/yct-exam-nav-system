@@ -4,7 +4,6 @@ import { useEffect, useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import { Loader2 } from "lucide-react"
-import { DEFAULT_SESSION } from "@/lib/constants"
 
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -31,7 +30,7 @@ type ApiResponse<T> = {
 function CoursesContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const session = searchParams.get("session") ?? DEFAULT_SESSION
+  const session = searchParams.get("session") ?? ""
 
   const [courses, setCourses] = useState<Course[]>([])
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -102,6 +101,11 @@ function CoursesContent() {
 
   async function handleEnroll() {
     if (selectedIds.size === 0) return
+    if (!session) {
+      toast.error("Session not found. Please restart registration.")
+      router.push("/register")
+      return
+    }
 
     setSubmitting(true)
     try {

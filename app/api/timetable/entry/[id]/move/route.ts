@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { requireAdminUser, isErrorResponse } from "@/lib/auth";
-import { ok, badRequest, notFound, conflict as conflictRes, forbidden } from "@/lib/api-response";
+import { ok, badRequest, notFound, conflict as conflictRes, forbidden, serverError } from "@/lib/api-response";
 import { z } from "zod";
 import type { RouteContext } from "@/lib/route-types";
 
@@ -12,6 +12,7 @@ export async function PATCH(
   request: Request,
   ctx: RouteContext<"/api/timetable/entry/[id]/move">
 ) {
+  try {
   const auth = await requireAdminUser();
   if (isErrorResponse(auth)) return auth;
 
@@ -94,4 +95,8 @@ export async function PATCH(
   });
 
   return ok(updated, "Timetable entry moved successfully");
+  } catch (err) {
+    console.error("[route-error]", err);
+    return serverError();
+  }
 }

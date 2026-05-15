@@ -4,7 +4,6 @@ import { useEffect, useState, startTransition } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
-import { DEFAULT_SESSION } from "@/lib/constants"
 import { useForm, useWatch, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -65,6 +64,7 @@ export default function RegisterPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [activeSessionName, setActiveSessionName] = useState<string>("")
 
   const {
     register,
@@ -86,6 +86,19 @@ export default function RegisterPage() {
   })
 
   const programmeId = useWatch({ control, name: "programmeId" })
+
+  // Fetch active sessions on mount so the enrollment redirect uses the real current session
+  useEffect(() => {
+    fetch("/api/sessions")
+      .then((r) => r.json())
+      .then((json) => {
+        const active = (json.data ?? []).filter(
+          (s: { isActive: boolean }) => s.isActive
+        )
+        if (active[0]) setActiveSessionName(active[0].name)
+      })
+      .catch(() => {})
+  }, [])
 
   // Fetch all departments on mount
   useEffect(() => {
@@ -198,7 +211,7 @@ export default function RegisterPage() {
 
       router.refresh()
       router.push(
-        `/register/courses?session=${encodeURIComponent(DEFAULT_SESSION)}&level_id=${encodeURIComponent(values.levelId)}`
+        `/register/courses?session=${encodeURIComponent(activeSessionName)}&level_id=${encodeURIComponent(values.levelId)}`
       )
     } catch {
       toast.error("Something went wrong. Please try again.")

@@ -1,9 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { requireAdminUser, isErrorResponse } from "@/lib/auth";
-import { ok } from "@/lib/api-response";
+import { ok, serverError } from "@/lib/api-response";
 import type { NextRequest } from "next/server";
 
 export async function GET(request: NextRequest) {
+  try {
   const auth = await requireAdminUser();
   if (isErrorResponse(auth)) return auth;
 
@@ -39,4 +40,8 @@ export async function GET(request: NextRequest) {
   ]);
 
   return ok({ students, total, page, pages: Math.ceil(total / limit) });
+  } catch (err) {
+    console.error("[route-error]", err);
+    return serverError();
+  }
 }
