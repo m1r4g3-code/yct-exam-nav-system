@@ -38,8 +38,6 @@ export async function PUT(request: Request, ctx: RouteContext<"/api/slots/[id]">
   if (parsed.data.date) data.date = new Date(parsed.data.date);
   if (parsed.data.startTime) data.startTime = new Date(`1970-01-01T${parsed.data.startTime}:00Z`);
   if (parsed.data.endTime) data.endTime = new Date(`1970-01-01T${parsed.data.endTime}:00Z`);
-  delete data.date; // rebuild below
-  if (parsed.data.date) data.date = new Date(parsed.data.date);
 
   const updated = await prisma.timeSlot.update({ where: { id }, data });
   return ok(updated, "Time slot updated");

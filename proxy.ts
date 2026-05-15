@@ -41,7 +41,7 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/register") ||
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/api/navigation") ||
-    pathname.startsWith("/api/halls") ||
+    (method === "GET" && pathname.startsWith("/api/halls")) ||
     pathname === "/" ||
     // Reference data — public read (needed for register form + course selection)
     (method === "GET" && (

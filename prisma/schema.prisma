@@ -252,6 +252,8 @@ model TimetableEntry {
 
 // ─── Tier 8 ──────────────────────────────────────────────────────────────────
 
+// DH-6: seatStart is always 1 — seats are per-hall (1 → seatEnd). seatEnd = students
+// allocated to this hall for this course. Do NOT read seatStart as a global offset.
 model HallAssignment {
   id               String         @id @default(uuid())
   timetableEntryId String         @map("timetable_entry_id")

@@ -20,11 +20,24 @@ export async function PUT(
 
   const drafts = await prisma.timetableEntry.findMany({
     where: { session, status: "DRAFT" },
-    select: { id: true },
+    select: {
+      id: true,
+      courseId: true,
+      _count: { select: { hallAssignments: true } },
+    },
   });
 
   if (drafts.length === 0) {
     return notFound("No draft timetable entries found for this session");
+  }
+
+  // FP-15: block publish if any course has no hall assignments (overflow not resolved)
+  const overflowEntries = drafts.filter((e) => e._count.hallAssignments === 0);
+  if (overflowEntries.length > 0) {
+    return badRequest(
+      `Cannot publish: ${overflowEntries.length} course(s) have no hall assignments. Resolve hall overflow before publishing.`,
+      overflowEntries.map((e) => ({ field: "courseId", message: e.courseId }))
+    );
   }
 
   await prisma.timetableEntry.updateMany({

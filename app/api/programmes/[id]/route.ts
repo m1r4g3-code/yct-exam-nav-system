@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { requireAdminUser, isErrorResponse } from "@/lib/auth";
-import { ok, badRequest, notFound } from "@/lib/api-response";
+import { ok, badRequest, notFound, conflict } from "@/lib/api-response";
 import { z } from "zod";
 import type { RouteContext } from "@/lib/route-types";
 
@@ -45,6 +45,17 @@ export async function DELETE(_req: Request, ctx: RouteContext<"/api/programmes/[
   const existing = await prisma.programme.findUnique({ where: { id } });
   if (!existing) return notFound("Programme not found");
 
-  await prisma.programme.delete({ where: { id } });
-  return ok(null, "Programme deleted");
+  // DH-3: prevent deletion of programmes with enrolled students
+  const studentCount = await prisma.student.count({ where: { programmeId: id } });
+  if (studentCount > 0)
+    return conflict(`Cannot delete — ${studentCount} student(s) are enrolled in this programme.`);
+
+  try {
+    await prisma.programme.delete({ where: { id } });
+    return ok(null, "Programme deleted");
+  } catch (e: unknown) {
+    if ((e as { code?: string }).code === "P2003")
+      return conflict("Programme is still referenced by other records and cannot be deleted.");
+    throw e;
+  }
 }

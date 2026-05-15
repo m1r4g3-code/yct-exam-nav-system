@@ -23,6 +23,20 @@ export async function POST(request: Request) {
   const parsed = schema.safeParse(body);
   if (!parsed.success) return badRequest("Validation failed", parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })));
 
+  // FP-24: reject slots whose time range overlaps any existing slot on the same date
+  const newStart = new Date(`1970-01-01T${parsed.data.startTime}:00Z`).getTime();
+  const newEnd   = new Date(`1970-01-01T${parsed.data.endTime}:00Z`).getTime();
+  const slotsOnDate = await prisma.timeSlot.findMany({
+    where: { date: new Date(parsed.data.date) },
+    select: { startTime: true, endTime: true, label: true },
+  });
+  const overlapping = slotsOnDate.find((s) => {
+    const sStart = new Date(s.startTime).getTime();
+    const sEnd   = new Date(s.endTime).getTime();
+    return newStart < sEnd && newEnd > sStart;
+  });
+  if (overlapping) return badRequest(`Slot overlaps with existing slot: "${overlapping.label}"`);
+
   try {
     const slot = await prisma.timeSlot.create({
       data: {

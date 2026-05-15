@@ -68,6 +68,12 @@ export async function POST(request: Request) {
   let skipped = 0;
   const errors: { row: number; reason: string }[] = [];
 
+  // FP-25: validate ALL rows first, then commit in a single transaction.
+  // Previously each row upserted independently — a mid-batch failure left the DB
+  // in a partial state that was impossible to cleanly re-import.
+  type ValidRow = { code: string; title: string; creditUnits: number; semester: "FIRST" | "SECOND"; levelId: string };
+  const validRows: ValidRow[] = [];
+
   for (let i = 1; i < lines.length; i++) {
     const values = splitCSVLine(lines[i]);
     const row: CsvRow = {};
@@ -103,16 +109,30 @@ export async function POST(request: Request) {
       continue;
     }
 
+    validRows.push({
+      code: course_code.toUpperCase(),
+      title: course_title,
+      creditUnits: credits,
+      semester: sem === "first" ? "FIRST" : "SECOND",
+      levelId,
+    });
+  }
+
+  if (validRows.length > 0) {
     try {
-      await prisma.course.upsert({
-        where: { code: course_code.toUpperCase() },
-        update: { title: course_title, creditUnits: credits, semester: sem === "first" ? "FIRST" : "SECOND", levelId },
-        create: { code: course_code.toUpperCase(), title: course_title, creditUnits: credits, semester: sem === "first" ? "FIRST" : "SECOND", levelId },
-      });
-      imported++;
+      await prisma.$transaction(
+        validRows.map((r) =>
+          prisma.course.upsert({
+            where: { code: r.code },
+            update: { title: r.title, creditUnits: r.creditUnits, semester: r.semester, levelId: r.levelId },
+            create: r,
+          })
+        )
+      );
+      imported = validRows.length;
     } catch {
-      errors.push({ row: rowNum, reason: "Database error — check course code format" });
-      skipped++;
+      errors.push({ row: 0, reason: "Database transaction failed — no courses were imported. Correct the errors above and re-upload the full CSV." });
+      skipped += validRows.length;
     }
   }
 

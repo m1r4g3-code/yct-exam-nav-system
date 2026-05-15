@@ -54,6 +54,24 @@ export async function PATCH(
   });
   const neighborCourseIds = conflictingEnrollments.map((e) => e.courseId);
 
+  // LOOP-2: the generator uses level-based conflict detection, but this endpoint uses
+  // enrollment-based. When no enrolled students exist (only level-aggregate headcounts),
+  // enrollment-based detection finds no conflicts and the move would incorrectly succeed.
+  // Fall back to level-based: all courses in the same level conflict with each other.
+  if (neighborCourseIds.length === 0) {
+    const courseWithLevel = await prisma.course.findUnique({
+      where: { id: entry.courseId },
+      select: { levelId: true },
+    });
+    if (courseWithLevel?.levelId) {
+      const sameLevelCourses = await prisma.course.findMany({
+        where: { levelId: courseWithLevel.levelId, id: { not: entry.courseId } },
+        select: { id: true },
+      });
+      neighborCourseIds.push(...sameLevelCourses.map((c) => c.id));
+    }
+  }
+
   const conflict = await prisma.timetableEntry.findFirst({
     where: {
       courseId: { in: neighborCourseIds },

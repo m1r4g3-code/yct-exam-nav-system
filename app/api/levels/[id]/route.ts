@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { requireAdminUser, isErrorResponse } from "@/lib/auth";
-import { ok, badRequest, notFound } from "@/lib/api-response";
+import { ok, badRequest, notFound, conflict } from "@/lib/api-response";
 import { z } from "zod";
 import type { RouteContext } from "@/lib/route-types";
 
@@ -45,6 +45,24 @@ export async function DELETE(_req: Request, ctx: RouteContext<"/api/levels/[id]"
   const existing = await prisma.level.findUnique({ where: { id } });
   if (!existing) return notFound("Level not found");
 
-  await prisma.level.delete({ where: { id } });
-  return ok(null, "Level deleted");
+  // DH-3: guard against destroying student records and published timetable data
+  const studentCount = await prisma.student.count({ where: { levelId: id } });
+  if (studentCount > 0)
+    return conflict(`Cannot delete — ${studentCount} student(s) are registered at this level.`);
+
+  const publishedEntry = await prisma.timetableEntry.findFirst({
+    where: { course: { levelId: id }, status: "PUBLISHED" },
+    select: { id: true },
+  });
+  if (publishedEntry)
+    return conflict("Cannot delete — this level has published timetable entries. Reset the timetable first.");
+
+  try {
+    await prisma.level.delete({ where: { id } });
+    return ok(null, "Level deleted");
+  } catch (e: unknown) {
+    if ((e as { code?: string }).code === "P2003")
+      return conflict("Level is still referenced by other records and cannot be deleted.");
+    throw e;
+  }
 }

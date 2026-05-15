@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { requireAdminUser, isErrorResponse } from "@/lib/auth";
-import { ok, badRequest, conflict as conflictRes, serverError } from "@/lib/api-response";
+import { ok, badRequest, conflict as conflictRes, serverError, partial } from "@/lib/api-response";
 import { buildLevelConflictGraphSync } from "@/lib/services/graph-builder";
 import { runDsatur } from "@/lib/services/timetable-generator";
 import { planHallAssignments } from "@/lib/services/hall-assigner";
@@ -103,12 +103,19 @@ export async function POST(request: Request) {
         "A draft timetable already exists for this session. Pass force=true to regenerate."
       );
 
-    // RED-1 fix: delete ALL entries (DRAFT and PUBLISHED) — not just DRAFT.
-    // Filtering by status: "DRAFT" here left PUBLISHED entries alive, causing
-    // skipDuplicates to silently drop the new course assignments for those entries,
-    // producing a half-regenerated timetable with no error returned.
-    if (force)
+    // BUG-1: guard against destroying a published timetable. A force=true without
+    // this check would cascade-delete all student seat assignments silently.
+    if (force) {
+      const publishedEntry = await prisma.timetableEntry.findFirst({
+        where: { session, status: "PUBLISHED" },
+        select: { id: true },
+      });
+      if (publishedEntry)
+        return conflictRes(
+          "This session's timetable has already been published. Use DELETE /api/timetable/[session]/reset to explicitly reset it first."
+        );
       await prisma.timetableEntry.deleteMany({ where: { session } });
+    }
 
     // ── Auto-create exam slots ────────────────────────────────────────────────
     if (examStartDate) {
@@ -246,18 +253,25 @@ export async function POST(request: Request) {
         : [];
     const detailMap = new Map(courseDetails.map((c) => [c.id, c]));
 
-    return ok(
-      {
-        assigned: assignments.size,
-        unresolved: unresolved
-          .map((id) => detailMap.get(id))
-          .filter((c): c is NonNullable<typeof c> => c !== undefined),
-        overflow: plan.overflowCourseIds
-          .map((id) => detailMap.get(id))
-          .filter((c): c is NonNullable<typeof c> => c !== undefined),
-      },
-      "Timetable generated successfully"
-    );
+    const unresolvedDetails = unresolved
+      .map((id) => detailMap.get(id))
+      .filter((c): c is NonNullable<typeof c> => c !== undefined);
+    const overflowDetails = plan.overflowCourseIds
+      .map((id) => detailMap.get(id))
+      .filter((c): c is NonNullable<typeof c> => c !== undefined);
+
+    const payload = {
+      assigned: assignments.size,
+      unresolved: unresolvedDetails,
+      overflow: overflowDetails,
+    };
+
+    // SF-1: 207 Multi-Status when issues exist so callers cannot mistake a partial
+    // result for a clean success by checking HTTP status alone.
+    const hasIssues = unresolvedDetails.length > 0 || overflowDetails.length > 0;
+    return hasIssues
+      ? partial(payload, "Timetable generated with warnings — resolve overflow and unresolved courses before publishing.")
+      : ok(payload, "Timetable generated successfully");
   } catch (err) {
     console.error("[timetable/generate]", err);
     return serverError("Timetable generation failed. Please try again.");

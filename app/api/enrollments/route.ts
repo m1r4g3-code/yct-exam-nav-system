@@ -54,6 +54,14 @@ export async function POST(request: Request) {
     return badRequest("Course does not belong to your level");
   }
 
+  // FP-16: block enrollment after timetable is published — late enrollees get no seat
+  const publishedEntry = await prisma.timetableEntry.findFirst({
+    where: { courseId: parsed.data.courseId, session: parsed.data.session, status: "PUBLISHED" },
+    select: { id: true },
+  });
+  if (publishedEntry)
+    return conflict("Enrollment is closed — the timetable for this session has been published. Contact the exam office.");
+
   try {
     const enrollment = await prisma.studentCourse.create({
       data: {

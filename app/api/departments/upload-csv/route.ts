@@ -48,6 +48,8 @@ export async function POST(request: Request) {
   const formData = await request.formData().catch(() => null);
   const file = formData?.get("file") as File | null;
   if (!file) return badRequest("No file uploaded");
+  if (!file.name.endsWith(".csv")) return badRequest("File must be a .csv file");
+  if (file.size > 5 * 1024 * 1024) return badRequest("File exceeds 5 MB limit");
 
   const text = await file.text();
   const lines = text.replace(/\r/g, "").split("\n").filter(Boolean);

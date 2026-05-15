@@ -67,3 +67,9 @@ export function serverError(message = "Internal server error"): Response {
     { status: 500 }
   );
 }
+
+export function partial<T>(data: T, message = "Partial success"): Response {
+  return Response.json({ success: true, data, message } satisfies ApiResponse<T>, {
+    status: 207,
+  });
+}

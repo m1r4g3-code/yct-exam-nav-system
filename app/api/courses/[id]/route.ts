@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { requireAdminUser, isErrorResponse } from "@/lib/auth";
-import { ok, badRequest, notFound } from "@/lib/api-response";
+import { ok, badRequest, notFound, conflict } from "@/lib/api-response";
 import { z } from "zod";
 import type { RouteContext } from "@/lib/route-types";
 
@@ -50,6 +50,24 @@ export async function DELETE(_req: Request, ctx: RouteContext<"/api/courses/[id]
   const existing = await prisma.course.findUnique({ where: { id } });
   if (!existing) return notFound("Course not found");
 
-  await prisma.course.delete({ where: { id } });
-  return ok(null, "Course deleted");
+  // DH-3: guard against destroying published timetable data and active enrollments
+  const publishedEntry = await prisma.timetableEntry.findFirst({
+    where: { courseId: id, status: "PUBLISHED" },
+    select: { id: true },
+  });
+  if (publishedEntry)
+    return conflict("Cannot delete — this course has published timetable entries. Reset the timetable first.");
+
+  const enrollmentCount = await prisma.studentCourse.count({ where: { courseId: id, deletedAt: null } });
+  if (enrollmentCount > 0)
+    return conflict(`Cannot delete — ${enrollmentCount} student(s) are enrolled in this course.`);
+
+  try {
+    await prisma.course.delete({ where: { id } });
+    return ok(null, "Course deleted");
+  } catch (e: unknown) {
+    if ((e as { code?: string }).code === "P2003")
+      return conflict("Course is still referenced by other records and cannot be deleted.");
+    throw e;
+  }
 }
