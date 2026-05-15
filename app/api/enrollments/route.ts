@@ -61,15 +61,9 @@ export async function POST(request: Request) {
   if (course.levelId !== student.levelId) {
     return badRequest("Course does not belong to your level");
   }
-
-  const publishedEntry = await prisma.timetableEntry.findFirst({
-    where: { courseId: parsed.data.courseId, session: parsed.data.session, status: "PUBLISHED" },
-    select: { id: true },
-  });
-  if (publishedEntry)
-    return conflict(
-      "Enrollment is closed — the timetable for this session has been published. Contact the exam office."
-    );
+  if (course.level.programmeId !== student.programmeId) {
+    return badRequest("Course does not belong to your programme");
+  }
 
   try {
     const enrollment = await prisma.studentCourse.create({

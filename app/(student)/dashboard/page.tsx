@@ -93,7 +93,14 @@ function EmptyState() {
     <div className="flex flex-col items-center justify-center gap-3 py-24 text-center">
       <Clock className="size-8 text-muted-foreground/30" />
       <p className="text-sm text-muted-foreground/60 max-w-xs leading-relaxed">
-        No published exam timetable for this session yet.
+        No exam entries found for this session.
+      </p>
+      <p className="text-xs text-muted-foreground/40 max-w-xs leading-relaxed">
+        Make sure you have{" "}
+        <Link href="/courses" className="underline underline-offset-2 hover:text-muted-foreground">
+          enrolled in courses
+        </Link>{" "}
+        for this session, or check back once the timetable is published.
       </p>
     </div>
   );
@@ -320,6 +327,10 @@ export default function DashboardPage() {
   const nextExam = upcoming[0] ?? null;
   const remainingUpcoming = upcoming.slice(1);
 
+  const missingSeat = entries.some(
+    (e) => e.studentAssignments[0]?.examHall != null && e.studentAssignments[0]?.seatNumber == null
+  );
+
   return (
     <div className="min-h-screen bg-background px-4 pt-6 pb-28 md:pb-8 md:px-8 max-w-xl mx-auto">
       {/* Header */}
@@ -357,6 +368,19 @@ export default function DashboardPage() {
         <EmptyState />
       ) : (
         <div className="space-y-7">
+          {/* Seat-number pending banner */}
+          {missingSeat && (
+            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 flex items-start gap-2.5">
+              <span className="text-amber-500 mt-0.5 shrink-0 text-sm">⚠</span>
+              <div>
+                <p className="text-xs font-medium text-amber-500">Seat numbers not yet assigned</p>
+                <p className="text-xs text-muted-foreground/80 mt-0.5 leading-relaxed">
+                  Your hall has been allocated but individual seat numbers are pending. The exam admin needs to regenerate and republish the timetable.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Progress bar */}
           {sorted.length > 0 && (
             <div className="flex items-center gap-3">

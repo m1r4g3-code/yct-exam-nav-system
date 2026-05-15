@@ -27,20 +27,35 @@ type ApiResponse<T> = {
   errors?: { field: string; message: string }[]
 }
 
+/** Parse "2025/2026 First Semester" → "FIRST" | "SECOND" | null */
+function parseSemester(sessionName: string): "FIRST" | "SECOND" | null {
+  if (sessionName.includes("First")) return "FIRST"
+  if (sessionName.includes("Second")) return "SECOND"
+  return null
+}
+
 function CoursesContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const session = searchParams.get("session") ?? ""
+  const semester = parseSemester(session)
 
   const [courses, setCourses] = useState<Course[]>([])
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
 
+  // Courses visible for the current session's semester
+  const visibleCourses = semester
+    ? courses.filter((c) => c.semester === semester)
+    : courses
+
   useEffect(() => {
     async function loadCourses() {
       // level_id from URL (passed by register page) — no auth needed for course list
       const levelId = searchParams.get("level_id")
+
+      let loaded: Course[] = []
 
       if (!levelId) {
         // Fallback: fetch from profile (student must be logged in)
@@ -59,32 +74,41 @@ function CoursesContent() {
           }
           const res = await fetch(`/api/courses?level_id=${encodeURIComponent(profileJson.data.levelId)}`)
           const json: ApiResponse<Course[]> = await res.json()
-          if (json.success && json.data) setCourses(json.data)
+          if (json.success && json.data) loaded = json.data
           else toast.error("Could not load courses.")
         } catch {
           toast.error("Something went wrong loading your courses.")
         } finally {
           setLoading(false)
         }
-        return
+      } else {
+        try {
+          const res = await fetch(`/api/courses?level_id=${encodeURIComponent(levelId)}`)
+          const json: ApiResponse<Course[]> = await res.json()
+          if (json.success && json.data) {
+            loaded = json.data
+          } else {
+            toast.error("Could not load courses.")
+          }
+        } catch {
+          toast.error("Something went wrong loading your courses.")
+        } finally {
+          setLoading(false)
+        }
       }
 
-      try {
-        const res = await fetch(`/api/courses?level_id=${encodeURIComponent(levelId)}`)
-        const json: ApiResponse<Course[]> = await res.json()
-        if (json.success && json.data) {
-          setCourses(json.data)
-        } else {
-          toast.error("Could not load courses.")
-        }
-      } catch {
-        toast.error("Something went wrong loading your courses.")
-      } finally {
-        setLoading(false)
+      if (loaded.length > 0) {
+        setCourses(loaded)
+        // Auto-select all courses for the current session's semester.
+        // Students are expected to take all courses at their level — they can uncheck electives.
+        const sem = parseSemester(session)
+        const toSelect = sem ? loaded.filter((c) => c.semester === sem) : loaded
+        setSelectedIds(new Set(toSelect.map((c) => c.id)))
       }
     }
 
     loadCourses()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router, searchParams])
 
   function toggleCourse(id: string) {
@@ -159,13 +183,13 @@ function CoursesContent() {
             <Skeleton key={i} className="h-16 w-full rounded-lg" />
           ))}
         </div>
-      ) : courses.length === 0 ? (
+      ) : visibleCourses.length === 0 ? (
         <p className="text-sm text-muted-foreground py-8 text-center">
           No courses available for your level.
         </p>
       ) : (
         <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1 -mr-1">
-          {courses.map((course) => {
+          {visibleCourses.map((course) => {
             const selected = selectedIds.has(course.id)
             return (
               <label

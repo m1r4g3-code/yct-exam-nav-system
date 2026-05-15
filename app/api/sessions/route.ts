@@ -16,9 +16,7 @@ export async function GET() {
     const sessions = await prisma.session.findMany({
       orderBy: [{ name: "desc" }],
     });
-    const res = ok(sessions);
-    res.headers.set("Cache-Control", "public, max-age=300, stale-while-revalidate=3600");
-    return res;
+    return ok(sessions);
   } catch (err) {
     console.error("[route-error]", err);
     return serverError();

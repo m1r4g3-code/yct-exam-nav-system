@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { CalendarRange, RefreshCw, Send, Trash2, Plus, Users } from "lucide-react"
@@ -102,6 +103,12 @@ function formatTime(iso: string): string {
 
 export default function TimetablePage() {
   const queryClient = useQueryClient()
+  const router = useRouter()
+
+  const handleAuthFailure = useCallback(() => {
+    toast.error("Session expired. Please log in again.")
+    router.push("/login")
+  }, [router])
 
   const [session, setSession] = useState<string>("")
   const [activeTab, setActiveTab] = useState<string>("all")
@@ -124,6 +131,7 @@ export default function TimetablePage() {
   const [newSessionSemester, setNewSessionSemester] = useState<"First" | "Second">("First")
 
   const [assignmentsDialogOpen, setAssignmentsDialogOpen] = useState(false)
+  const [deleteSessionDialogOpen, setDeleteSessionDialogOpen] = useState(false)
 
   const { data: sessions = [] } = useQuery<SessionOption[]>({
     queryKey: QUERY_KEYS.SESSIONS,
@@ -203,6 +211,7 @@ export default function TimetablePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ session, ...params }),
       })
+      if (res.status === 401 || res.status === 403) { handleAuthFailure(); throw new Error("Unauthorized") }
       const json = await res.json()
       if (!json.success) throw new Error(json.message)
       return json.data as GenerateResult
@@ -219,6 +228,7 @@ export default function TimetablePage() {
   const publishMutation = useMutation({
     mutationFn: async () => {
       const res = await fetch(`/api/timetable/${encodeURIComponent(session)}/publish`, { method: "PUT" })
+      if (res.status === 401 || res.status === 403) { handleAuthFailure(); throw new Error("Unauthorized") }
       const json = await res.json()
       if (!json.success) throw new Error(json.message)
     },
@@ -238,6 +248,7 @@ export default function TimetablePage() {
         `/api/timetable/${encodeURIComponent(session)}/reset?confirm=published`,
         { method: "DELETE" }
       )
+      if (res.status === 401 || res.status === 403) { handleAuthFailure(); throw new Error("Unauthorized") }
       const json = await res.json()
       if (!json.success) throw new Error(json.message)
     },
@@ -256,6 +267,7 @@ export default function TimetablePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ newTimeSlotId }),
       })
+      if (res.status === 401 || res.status === 403) { handleAuthFailure(); throw new Error("Unauthorized") }
       const json = await res.json()
       if (!json.success) throw new Error(json.message)
     },
@@ -298,6 +310,7 @@ export default function TimetablePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name }),
       })
+      if (res.status === 401 || res.status === 403) { handleAuthFailure(); throw new Error("Unauthorized") }
       const json = await res.json()
       if (!json.success) throw new Error(json.errors?.[0]?.message ?? json.message)
       return json.data
@@ -309,6 +322,24 @@ export default function TimetablePage() {
       setNewSessionSemester("First")
       setNewSessionDialogOpen(false)
       toast.success(`Session "${data.name}" created`)
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+
+  const deleteSessionMutation = useMutation({
+    mutationFn: async () => {
+      const sessionObj = sessions.find((s) => s.name === session)
+      if (!sessionObj) throw new Error("Session not found")
+      const res = await fetch(`/api/sessions/${sessionObj.id}`, { method: "DELETE" })
+      if (res.status === 401 || res.status === 403) { handleAuthFailure(); throw new Error("Unauthorized") }
+      const json = await res.json()
+      if (!json.success) throw new Error(json.message)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SESSIONS })
+      toast.success("Session deleted")
+      setSession("")
+      setDeleteSessionDialogOpen(false)
     },
     onError: (e: Error) => toast.error(e.message),
   })
@@ -460,6 +491,17 @@ export default function TimetablePage() {
         <Button variant="outline" size="sm" onClick={() => setNewSessionDialogOpen(true)} title="Create new session">
           <Plus className="size-4" />
         </Button>
+        {session && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
+            onClick={() => setDeleteSessionDialogOpen(true)}
+            title="Delete this session"
+          >
+            <Trash2 className="size-4" />
+          </Button>
+        )}
       </div>
 
       {!session ? (
@@ -763,6 +805,15 @@ export default function TimetablePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={deleteSessionDialogOpen}
+        onOpenChange={setDeleteSessionDialogOpen}
+        title="Delete Session"
+        description={`Permanently delete "${session}" and all its timetable entries? Student enrollment records are preserved. This cannot be undone.`}
+        onConfirm={() => deleteSessionMutation.mutate()}
+        loading={deleteSessionMutation.isPending}
+      />
 
       {/* Edit slot dialog */}
       <Dialog
