@@ -20,7 +20,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { BookMarked } from "lucide-react";
-import { VALID_SESSIONS, DEFAULT_SESSION } from "@/lib/constants";
+
+interface SessionOption { id: string; name: string; isActive: boolean }
 
 interface Enrollment {
   id: string;
@@ -69,18 +70,31 @@ function CardSkeleton() {
 }
 
 export default function CoursesPage() {
-  const [session, setSession] = useState<string>(DEFAULT_SESSION);
+  const [session, setSession] = useState<string>("");
+
+  const { data: sessions = [] } = useQuery<SessionOption[]>({
+    queryKey: QUERY_KEYS.SESSIONS,
+    queryFn: async () => {
+      const res = await fetch("/api/sessions");
+      const json = await res.json();
+      return json.data ?? [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const activeSessions = sessions.filter((s) => s.isActive);
+  const effectiveSession = session || activeSessions[0]?.name || "";
 
   const { data: enrollments = [], isLoading } = useQuery<Enrollment[]>({
-    queryKey: QUERY_KEYS.MY_ENROLLMENTS(session),
+    queryKey: QUERY_KEYS.MY_ENROLLMENTS(effectiveSession),
     queryFn: async () => {
       const res = await fetch(
-        `/api/enrollments?session=${encodeURIComponent(session)}`
+        `/api/enrollments?session=${encodeURIComponent(effectiveSession)}`
       );
       const json = await res.json();
       return json.data ?? [];
     },
-    enabled: !!session,
+    enabled: !!effectiveSession,
   });
 
   const totalCreditUnits = enrollments.reduce(
@@ -98,14 +112,14 @@ export default function CoursesPage() {
             Enrolled courses for the selected session
           </p>
         </div>
-        <Select value={session} onValueChange={(v) => v != null && setSession(v)}>
+        <Select value={effectiveSession} onValueChange={(v) => v != null && setSession(v)}>
           <SelectTrigger className="w-full sm:w-72">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {VALID_SESSIONS.map((s) => (
-              <SelectItem key={s} value={s}>
-                {s}
+            {activeSessions.map((s) => (
+              <SelectItem key={s.id} value={s.name}>
+                {s.name}
               </SelectItem>
             ))}
           </SelectContent>

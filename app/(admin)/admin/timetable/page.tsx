@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
-import { CalendarRange, RefreshCw, Send, Trash2, Plus } from "lucide-react"
+import { CalendarRange, RefreshCw, Send, Trash2, Plus, Users } from "lucide-react"
 import type { ColumnDef } from "@tanstack/react-table"
 
 import { QUERY_KEYS } from "@/lib/query-keys"
@@ -14,6 +14,7 @@ import { EmptyState } from "@/components/admin/empty-state"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import {
   Select,
@@ -120,6 +121,8 @@ export default function TimetablePage() {
 
   const [newSessionDialogOpen, setNewSessionDialogOpen] = useState(false)
   const [newSessionName, setNewSessionName] = useState("")
+
+  const [assignmentsDialogOpen, setAssignmentsDialogOpen] = useState(false)
 
   const { data: sessions = [] } = useQuery<SessionOption[]>({
     queryKey: QUERY_KEYS.SESSIONS,
@@ -264,6 +267,29 @@ export default function TimetablePage() {
     onError: (e: Error) => toast.error(e.message),
   })
 
+  interface SeatAssignment {
+    id: string
+    seatNumber: number | null
+    student: { id: string; matricNumber: string; fullName: string }
+    timetableEntry: {
+      course: { id: string; code: string; title: string }
+      timeSlot: { date: string; startTime: string; endTime: string; label: string }
+    }
+    examHall: { id: string; name: string; code: string }
+  }
+
+  const { data: assignments = [], isLoading: assignmentsLoading } = useQuery<SeatAssignment[]>({
+    queryKey: ["assignments", session],
+    queryFn: async () => {
+      const res = await fetch(`/api/assignments?session=${encodeURIComponent(session)}`)
+      const json = await res.json()
+      if (!json.success) throw new Error(json.message)
+      return json.data ?? []
+    },
+    enabled: assignmentsDialogOpen && !!session,
+    staleTime: 60 * 1000,
+  })
+
   const createSessionMutation = useMutation({
     mutationFn: async (name: string) => {
       const res = await fetch("/api/sessions", {
@@ -388,6 +414,13 @@ export default function TimetablePage() {
             <RefreshCw className="mr-1.5 size-4" />
             Generate
           </Button>
+
+          {entries.some((e) => e.status === "PUBLISHED") && (
+            <Button variant="outline" size="sm" onClick={() => setAssignmentsDialogOpen(true)}>
+              <Users className="mr-1.5 size-4" />
+              Seat Assignments
+            </Button>
+          )}
 
           {hasDraft && (
             <Button variant="outline" size="sm" onClick={() => setPublishDialogOpen(true)} disabled={publishMutation.isPending}>
@@ -604,6 +637,60 @@ export default function TimetablePage() {
         onConfirm={() => resetMutation.mutate()}
         loading={resetMutation.isPending}
       />
+
+      {/* Seat Assignments dialog */}
+      <Dialog open={assignmentsDialogOpen} onOpenChange={setAssignmentsDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Seat Assignments</DialogTitle>
+            <DialogDescription>All student seat assignments for &ldquo;{session}&rdquo;</DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto mt-2">
+            {assignmentsLoading ? (
+              <div className="space-y-2 py-4">
+                {[1,2,3,4,5].map((i) => (
+                  <div key={i} className="flex gap-4">
+                    <Skeleton className="h-4 flex-1" />
+                    <Skeleton className="h-4 flex-1" />
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-16" />
+                  </div>
+                ))}
+              </div>
+            ) : assignments.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-8 text-center">No seat assignments found for this session.</p>
+            ) : (
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-background border-b border-border">
+                  <tr className="text-left">
+                    <th className="pb-2 pr-4 font-medium text-muted-foreground">Matric No.</th>
+                    <th className="pb-2 pr-4 font-medium text-muted-foreground">Student</th>
+                    <th className="pb-2 pr-4 font-medium text-muted-foreground">Course</th>
+                    <th className="pb-2 pr-4 font-medium text-muted-foreground">Date</th>
+                    <th className="pb-2 pr-4 font-medium text-muted-foreground">Hall</th>
+                    <th className="pb-2 font-medium text-muted-foreground text-right">Seat</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {assignments.map((a) => (
+                    <tr key={a.id} className="border-b border-border/50 last:border-0 hover:bg-muted/30">
+                      <td className="py-2 pr-4 font-mono text-xs text-muted-foreground">{a.student.matricNumber}</td>
+                      <td className="py-2 pr-4 text-foreground/80">{a.student.fullName}</td>
+                      <td className="py-2 pr-4 font-mono text-xs text-foreground">{a.timetableEntry.course.code}</td>
+                      <td className="py-2 pr-4 text-muted-foreground text-xs">{formatDate(a.timetableEntry.timeSlot.date)}</td>
+                      <td className="py-2 pr-4 text-muted-foreground text-xs">{a.examHall.code}</td>
+                      <td className="py-2 font-mono text-xs text-right tabular-nums">{a.seatNumber ?? "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+          <DialogFooter className="mt-4">
+            <Button onClick={() => setAssignmentsDialogOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Create session dialog */}
       <Dialog open={newSessionDialogOpen} onOpenChange={(v) => { setNewSessionDialogOpen(v); if (!v) setNewSessionName("") }}>

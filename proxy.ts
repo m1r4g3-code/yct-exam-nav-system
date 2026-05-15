@@ -104,6 +104,9 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/api/enrollments") ||
     pathname.startsWith("/api/timetable/me");
 
+  // /api/assignments is role-aware (admin gets all, student gets own) — requires auth but
+  // must NOT be in isStudentApiRoute (admins also call it). Auth is enforced inside the handler.
+
   if (isStudentApiRoute && role !== "student") {
     return NextResponse.json(
       { success: false, data: null, message: "Forbidden" },
