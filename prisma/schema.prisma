@@ -33,6 +33,23 @@ enum NodeType {
 
 // ─── Tier 1: No Foreign Keys ─────────────────────────────────────────────────
 
+model Session {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("sessions")
+}
+
+model GenerationLock {
+  session   String   @id
+  startedAt DateTime @default(now()) @map("started_at")
+
+  @@map("generation_locks")
+}
+
 model School {
   id          String       @id @default(uuid())
   name        String
@@ -260,7 +277,6 @@ model HallAssignment {
   timetableEntry   TimetableEntry @relation(fields: [timetableEntryId], references: [id], onDelete: Cascade)
   examHallId       String         @map("exam_hall_id")
   examHall         ExamHall       @relation(fields: [examHallId], references: [id])
-  seatStart        Int            @map("seat_start")
   seatEnd          Int            @map("seat_end")
   createdAt        DateTime       @default(now()) @map("created_at")
   updatedAt        DateTime       @updatedAt @map("updated_at")

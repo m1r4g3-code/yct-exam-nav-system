@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, Clock, MapPin, Navigation, ChevronDown, ChevronUp } from "lucide-react";
 import { QUERY_KEYS } from "@/lib/query-keys";
-import { VALID_SESSIONS, DEFAULT_SESSION } from "@/lib/constants";
 import {
   Select,
   SelectContent,
@@ -262,19 +261,36 @@ function CompletedRow({ entry }: { entry: TimetableEntry }) {
   );
 }
 
+interface SessionOption { id: string; name: string; isActive: boolean }
+
 export default function DashboardPage() {
-  const [session, setSession] = useState<string>(DEFAULT_SESSION);
+  const [session, setSession] = useState<string>("");
   const [showCompleted, setShowCompleted] = useState(false);
 
-  const { data: entries = [], isLoading } = useQuery<TimetableEntry[]>({
-    queryKey: QUERY_KEYS.MY_TIMETABLE(session),
+  const { data: sessions = [] } = useQuery<SessionOption[]>({
+    queryKey: QUERY_KEYS.SESSIONS,
     queryFn: async () => {
-      const res = await fetch(`/api/timetable/me?session=${encodeURIComponent(session)}`);
+      const res = await fetch("/api/sessions");
+      const json = await res.json();
+      return json.data ?? [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const activeSessions = sessions.filter((s) => s.isActive);
+
+  // Default to the most recent active session once loaded
+  const effectiveSession = session || activeSessions[0]?.name || "";
+
+  const { data: entries = [], isLoading } = useQuery<TimetableEntry[]>({
+    queryKey: QUERY_KEYS.MY_TIMETABLE(effectiveSession),
+    queryFn: async () => {
+      const res = await fetch(`/api/timetable/me?session=${encodeURIComponent(effectiveSession)}`);
       if (!res.ok) throw new Error(`${res.status}`);
       const json = await res.json();
       return json.data ?? [];
     },
-    enabled: !!session,
+    enabled: !!effectiveSession,
   });
 
   const sorted = useMemo(
@@ -316,14 +332,14 @@ export default function DashboardPage() {
             Your scheduled examinations
           </p>
         </div>
-        <Select value={session} onValueChange={(v) => v != null && setSession(v)}>
+        <Select value={effectiveSession} onValueChange={(v) => v != null && setSession(v)}>
           <SelectTrigger className="w-auto h-7 text-xs px-2.5 shrink-0">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {VALID_SESSIONS.map((s) => (
-              <SelectItem key={s} value={s} className="text-xs">
-                {s}
+            {activeSessions.map((s) => (
+              <SelectItem key={s.id} value={s.name} className="text-xs">
+                {s.name}
               </SelectItem>
             ))}
           </SelectContent>

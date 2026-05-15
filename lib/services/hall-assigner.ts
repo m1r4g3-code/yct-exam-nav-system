@@ -17,7 +17,6 @@ export interface HallPlan {
   hallAssignments: Array<{
     timetableEntryId: string;
     examHallId: string;
-    seatStart: number;
     seatEnd: number;
   }>;
   studentAssignments: Array<{
@@ -105,7 +104,6 @@ export function planHallAssignments(
         hallAssignments.push({
           timetableEntryId: entryId,
           examHallId: hall.id,
-          seatStart: 1,
           seatEnd: allocate,
         });
 

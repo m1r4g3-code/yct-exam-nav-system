@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { requireStudentUser, isErrorResponse } from "@/lib/auth";
 import { ok, created, badRequest, conflict } from "@/lib/api-response";
-import { VALID_SESSIONS } from "@/lib/constants";
 import { z } from "zod";
 import type { NextRequest } from "next/server";
 
@@ -29,7 +28,7 @@ export async function GET(request: NextRequest) {
 
 const enrollSchema = z.object({
   courseId: z.string().uuid(),
-  session: z.enum(VALID_SESSIONS as unknown as [string, ...string[]]),
+  session: z.string().min(1, "session is required"),
 });
 
 export async function POST(request: Request) {
@@ -38,7 +37,17 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => null);
   const parsed = enrollSchema.safeParse(body);
-  if (!parsed.success) return badRequest("Validation failed", parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })));
+  if (!parsed.success)
+    return badRequest(
+      "Validation failed",
+      parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message }))
+    );
+
+  // Validate session exists in the DB
+  const sessionRecord = await prisma.session.findUnique({
+    where: { name: parsed.data.session },
+  });
+  if (!sessionRecord) return badRequest(`Unknown session: "${parsed.data.session}"`);
 
   const student = await prisma.student.findUnique({ where: { authUserId: auth.id } });
   if (!student) return badRequest("Student profile not found");
@@ -49,18 +58,18 @@ export async function POST(request: Request) {
   });
   if (!course) return badRequest("Course not found");
 
-  // Enforce same level
   if (course.levelId !== student.levelId) {
     return badRequest("Course does not belong to your level");
   }
 
-  // FP-16: block enrollment after timetable is published — late enrollees get no seat
   const publishedEntry = await prisma.timetableEntry.findFirst({
     where: { courseId: parsed.data.courseId, session: parsed.data.session, status: "PUBLISHED" },
     select: { id: true },
   });
   if (publishedEntry)
-    return conflict("Enrollment is closed — the timetable for this session has been published. Contact the exam office.");
+    return conflict(
+      "Enrollment is closed — the timetable for this session has been published. Contact the exam office."
+    );
 
   try {
     const enrollment = await prisma.studentCourse.create({

@@ -7,7 +7,6 @@ import { CalendarRange, RefreshCw, Send, Trash2 } from "lucide-react"
 import type { ColumnDef } from "@tanstack/react-table"
 
 import { QUERY_KEYS } from "@/lib/query-keys"
-import { VALID_SESSIONS } from "@/lib/constants"
 import { DataTable } from "@/components/admin/data-table"
 import { ConfirmDialog } from "@/components/admin/confirm-dialog"
 import { StatusBadge } from "@/components/admin/status-badge"
@@ -33,6 +32,7 @@ import {
 } from "@/components/ui/dialog"
 
 interface School { id: string; name: string }
+interface SessionOption { id: string; name: string; isActive: boolean }
 
 interface TimeSlotOption {
   id: string
@@ -118,6 +118,16 @@ export default function TimetablePage() {
   const [editSlotEntryId, setEditSlotEntryId] = useState<string | null>(null)
   const [selectedNewSlotId, setSelectedNewSlotId] = useState<string>("")
 
+  const { data: sessions = [] } = useQuery<SessionOption[]>({
+    queryKey: QUERY_KEYS.SESSIONS,
+    queryFn: async () => {
+      const res = await fetch("/api/sessions")
+      const json = await res.json()
+      return json.data ?? []
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
   const { data: schools = [] } = useQuery<School[]>({
     queryKey: QUERY_KEYS.SCHOOLS,
     queryFn: async () => {
@@ -125,6 +135,7 @@ export default function TimetablePage() {
       const json = await res.json()
       return json.data ?? []
     },
+    staleTime: 60 * 60 * 1000,
   })
 
   const { data: slots = [] } = useQuery<TimeSlotOption[]>({
@@ -134,6 +145,7 @@ export default function TimetablePage() {
       const json = await res.json()
       return json.data ?? []
     },
+    staleTime: 5 * 60 * 1000,
   })
 
   const { data: entries = [], isLoading } = useQuery<TimetableEntry[]>({
@@ -213,7 +225,12 @@ export default function TimetablePage() {
 
   const resetMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch(`/api/timetable/${encodeURIComponent(session)}/reset`, { method: "DELETE" })
+      // ?confirm=published bypasses the published-entries guard — the ConfirmDialog
+      // already presents an explicit "delete draft AND published" warning.
+      const res = await fetch(
+        `/api/timetable/${encodeURIComponent(session)}/reset?confirm=published`,
+        { method: "DELETE" }
+      )
       const json = await res.json()
       if (!json.success) throw new Error(json.message)
     },
@@ -375,8 +392,8 @@ export default function TimetablePage() {
           <SelectValue>{session || "Select session"}</SelectValue>
         </SelectTrigger>
         <SelectContent>
-          {VALID_SESSIONS.map((s) => (
-            <SelectItem key={s} value={s}>{s}</SelectItem>
+          {sessions.filter((s) => s.isActive).map((s) => (
+            <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
           ))}
         </SelectContent>
       </Select>

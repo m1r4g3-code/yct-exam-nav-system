@@ -11,7 +11,15 @@ type CsvRow = {
 };
 
 /**
- * RED-3: RFC 4180-compliant CSV field splitter.
+ * Strips leading formula-injection characters (= + - @) so that exported CSVs
+ * cannot execute spreadsheet formulas when opened in Excel / Google Sheets.
+ */
+function sanitizeCsvField(value: string): string {
+  return /^[=+\-@]/.test(value) ? `'${value}` : value;
+}
+
+/**
+ * RFC 4180-compliant CSV field splitter.
  * Handles quoted fields containing commas and escaped quotes ("").
  * Does not handle multi-line field values (newlines inside quotes) since
  * course data split by line first; newlines in course titles are unrealistic.
@@ -48,8 +56,10 @@ export async function POST(request: Request) {
   const formData = await request.formData();
   const file = formData.get("file") as File | null;
   if (!file) return badRequest("No file provided");
-  if (!file.name.endsWith(".csv")) return badRequest("File must be a CSV");
-  if (file.size > 5 * 1024 * 1024) return badRequest("File exceeds 5MB limit");
+  if (!file.name.endsWith(".csv")) return badRequest("File must be a .csv file");
+  if (!["text/csv", "application/csv", "application/vnd.ms-excel", "text/plain"].includes(file.type))
+    return badRequest("File MIME type must be text/csv");
+  if (file.size > 5 * 1024 * 1024) return badRequest("File exceeds 5 MB limit");
 
   const text = await file.text();
   const lines = text.split(/\r?\n/).filter(Boolean);
@@ -68,9 +78,8 @@ export async function POST(request: Request) {
   let skipped = 0;
   const errors: { row: number; reason: string }[] = [];
 
-  // FP-25: validate ALL rows first, then commit in a single transaction.
-  // Previously each row upserted independently — a mid-batch failure left the DB
-  // in a partial state that was impossible to cleanly re-import.
+  // Validate ALL rows first, then commit in a single atomic transaction so a
+  // mid-batch failure never leaves the DB in a partial state.
   type ValidRow = { code: string; title: string; creditUnits: number; semester: "FIRST" | "SECOND"; levelId: string };
   const validRows: ValidRow[] = [];
 
@@ -111,7 +120,7 @@ export async function POST(request: Request) {
 
     validRows.push({
       code: course_code.toUpperCase(),
-      title: course_title,
+      title: sanitizeCsvField(course_title),
       creditUnits: credits,
       semester: sem === "first" ? "FIRST" : "SECOND",
       levelId,

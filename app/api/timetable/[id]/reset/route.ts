@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { requireAdminUser, isErrorResponse } from "@/lib/auth";
 import { ok, badRequest } from "@/lib/api-response";
-import { VALID_SESSIONS } from "@/lib/constants";
 import type { RouteContext } from "@/lib/route-types";
 import type { NextRequest } from "next/server";
 
@@ -16,12 +15,9 @@ export async function DELETE(
 
   const { id: session } = await ctx.params;
 
-  if (!(VALID_SESSIONS as readonly string[]).includes(session)) {
-    return badRequest("Invalid session");
-  }
+  const sessionRecord = await prisma.session.findUnique({ where: { name: session } });
+  if (!sessionRecord) return badRequest(`Unknown session: "${session}"`);
 
-  // SF-2: hard-stop on published sessions unless the caller explicitly confirms.
-  // Without this, a mis-click wipes student seat assignments identical to BUG-1.
   const publishedCount = await prisma.timetableEntry.count({
     where: { session, status: "PUBLISHED" },
   });

@@ -25,10 +25,6 @@ export async function GET(request: NextRequest) {
 
   const enrolledCourseIds = enrollments.map((e) => e.courseId);
 
-  // YELLOW-6: removed the level fallback. A student with zero enrollments should see
-  // an empty timetable, not all courses for their level. The fallback caused students
-  // who hadn't enrolled to see exam entries they weren't registered for, potentially
-  // leading them to the wrong hall on exam day.
   if (enrolledCourseIds.length === 0) return ok([], "No enrollments found for this session");
 
   const where = { courseId: { in: enrolledCourseIds }, session, status: "PUBLISHED" as const };
@@ -54,7 +50,7 @@ export async function GET(request: NextRequest) {
             select: { id: true, name: true, code: true, latitude: true, longitude: true },
           },
         },
-        orderBy: { seatStart: "asc" },
+        orderBy: { createdAt: "asc" },
         take: 1,
       },
     },

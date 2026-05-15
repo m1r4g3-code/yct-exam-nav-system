@@ -18,6 +18,9 @@ export const QUERY_KEYS = {
   STUDENT: (id: string) => ["student", id] as const,
   MY_ENROLLMENTS: (session?: string) => ["enrollments", "me", session] as const,
 
+  // Sessions
+  SESSIONS: ["sessions"] as const,
+
   // Halls & Slots
   HALLS: ["halls"] as const,
   SLOTS: ["slots"] as const,

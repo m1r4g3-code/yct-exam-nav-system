@@ -5,60 +5,7 @@ export interface ConflictGraph {
   degree: Map<string, number>;
 }
 
-/**
- * Level-based conflict graph: courses in the same level can never be
- * scheduled at the same time (all students in a level sit the same exams).
- * Does not require any student enrollment records.
- */
-export async function buildLevelConflictGraph(
-  courseIds: string[]
-): Promise<ConflictGraph> {
-  if (courseIds.length === 0) {
-    return { adjacency: new Map(), degree: new Map() };
-  }
-
-  const courses = await prisma.course.findMany({
-    where: { id: { in: courseIds } },
-    select: { id: true, levelId: true },
-  });
-
-  const byLevel = new Map<string, string[]>();
-  for (const course of courses) {
-    const arr = byLevel.get(course.levelId) ?? [];
-    arr.push(course.id);
-    byLevel.set(course.levelId, arr);
-  }
-
-  const adjacency = new Map<string, Set<string>>(courseIds.map((id) => [id, new Set()]));
-  const degree = new Map<string, number>(courseIds.map((id) => [id, 0]));
-
-  for (const levelCourses of byLevel.values()) {
-    for (let i = 0; i < levelCourses.length; i++) {
-      for (let j = i + 1; j < levelCourses.length; j++) {
-        const a = levelCourses[i];
-        const b = levelCourses[j];
-        if (!adjacency.has(a) || !adjacency.has(b)) continue;
-        if (!adjacency.get(a)!.has(b)) {
-          adjacency.get(a)!.add(b);
-          adjacency.get(b)!.add(a);
-          degree.set(a, (degree.get(a) ?? 0) + 1);
-          degree.set(b, (degree.get(b) ?? 0) + 1);
-        }
-      }
-    }
-  }
-
-  return { adjacency, degree };
-}
-
-/**
- * Synchronous variant — builds the level-based conflict graph from
- * already-loaded course data. Use this when courses are pre-fetched to
- * avoid a redundant DB round-trip.
- */
-export function buildLevelConflictGraphSync(
-  courses: { id: string; levelId: string }[]
-): ConflictGraph {
+function buildEdges(courses: { id: string; levelId: string }[]): ConflictGraph {
   const courseIds = courses.map((c) => c.id);
   const byLevel = new Map<string, string[]>();
   for (const c of courses) {
@@ -89,24 +36,47 @@ export function buildLevelConflictGraphSync(
 }
 
 /**
- * Enrollment-based conflict graph: courses share an edge when at least
- * one student is enrolled in both. Used as a fallback when enrollments exist.
+ * Level-based conflict graph: courses in the same level can never share a time
+ * slot. Synchronous — expects already-loaded course data to avoid a redundant
+ * DB round-trip during timetable generation.
+ */
+export function buildLevelConflictGraphSync(
+  courses: { id: string; levelId: string }[]
+): ConflictGraph {
+  return buildEdges(courses);
+}
+
+/**
+ * Async variant — fetches course data then delegates to buildEdges.
+ * Use when only courseIds are available (e.g., the move-entry endpoint).
+ */
+export async function buildLevelConflictGraph(courseIds: string[]): Promise<ConflictGraph> {
+  if (courseIds.length === 0) return { adjacency: new Map(), degree: new Map() };
+
+  const courses = await prisma.course.findMany({
+    where: { id: { in: courseIds } },
+    select: { id: true, levelId: true },
+  });
+
+  return buildEdges(courses);
+}
+
+/**
+ * Enrollment-based conflict graph: courses share an edge when at least one
+ * student is enrolled in both. Used as a fallback when explicit enrollments
+ * exist (e.g., the move-entry conflict check).
  */
 export async function buildConflictGraph(
   session: string,
   courseIds: string[]
 ): Promise<ConflictGraph> {
-  if (courseIds.length === 0) {
-    return { adjacency: new Map(), degree: new Map() };
-  }
+  if (courseIds.length === 0) return { adjacency: new Map(), degree: new Map() };
 
-  // Load all non-dropped enrollments for the given courses in this session
   const enrollments = await prisma.studentCourse.findMany({
     where: { session, courseId: { in: courseIds }, deletedAt: null },
     select: { studentId: true, courseId: true },
   });
 
-  // Group courses by student
   const studentCourseMap = new Map<string, string[]>();
   for (const e of enrollments) {
     const list = studentCourseMap.get(e.studentId) ?? [];
@@ -114,19 +84,15 @@ export async function buildConflictGraph(
     studentCourseMap.set(e.studentId, list);
   }
 
-  // Initialize all nodes
   const adjacency = new Map<string, Set<string>>(courseIds.map((id) => [id, new Set()]));
   const degree = new Map<string, number>(courseIds.map((id) => [id, 0]));
 
-  // Build edges: any two courses sharing a student get an edge
   for (const coursesForStudent of studentCourseMap.values()) {
     for (let i = 0; i < coursesForStudent.length; i++) {
       for (let j = i + 1; j < coursesForStudent.length; j++) {
         const a = coursesForStudent[i];
         const b = coursesForStudent[j];
-
-        if (!adjacency.has(a) || !adjacency.has(b)) continue; // out of scope
-
+        if (!adjacency.has(a) || !adjacency.has(b)) continue;
         if (!adjacency.get(a)!.has(b)) {
           adjacency.get(a)!.add(b);
           adjacency.get(b)!.add(a);
