@@ -120,7 +120,8 @@ export default function TimetablePage() {
   const [selectedNewSlotId, setSelectedNewSlotId] = useState<string>("")
 
   const [newSessionDialogOpen, setNewSessionDialogOpen] = useState(false)
-  const [newSessionName, setNewSessionName] = useState("")
+  const [newSessionYear, setNewSessionYear] = useState("")
+  const [newSessionSemester, setNewSessionSemester] = useState<"First" | "Second">("First")
 
   const [assignmentsDialogOpen, setAssignmentsDialogOpen] = useState(false)
 
@@ -298,13 +299,14 @@ export default function TimetablePage() {
         body: JSON.stringify({ name }),
       })
       const json = await res.json()
-      if (!json.success) throw new Error(json.message)
+      if (!json.success) throw new Error(json.errors?.[0]?.message ?? json.message)
       return json.data
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SESSIONS })
       setSession(data.name)
-      setNewSessionName("")
+      setNewSessionYear("")
+      setNewSessionSemester("First")
       setNewSessionDialogOpen(false)
       toast.success(`Session "${data.name}" created`)
     },
@@ -693,34 +695,65 @@ export default function TimetablePage() {
       </Dialog>
 
       {/* Create session dialog */}
-      <Dialog open={newSessionDialogOpen} onOpenChange={(v) => { setNewSessionDialogOpen(v); if (!v) setNewSessionName("") }}>
+      <Dialog open={newSessionDialogOpen} onOpenChange={(v) => {
+        setNewSessionDialogOpen(v)
+        if (!v) { setNewSessionYear(""); setNewSessionSemester("First") }
+      }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>New Academic Session</DialogTitle>
             <DialogDescription>
-              Format: <span className="font-mono text-foreground">YYYY/YYYY First Semester</span> or <span className="font-mono text-foreground">YYYY/YYYY Second Semester</span>
+              Enter the start year and choose the semester.
             </DialogDescription>
           </DialogHeader>
-          <div className="py-2">
-            <Label>Session name</Label>
-            <Input
-              className="mt-1.5"
-              placeholder="e.g. 2025/2026 First Semester"
-              value={newSessionName}
-              onChange={(e) => setNewSessionName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && newSessionName.trim() && !createSessionMutation.isPending)
-                  createSessionMutation.mutate(newSessionName.trim())
-              }}
-            />
+          <div className="space-y-3 py-1">
+            <div className="space-y-1.5">
+              <Label>Start year</Label>
+              <Input
+                placeholder="e.g. 2027"
+                maxLength={4}
+                value={newSessionYear}
+                onChange={(e) => setNewSessionYear(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    const y = parseInt(newSessionYear, 10)
+                    const name = `${y}/${y + 1} ${newSessionSemester} Semester`
+                    if (newSessionYear.length === 4 && !createSessionMutation.isPending)
+                      createSessionMutation.mutate(name)
+                  }
+                }}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Semester</Label>
+              <Select value={newSessionSemester} onValueChange={(v) => v != null && setNewSessionSemester(v as "First" | "Second")}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="First">First Semester</SelectItem>
+                  <SelectItem value="Second">Second Semester</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {newSessionYear.length === 4 && (
+              <p className="text-xs text-muted-foreground">
+                Will create: <span className="font-mono text-foreground">
+                  {newSessionYear}/{parseInt(newSessionYear) + 1} {newSessionSemester} Semester
+                </span>
+              </p>
+            )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setNewSessionDialogOpen(false); setNewSessionName("") }} disabled={createSessionMutation.isPending}>
+            <Button variant="outline" onClick={() => { setNewSessionDialogOpen(false); setNewSessionYear(""); setNewSessionSemester("First") }} disabled={createSessionMutation.isPending}>
               Cancel
             </Button>
             <Button
-              disabled={!newSessionName.trim() || createSessionMutation.isPending}
-              onClick={() => createSessionMutation.mutate(newSessionName.trim())}
+              disabled={newSessionYear.length !== 4 || createSessionMutation.isPending}
+              onClick={() => {
+                const y = parseInt(newSessionYear, 10)
+                createSessionMutation.mutate(`${y}/${y + 1} ${newSessionSemester} Semester`)
+              }}
             >
               {createSessionMutation.isPending ? "Creating…" : "Create"}
             </Button>
