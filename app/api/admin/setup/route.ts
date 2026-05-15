@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { prisma } from "@/lib/prisma";
-import { ok, conflict, serverError, badRequest } from "@/lib/api-response";
+import { ok, conflict, serverError, badRequest, unauthorized } from "@/lib/api-response";
 import { z } from "zod";
 
 const setupSchema = z.object({
@@ -20,8 +20,9 @@ export async function POST(request: Request) {
   if (!process.env.ADMIN_SETUP_SECRET) {
     return badRequest("Setup endpoint is disabled (ADMIN_SETUP_SECRET not configured)");
   }
+  // ORANGE-5: wrong secret → 401, not 400. HTTP semantics: 400 = bad input, 401 = not authenticated.
   if (parsed.data.secret !== process.env.ADMIN_SETUP_SECRET) {
-    return badRequest("Invalid setup secret");
+    return unauthorized("Invalid setup secret");
   }
 
   const { email, password, fullName } = parsed.data;

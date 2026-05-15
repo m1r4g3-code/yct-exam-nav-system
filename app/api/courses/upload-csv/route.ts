@@ -10,6 +10,37 @@ type CsvRow = {
   semester?: string;
 };
 
+/**
+ * RED-3: RFC 4180-compliant CSV field splitter.
+ * Handles quoted fields containing commas and escaped quotes ("").
+ * Does not handle multi-line field values (newlines inside quotes) since
+ * course data split by line first; newlines in course titles are unrealistic.
+ */
+function splitCSVLine(line: string): string[] {
+  const fields: string[] = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (ch === "," && !inQuotes) {
+      fields.push(current.trim());
+      current = "";
+    } else {
+      current += ch;
+    }
+  }
+  fields.push(current.trim());
+  return fields;
+}
+
 export async function POST(request: Request) {
   const auth = await requireAdminUser();
   if (isErrorResponse(auth)) return auth;
@@ -24,7 +55,7 @@ export async function POST(request: Request) {
   const lines = text.split(/\r?\n/).filter(Boolean);
   if (lines.length < 2) return badRequest("CSV is empty or missing header row");
 
-  const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+  const headers = splitCSVLine(lines[0]).map((h) => h.toLowerCase());
   const requiredHeaders = ["course_code", "course_title", "level_name", "credit_units", "semester"];
   const missing = requiredHeaders.filter((h) => !headers.includes(h));
   if (missing.length) return badRequest(`Missing CSV columns: ${missing.join(", ")}`);
@@ -38,7 +69,7 @@ export async function POST(request: Request) {
   const errors: { row: number; reason: string }[] = [];
 
   for (let i = 1; i < lines.length; i++) {
-    const values = lines[i].split(",").map((v) => v.trim());
+    const values = splitCSVLine(lines[i]);
     const row: CsvRow = {};
     headers.forEach((h, idx) => { (row as Record<string, string>)[h] = values[idx] ?? ""; });
 

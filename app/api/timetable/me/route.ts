@@ -25,10 +25,13 @@ export async function GET(request: NextRequest) {
 
   const enrolledCourseIds = enrollments.map((e) => e.courseId);
 
-  const where =
-    enrolledCourseIds.length > 0
-      ? { courseId: { in: enrolledCourseIds }, session, status: "PUBLISHED" as const }
-      : { course: { levelId: student.levelId }, session, status: "PUBLISHED" as const };
+  // YELLOW-6: removed the level fallback. A student with zero enrollments should see
+  // an empty timetable, not all courses for their level. The fallback caused students
+  // who hadn't enrolled to see exam entries they weren't registered for, potentially
+  // leading them to the wrong hall on exam day.
+  if (enrolledCourseIds.length === 0) return ok([], "No enrollments found for this session");
+
+  const where = { courseId: { in: enrolledCourseIds }, session, status: "PUBLISHED" as const };
 
   const entries = await prisma.timetableEntry.findMany({
     where,

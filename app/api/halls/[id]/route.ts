@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { requireAdminUser, isErrorResponse } from "@/lib/auth";
-import { ok, badRequest, notFound } from "@/lib/api-response";
+import { ok, badRequest, notFound, conflict } from "@/lib/api-response";
 import { z } from "zod";
 import type { RouteContext } from "@/lib/route-types";
 
@@ -46,9 +46,25 @@ export async function DELETE(_req: Request, ctx: RouteContext<"/api/halls/[id]">
   if (isErrorResponse(auth)) return auth;
 
   const { id } = await ctx.params;
-  const existing = await prisma.examHall.findUnique({ where: { id } });
-  if (!existing) return notFound("Hall not found");
 
-  await prisma.examHall.delete({ where: { id } });
-  return ok(null, "Hall deleted");
+  // RED-2: Guard against FK violations. HallAssignment, StudentHallAssignment, and
+  // NavigationNode all reference ExamHall with no CASCADE — an unguarded delete throws
+  // an unhandled P2003 and returns a raw 500.
+  const activeAssignment = await prisma.hallAssignment.findFirst({
+    where: { examHallId: id },
+    select: { id: true },
+  });
+  if (activeAssignment)
+    return conflict("Hall has active exam assignments. Deactivate it (isActive: false) instead of deleting, or reset the timetable first.");
+
+  try {
+    await prisma.examHall.delete({ where: { id } });
+    return ok(null, "Hall deleted");
+  } catch (e: unknown) {
+    const err = e as { code?: string };
+    if (err.code === "P2025") return notFound("Hall not found");
+    if (err.code === "P2003")
+      return conflict("Hall is still referenced by navigation or student assignment records and cannot be deleted.");
+    throw e;
+  }
 }

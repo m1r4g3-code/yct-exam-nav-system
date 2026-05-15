@@ -3,6 +3,35 @@ import { requireAdminUser, isErrorResponse } from "@/lib/auth";
 import { ok, badRequest } from "@/lib/api-response";
 
 /**
+ * RED-3: RFC 4180-compliant CSV field splitter.
+ * Handles quoted fields containing commas and escaped quotes ("").
+ */
+function splitCSVLine(line: string): string[] {
+  const fields: string[] = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (ch === "," && !inQuotes) {
+      fields.push(current.trim());
+      current = "";
+    } else {
+      current += ch;
+    }
+  }
+  fields.push(current.trim());
+  return fields;
+}
+
+/**
  * POST /api/departments/upload-csv
  *
  * CSV format (header row required):
@@ -26,7 +55,7 @@ export async function POST(request: Request) {
   if (lines.length < 2)
     return badRequest("CSV must have a header row and at least one data row");
 
-  const headers = lines[0].split(",").map((h) => h.trim().toLowerCase().replace(/\s+/g, "_"));
+  const headers = splitCSVLine(lines[0]).map((h) => h.toLowerCase().replace(/\s+/g, "_"));
   const schoolCol = headers.indexOf("school_name");
   const nameCol = headers.indexOf("name");
   const codeCol = headers.indexOf("code");
@@ -42,7 +71,7 @@ export async function POST(request: Request) {
   const errors: { row: number; reason: string }[] = [];
 
   for (let i = 1; i < lines.length; i++) {
-    const cols = lines[i].split(",").map((c) => c.trim());
+    const cols = splitCSVLine(lines[i]);
     const schoolName = cols[schoolCol];
     const name = cols[nameCol];
     const code = cols[codeCol]?.toUpperCase();
