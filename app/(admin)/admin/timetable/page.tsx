@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
-import { CalendarRange, RefreshCw, Send, Trash2 } from "lucide-react"
+import { CalendarRange, RefreshCw, Send, Trash2, Plus } from "lucide-react"
 import type { ColumnDef } from "@tanstack/react-table"
 
 import { QUERY_KEYS } from "@/lib/query-keys"
@@ -117,6 +117,9 @@ export default function TimetablePage() {
 
   const [editSlotEntryId, setEditSlotEntryId] = useState<string | null>(null)
   const [selectedNewSlotId, setSelectedNewSlotId] = useState<string>("")
+
+  const [newSessionDialogOpen, setNewSessionDialogOpen] = useState(false)
+  const [newSessionName, setNewSessionName] = useState("")
 
   const { data: sessions = [] } = useQuery<SessionOption[]>({
     queryKey: QUERY_KEYS.SESSIONS,
@@ -261,6 +264,27 @@ export default function TimetablePage() {
     onError: (e: Error) => toast.error(e.message),
   })
 
+  const createSessionMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const res = await fetch("/api/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      })
+      const json = await res.json()
+      if (!json.success) throw new Error(json.message)
+      return json.data
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SESSIONS })
+      setSession(data.name)
+      setNewSessionName("")
+      setNewSessionDialogOpen(false)
+      toast.success(`Session "${data.name}" created`)
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+
   const columns: ColumnDef<TimetableEntry>[] = [
     {
       accessorKey: "course.code",
@@ -387,16 +411,21 @@ export default function TimetablePage() {
         </div>
       </div>
 
-      <Select value={session} onValueChange={(v) => { if (v != null) { setSession(v); setActiveTab("all") } }}>
-        <SelectTrigger className="w-64">
-          <SelectValue>{session || "Select session"}</SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          {sessions.filter((s) => s.isActive).map((s) => (
-            <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <div className="flex items-center gap-2">
+        <Select value={session} onValueChange={(v) => { if (v != null) { setSession(v); setActiveTab("all") } }}>
+          <SelectTrigger className="w-64">
+            <SelectValue>{session || "Select session"}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {sessions.filter((s) => s.isActive).map((s) => (
+              <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button variant="outline" size="sm" onClick={() => setNewSessionDialogOpen(true)} title="Create new session">
+          <Plus className="size-4" />
+        </Button>
+      </div>
 
       {!session ? (
         <EmptyState
@@ -575,6 +604,42 @@ export default function TimetablePage() {
         onConfirm={() => resetMutation.mutate()}
         loading={resetMutation.isPending}
       />
+
+      {/* Create session dialog */}
+      <Dialog open={newSessionDialogOpen} onOpenChange={(v) => { setNewSessionDialogOpen(v); if (!v) setNewSessionName("") }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>New Academic Session</DialogTitle>
+            <DialogDescription>
+              Format: <span className="font-mono text-foreground">YYYY/YYYY First Semester</span> or <span className="font-mono text-foreground">YYYY/YYYY Second Semester</span>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <Label>Session name</Label>
+            <Input
+              className="mt-1.5"
+              placeholder="e.g. 2025/2026 First Semester"
+              value={newSessionName}
+              onChange={(e) => setNewSessionName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && newSessionName.trim() && !createSessionMutation.isPending)
+                  createSessionMutation.mutate(newSessionName.trim())
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setNewSessionDialogOpen(false); setNewSessionName("") }} disabled={createSessionMutation.isPending}>
+              Cancel
+            </Button>
+            <Button
+              disabled={!newSessionName.trim() || createSessionMutation.isPending}
+              onClick={() => createSessionMutation.mutate(newSessionName.trim())}
+            >
+              {createSessionMutation.isPending ? "Creating…" : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit slot dialog */}
       <Dialog
