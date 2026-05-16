@@ -46,7 +46,9 @@ export async function POST(request: Request) {
     const sessionRecord = await prisma.session.findUnique({ where: { name: session } });
     if (!sessionRecord) return badRequest(`Unknown session: "${session}"`);
 
-    // ── Per-session DB lock (works across multiple Vercel Function instances) ──
+    // Per-session DB lock — prevents concurrent generation (hall assignments are
+    // computed in memory without reading existing DB allocations, so concurrent
+    // school-scoped runs for the same session could double-book halls).
     const lockInserted = await prisma.$executeRaw`
       INSERT INTO generation_locks (session) VALUES (${session})
       ON CONFLICT (session) DO NOTHING
@@ -57,9 +59,15 @@ export async function POST(request: Request) {
       );
     }
 
+    // Scope conflict checks and force-delete to the selected school only so that
+    // generating School A does not block or overwrite School B's entries.
+    const entrySchoolFilter = schoolId
+      ? { course: { level: { programme: { department: { schoolId } } } } }
+      : {};
+
     try {
       const existingDraft = await prisma.timetableEntry.findFirst({
-        where: { session, status: "DRAFT" },
+        where: { session, status: "DRAFT", ...entrySchoolFilter },
         select: { id: true },
       });
       if (existingDraft && !force)
@@ -69,12 +77,12 @@ export async function POST(request: Request) {
 
       if (force) {
         const publishedEntry = await prisma.timetableEntry.findFirst({
-          where: { session, status: "PUBLISHED" },
+          where: { session, status: "PUBLISHED", ...entrySchoolFilter },
           select: { id: true },
         });
         if (publishedEntry)
           return conflictRes(
-            "This session's timetable has already been published. Use DELETE /api/timetable/[session]/reset to explicitly reset it first."
+            "This session's timetable has already been published. Reset this session's timetable first."
           );
       }
 
@@ -184,7 +192,7 @@ export async function POST(request: Request) {
       }
 
       await prisma.$transaction([
-        ...(force ? [prisma.timetableEntry.deleteMany({ where: { session } })] : []),
+        ...(force ? [prisma.timetableEntry.deleteMany({ where: { session, ...entrySchoolFilter } })] : []),
         prisma.timetableEntry.createMany({
           data: plan.timetableEntries,
           skipDuplicates: true,

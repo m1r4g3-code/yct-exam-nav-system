@@ -555,7 +555,12 @@ export default function TimetablePage() {
             <DialogDescription>
               The system will automatically create exam slots and assign courses using DSatur graph
               coloring. Existing draft entries for{" "}
-              <span className="text-foreground font-medium">&ldquo;{session}&rdquo;</span> will be replaced.
+              <span className="text-foreground font-medium">
+                {generateSchoolId !== "all"
+                  ? `${schools.find((s) => s.id === generateSchoolId)?.name ?? "selected school"} in "${session}"`
+                  : `"${session}"`}
+              </span>{" "}
+              will be replaced.
             </DialogDescription>
           </DialogHeader>
 
