@@ -1,11 +1,11 @@
 "use client";
 
-import { use, useState, useEffect, useRef } from "react";
+import { use, useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { QUERY_KEYS } from "@/lib/query-keys";
 import { DynamicMap } from "@/components/map/DynamicMap";
-import { ArrowLeft, MapPinOff, Navigation, LocateFixed, ExternalLink } from "lucide-react";
+import { ArrowLeft, MapPinOff, Navigation, LocateFixed, ExternalLink, Clock, Footprints } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface NavHall {
@@ -16,18 +16,21 @@ interface NavHall {
   longitude: number;
 }
 
+interface OsrmRoute {
+  polyline: [number, number][];
+  distanceMeters: number;
+  durationSeconds: number;
+}
+
 type LocationState = "detecting" | "detected" | "error" | "unavailable";
 
-function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371000;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
-  return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+function formatDistance(m: number): string {
+  return m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${m} m`;
+}
+
+function formatDuration(secs: number): string {
+  const mins = Math.ceil(secs / 60);
+  return mins < 60 ? `${mins} min walk` : `${Math.floor(mins / 60)}h ${mins % 60}min walk`;
 }
 
 export default function NavigatePage({
@@ -62,7 +65,7 @@ export default function NavigatePage({
         const next: [number, number] = [pos.coords.latitude, pos.coords.longitude];
         if (lastPosRef.current) {
           const d = Math.hypot(next[0] - lastPosRef.current[0], next[1] - lastPosRef.current[1]);
-          if (d < 0.00005) return;
+          if (d < 0.00005) return; // skip if <~5m
         }
         lastPosRef.current = next;
         setUserPosition(next);
@@ -73,6 +76,40 @@ export default function NavigatePage({
     return () => navigator.geolocation.clearWatch(watchId);
   }, [geoUnavailable]);
 
+  // Round to 3 decimal places (~100m) so OSRM only re-routes on significant movement
+  const routeKey = useMemo(
+    () => userPosition
+      ? [Math.round(userPosition[0] * 1000) / 1000, Math.round(userPosition[1] * 1000) / 1000]
+      : null,
+    [userPosition]
+  );
+
+  const { data: route, isLoading: routeLoading, isError: routeError } = useQuery<OsrmRoute | null>({
+    queryKey: ["osrm-route", routeKey, targetHall?.id],
+    queryFn: async (): Promise<OsrmRoute | null> => {
+      if (!userPosition || !targetHall) return null;
+      const [uLat, uLng] = userPosition;
+      const url =
+        `https://router.project-osrm.org/route/v1/foot/` +
+        `${uLng},${uLat};${targetHall.longitude},${targetHall.latitude}` +
+        `?geometries=geojson&overview=full`;
+      const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+      if (!res.ok) throw new Error("OSRM unavailable");
+      const json = await res.json();
+      if (json.code !== "Ok" || !json.routes?.length) throw new Error("No route");
+      const r = json.routes[0];
+      return {
+        // OSRM returns [lng, lat] — flip to Leaflet [lat, lng]
+        polyline: r.geometry.coordinates.map(([lng, lat]: [number, number]) => [lat, lng] as [number, number]),
+        distanceMeters: Math.round(r.distance),
+        durationSeconds: Math.round(r.duration),
+      };
+    },
+    enabled: !!routeKey && !!targetHall,
+    retry: 2,
+    staleTime: 60 * 1000,
+  });
+
   const locationState: LocationState = geoUnavailable
     ? "unavailable"
     : geoError
@@ -80,11 +117,6 @@ export default function NavigatePage({
     : userPosition
     ? "detected"
     : "detecting";
-
-  const distanceMeters =
-    userPosition && targetHall
-      ? haversineMeters(userPosition[0], userPosition[1], targetHall.latitude, targetHall.longitude)
-      : null;
 
   const googleMapsUrl = targetHall
     ? `https://www.google.com/maps/dir/?api=1&destination=${targetHall.latitude},${targetHall.longitude}&travelmode=walking`
@@ -97,11 +129,12 @@ export default function NavigatePage({
     ? [{ id: targetHall.id, name: targetHall.name, lat: targetHall.latitude, lng: targetHall.longitude }]
     : [];
 
-  // Straight line from user to hall
+  // Use OSRM polyline if available, straight line as fallback while loading
   const polyline: number[][] | undefined =
-    userPosition && targetHall
+    route?.polyline ??
+    (userPosition && targetHall
       ? [[userPosition[0], userPosition[1]], [targetHall.latitude, targetHall.longitude]]
-      : undefined;
+      : undefined);
 
   if (isLoading) {
     return (
@@ -133,7 +166,7 @@ export default function NavigatePage({
       <div className="fixed inset-0 z-[40]">
         <DynamicMap
           center={mapCenter}
-          zoom={17}
+          zoom={16}
           halls={hallMarkers}
           polyline={polyline}
           destinationHallId={hallId}
@@ -179,28 +212,57 @@ export default function NavigatePage({
             )}
           </div>
 
-          {/* Distance indicator */}
-          {distanceMeters !== null && (
-            <div className="flex items-center gap-3 rounded-xl bg-brand/10 border border-brand/20 px-4 py-3">
-              <div className="size-9 rounded-full bg-brand/20 flex items-center justify-center shrink-0">
-                <Navigation className="size-4 text-brand" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-foreground">
-                  {distanceMeters >= 1000
-                    ? `${(distanceMeters / 1000).toFixed(1)} km`
-                    : `${distanceMeters} m`} away
-                </p>
-                <p className="text-xs text-muted-foreground">straight-line distance to hall</p>
-              </div>
+          {/* Route info */}
+          {locationState === "detected" && routeLoading && (
+            <div className="flex items-center gap-2.5 rounded-xl bg-muted/40 px-4 py-3">
+              <Navigation className="size-5 text-brand animate-pulse shrink-0" />
+              <p className="text-sm text-muted-foreground">Calculating route…</p>
             </div>
           )}
 
-          {/* Google Maps navigation button */}
+          {locationState === "detected" && route && !routeLoading && (
+            <div className="flex items-center gap-3 rounded-xl bg-brand/10 border border-brand/20 px-4 py-3">
+              <div className="size-9 rounded-full bg-brand/20 flex items-center justify-center shrink-0">
+                <Footprints className="size-4 text-brand" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-foreground">
+                  {formatDistance(route.distanceMeters)}
+                </p>
+                <div className="flex items-center gap-1 mt-0.5">
+                  <Clock className="size-3 text-muted-foreground" />
+                  <p className="text-xs text-muted-foreground">{formatDuration(route.durationSeconds)}</p>
+                </div>
+              </div>
+              <p className="text-xs font-mono text-muted-foreground shrink-0">{targetHall.code}</p>
+            </div>
+          )}
+
+          {locationState === "detected" && routeError && !routeLoading && (
+            <div className="flex items-center gap-2.5 rounded-xl bg-muted/40 px-4 py-3">
+              <Navigation className="size-5 text-muted-foreground shrink-0" />
+              <p className="text-sm text-muted-foreground">
+                Route unavailable — use Google Maps below for directions.
+              </p>
+            </div>
+          )}
+
+          {(locationState === "error" || locationState === "unavailable") && (
+            <div className="flex items-center gap-2.5 rounded-xl bg-destructive/10 border border-destructive/20 px-4 py-3">
+              <MapPinOff className="size-5 text-destructive shrink-0" />
+              <p className="text-sm text-muted-foreground">
+                {locationState === "error"
+                  ? "Allow location access in your browser settings to get directions."
+                  : "GPS is not supported on this device."}
+              </p>
+            </div>
+          )}
+
+          {/* Google Maps fallback button */}
           <a href={googleMapsUrl} target="_blank" rel="noopener noreferrer" className="block">
-            <Button className="w-full gap-2">
+            <Button variant="outline" className="w-full gap-2">
               <ExternalLink className="size-4" />
-              Open Walking Directions in Google Maps
+              Open in Google Maps
             </Button>
           </a>
         </div>
