@@ -14,7 +14,6 @@ interface NavHall {
   description: string | null;
   latitude: number;
   longitude: number;
-  navigationNode: { id: string } | null;
 }
 
 /** Converts lat/lng to OSM tile x/y at a given zoom level */
@@ -136,20 +135,14 @@ export default function NavigateIndexPage() {
 
                 {/* CTA */}
                 <div className="mt-3">
-                  {hall.navigationNode ? (
-                    <Button
-                      render={<Link href={`/navigate/${hall.id}`} />}
-                      nativeButton={false}
-                      size="sm"
-                    >
-                      <Navigation className="size-4 mr-1.5" />
-                      Navigate
-                    </Button>
-                  ) : (
-                    <div className="flex items-center justify-center rounded-lg bg-muted/50 h-9 border border-border">
-                      <span className="text-xs text-muted-foreground/70">No route available</span>
-                    </div>
-                  )}
+                  <Button
+                    render={<Link href={`/navigate/${hall.id}`} />}
+                    nativeButton={false}
+                    size="sm"
+                  >
+                    <Navigation className="size-4 mr-1.5" />
+                    Navigate
+                  </Button>
                 </div>
               </div>
             </div>
