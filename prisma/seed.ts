@@ -624,14 +624,11 @@ async function main() {
   console.log("\n✓ Total: 8 schools, 40 departments seeded\n");
 
   // ── Exam Halls ─────────────────────────────────────────────────────────────
+  // Coordinates verified against OpenStreetMap (May 2026).
+  // Removed: CBT1, CBT2, MPHB, BDLH, SOTA — not found on map.
   const hallDefs = [
-    { id: "hall-cbt1",  code: "CBT1",  name: "CBT Centre 1",              capacity: 100, lat: 6.51810, lng: 3.36850 },
-    { id: "hall-cbt2",  code: "CBT2",  name: "CBT Centre 2",              capacity: 100, lat: 6.51790, lng: 3.36900 },
-    { id: "hall-mpha",  code: "MPHA",  name: "Multipurpose Hall A",        capacity: 200, lat: 6.51750, lng: 3.36780 },
-    { id: "hall-mphb",  code: "MPHB",  name: "Multipurpose Hall B",        capacity: 200, lat: 6.51730, lng: 3.36820 },
-    { id: "hall-bclh",  code: "BCLH",  name: "Block C Lecture Hall",       capacity:  80, lat: 6.51850, lng: 3.36750 },
-    { id: "hall-bdlh",  code: "BDLH",  name: "Block D Lecture Hall",       capacity:  80, lat: 6.51830, lng: 3.36700 },
-    { id: "hall-sota",  code: "SOTA",  name: "School of Tech Auditorium",  capacity: 300, lat: 6.51700, lng: 3.36950 },
+    { id: "hall-mpha",  code: "MPHA",  name: "Multipurpose Hall",    capacity: 200, lat: 6.51675, lng: 3.38740 },
+    { id: "hall-bclh",  code: "BCLH",  name: "Block C Lecture Hall", capacity:  80, lat: 6.51848, lng: 3.37269 },
   ];
 
   for (const h of hallDefs) {
@@ -644,22 +641,18 @@ async function main() {
   console.log(`✓ ${hallDefs.length} exam halls created`);
 
   // ── Navigation Nodes ───────────────────────────────────────────────────────
+  // Coordinates corrected to real YCT campus (OSM verified, May 2026).
   const nodeDefs = [
-    { id: "node-main-gate",  label: "Main Gate",                   lat: 6.51900, lng: 3.36800, type: NodeType.ENTRY,    hallId: null },
-    { id: "node-hostel",     label: "Hostel Area",                  lat: 6.51950, lng: 3.36950, type: NodeType.ENTRY,    hallId: null },
-    { id: "node-admin-blk",  label: "Administrative Block",         lat: 6.51830, lng: 3.36830, type: NodeType.LANDMARK, hallId: null },
-    { id: "node-library",    label: "Library",                      lat: 6.51800, lng: 3.36880, type: NodeType.LANDMARK, hallId: null },
-    { id: "node-sot-blk",    label: "School of Technology Block",   lat: 6.51770, lng: 3.36850, type: NodeType.JUNCTION, hallId: null },
-    { id: "node-jct-a",      label: "Junction A",                   lat: 6.51860, lng: 3.36810, type: NodeType.JUNCTION, hallId: null },
-    { id: "node-jct-b",      label: "Junction B",                   lat: 6.51820, lng: 3.36800, type: NodeType.JUNCTION, hallId: null },
-    { id: "node-jct-c",      label: "Junction C",                   lat: 6.51780, lng: 3.36820, type: NodeType.JUNCTION, hallId: null },
-    { id: "node-hall-cbt1",  label: "CBT Centre 1",                 lat: 6.51810, lng: 3.36850, type: NodeType.HALL, hallId: "hall-cbt1" },
-    { id: "node-hall-cbt2",  label: "CBT Centre 2",                 lat: 6.51790, lng: 3.36900, type: NodeType.HALL, hallId: "hall-cbt2" },
-    { id: "node-hall-mpha",  label: "Multipurpose Hall A",          lat: 6.51750, lng: 3.36780, type: NodeType.HALL, hallId: "hall-mpha" },
-    { id: "node-hall-mphb",  label: "Multipurpose Hall B",          lat: 6.51730, lng: 3.36820, type: NodeType.HALL, hallId: "hall-mphb" },
-    { id: "node-hall-bclh",  label: "Block C Lecture Hall",         lat: 6.51850, lng: 3.36750, type: NodeType.HALL, hallId: "hall-bclh" },
-    { id: "node-hall-bdlh",  label: "Block D Lecture Hall",         lat: 6.51830, lng: 3.36700, type: NodeType.HALL, hallId: "hall-bdlh" },
-    { id: "node-hall-sota",  label: "School of Tech Auditorium",    lat: 6.51700, lng: 3.36950, type: NodeType.HALL, hallId: "hall-sota" },
+    { id: "node-main-gate",  label: "Main Gate",                 lat: 6.51930, lng: 3.37300, type: NodeType.ENTRY,    hallId: null },
+    { id: "node-hostel",     label: "Hostel Area",               lat: 6.51961, lng: 3.37482, type: NodeType.ENTRY,    hallId: null },
+    { id: "node-admin-blk",  label: "Administrative Block",      lat: 6.51830, lng: 3.37450, type: NodeType.LANDMARK, hallId: null },
+    { id: "node-library",    label: "Library",                   lat: 6.51760, lng: 3.37532, type: NodeType.LANDMARK, hallId: null },
+    { id: "node-sot-blk",    label: "School of Technology Block",lat: 6.51750, lng: 3.37481, type: NodeType.JUNCTION, hallId: null },
+    { id: "node-jct-a",      label: "Junction A",                lat: 6.51850, lng: 3.37400, type: NodeType.JUNCTION, hallId: null },
+    { id: "node-jct-b",      label: "Junction B",                lat: 6.51810, lng: 3.37450, type: NodeType.JUNCTION, hallId: null },
+    { id: "node-jct-c",      label: "Junction C",                lat: 6.51780, lng: 3.37480, type: NodeType.JUNCTION, hallId: null },
+    { id: "node-hall-mpha",  label: "Multipurpose Hall",         lat: 6.51675, lng: 3.38740, type: NodeType.HALL, hallId: "hall-mpha" },
+    { id: "node-hall-bclh",  label: "Block C Lecture Hall",      lat: 6.51848, lng: 3.37269, type: NodeType.HALL, hallId: "hall-bclh" },
   ];
 
   for (const n of nodeDefs) {
@@ -680,20 +673,15 @@ async function main() {
 
   type PathDef = { id: string; from: string; to: string; fromLat: number; fromLng: number; toLat: number; toLng: number };
   const pathDefs: PathDef[] = [
-    { id: "path-gate-jcta",   from: "node-main-gate",  to: "node-jct-a",      fromLat: 6.51900, fromLng: 3.36800, toLat: 6.51860, toLng: 3.36810 },
-    { id: "path-hostel-admin",from: "node-hostel",     to: "node-admin-blk",  fromLat: 6.51950, fromLng: 3.36950, toLat: 6.51830, toLng: 3.36830 },
-    { id: "path-admin-jcta",  from: "node-admin-blk",  to: "node-jct-a",      fromLat: 6.51830, fromLng: 3.36830, toLat: 6.51860, toLng: 3.36810 },
-    { id: "path-jcta-jctb",   from: "node-jct-a",      to: "node-jct-b",      fromLat: 6.51860, fromLng: 3.36810, toLat: 6.51820, toLng: 3.36800 },
-    { id: "path-jctb-lib",    from: "node-jct-b",      to: "node-library",    fromLat: 6.51820, fromLng: 3.36800, toLat: 6.51800, toLng: 3.36880 },
-    { id: "path-jctb-jctc",   from: "node-jct-b",      to: "node-jct-c",      fromLat: 6.51820, fromLng: 3.36800, toLat: 6.51780, toLng: 3.36820 },
-    { id: "path-jctc-sot",    from: "node-jct-c",      to: "node-sot-blk",    fromLat: 6.51780, fromLng: 3.36820, toLat: 6.51770, toLng: 3.36850 },
-    { id: "path-sot-cbt1",    from: "node-sot-blk",    to: "node-hall-cbt1",  fromLat: 6.51770, fromLng: 3.36850, toLat: 6.51810, toLng: 3.36850 },
-    { id: "path-sot-cbt2",    from: "node-sot-blk",    to: "node-hall-cbt2",  fromLat: 6.51770, fromLng: 3.36850, toLat: 6.51790, toLng: 3.36900 },
-    { id: "path-sot-mpha",    from: "node-sot-blk",    to: "node-hall-mpha",  fromLat: 6.51770, fromLng: 3.36850, toLat: 6.51750, toLng: 3.36780 },
-    { id: "path-sot-mphb",    from: "node-sot-blk",    to: "node-hall-mphb",  fromLat: 6.51770, fromLng: 3.36850, toLat: 6.51730, toLng: 3.36820 },
-    { id: "path-sot-sota",    from: "node-sot-blk",    to: "node-hall-sota",  fromLat: 6.51770, fromLng: 3.36850, toLat: 6.51700, toLng: 3.36950 },
-    { id: "path-jcta-bclh",   from: "node-jct-a",      to: "node-hall-bclh",  fromLat: 6.51860, fromLng: 3.36810, toLat: 6.51850, toLng: 3.36750 },
-    { id: "path-jcta-bdlh",   from: "node-jct-a",      to: "node-hall-bdlh",  fromLat: 6.51860, fromLng: 3.36810, toLat: 6.51830, toLng: 3.36700 },
+    { id: "path-gate-jcta",   from: "node-main-gate",  to: "node-jct-a",     fromLat: 6.51930, fromLng: 3.37300, toLat: 6.51850, toLng: 3.37400 },
+    { id: "path-hostel-admin",from: "node-hostel",     to: "node-admin-blk", fromLat: 6.51961, fromLng: 3.37482, toLat: 6.51830, toLng: 3.37450 },
+    { id: "path-admin-jcta",  from: "node-admin-blk",  to: "node-jct-a",     fromLat: 6.51830, fromLng: 3.37450, toLat: 6.51850, toLng: 3.37400 },
+    { id: "path-jcta-jctb",   from: "node-jct-a",      to: "node-jct-b",     fromLat: 6.51850, fromLng: 3.37400, toLat: 6.51810, toLng: 3.37450 },
+    { id: "path-jctb-lib",    from: "node-jct-b",      to: "node-library",   fromLat: 6.51810, fromLng: 3.37450, toLat: 6.51760, toLng: 3.37532 },
+    { id: "path-jctb-jctc",   from: "node-jct-b",      to: "node-jct-c",     fromLat: 6.51810, fromLng: 3.37450, toLat: 6.51780, toLng: 3.37480 },
+    { id: "path-jctc-sot",    from: "node-jct-c",      to: "node-sot-blk",   fromLat: 6.51780, fromLng: 3.37480, toLat: 6.51750, toLng: 3.37481 },
+    { id: "path-jcta-bclh",   from: "node-jct-a",      to: "node-hall-bclh", fromLat: 6.51850, fromLng: 3.37400, toLat: 6.51848, toLng: 3.37269 },
+    { id: "path-lib-mpha",    from: "node-library",    to: "node-hall-mpha", fromLat: 6.51760, fromLng: 3.37532, toLat: 6.51675, toLng: 3.38740 },
   ];
 
   for (const p of pathDefs) {
