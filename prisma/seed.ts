@@ -624,8 +624,17 @@ async function main() {
   console.log("\n✓ Total: 8 schools, 40 departments seeded\n");
 
   // ── Exam Halls ─────────────────────────────────────────────────────────────
+  // Purge stale halls (CBT1, CBT2, MPHB, BDLH, SOTA — not on map).
+  const staleHallCodes = ["CBT1", "CBT2", "MPHB", "BDLH", "SOTA"];
+  const staleHallIds   = ["hall-cbt1", "hall-cbt2", "hall-mphb", "hall-bdlh", "hall-sota"];
+  const staleNodeIds   = ["node-hall-cbt1", "node-hall-cbt2", "node-hall-mphb", "node-hall-bdlh", "node-hall-sota"];
+  const stalePathIds   = ["path-sot-cbt1", "path-sot-cbt2", "path-sot-mphb", "path-sot-sota", "path-jcta-bdlh"];
+  await prisma.navigationPath.deleteMany({ where: { id: { in: stalePathIds } } });
+  await prisma.navigationNode.deleteMany({ where: { id: { in: staleNodeIds } } });
+  await prisma.examHall.deleteMany({ where: { code: { in: staleHallCodes } } });
+  console.log("✓ Removed stale exam halls: CBT1, CBT2, MPHB, BDLH, SOTA");
+
   // Coordinates verified against OpenStreetMap (May 2026).
-  // Removed: CBT1, CBT2, MPHB, BDLH, SOTA — not found on map.
   const hallDefs = [
     { id: "hall-mpha",  code: "MPHA",  name: "Multipurpose Hall",    capacity: 200, lat: 6.51675, lng: 3.38740 },
     { id: "hall-bclh",  code: "BCLH",  name: "Block C Lecture Hall", capacity:  80, lat: 6.51848, lng: 3.37269 },
