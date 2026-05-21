@@ -105,6 +105,9 @@ export async function POST(request: Request) {
             select: { id: true, levelId: true },
           }),
           prisma.timeSlot.findMany({
+            where: examStartDate
+              ? { date: { gte: new Date(examStartDate + "T00:00:00Z") } }
+              : undefined,
             orderBy: [{ date: "asc" }, { startTime: "asc" }],
           }),
           prisma.examHall.findMany({

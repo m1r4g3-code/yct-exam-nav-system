@@ -715,10 +715,10 @@ export default function TimetablePage() {
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-background border-b border-border">
                   <tr className="text-left">
-                    <th className="pb-2 pr-4 font-medium text-muted-foreground">Matric No.</th>
+                    <th className="pb-2 pr-4 font-medium text-muted-foreground whitespace-nowrap">Matric No.</th>
                     <th className="pb-2 pr-4 font-medium text-muted-foreground">Student</th>
                     <th className="pb-2 pr-4 font-medium text-muted-foreground">Course</th>
-                    <th className="pb-2 pr-4 font-medium text-muted-foreground">Date</th>
+                    <th className="pb-2 pr-4 font-medium text-muted-foreground whitespace-nowrap">Date</th>
                     <th className="pb-2 pr-4 font-medium text-muted-foreground">Hall</th>
                     <th className="pb-2 font-medium text-muted-foreground text-right">Seat</th>
                   </tr>
@@ -726,12 +726,14 @@ export default function TimetablePage() {
                 <tbody>
                   {assignments.map((a) => (
                     <tr key={a.id} className="border-b border-border/50 last:border-0 hover:bg-muted/30">
-                      <td className="py-2 pr-4 font-mono text-xs text-muted-foreground">{a.student.matricNumber}</td>
-                      <td className="py-2 pr-4 text-foreground/80">{a.student.fullName}</td>
-                      <td className="py-2 pr-4 font-mono text-xs text-foreground">{a.timetableEntry.course.code}</td>
-                      <td className="py-2 pr-4 text-muted-foreground text-xs">{formatDate(a.timetableEntry.timeSlot.date)}</td>
-                      <td className="py-2 pr-4 text-muted-foreground text-xs">{a.examHall.code}</td>
-                      <td className="py-2 font-mono text-xs text-right tabular-nums">{a.seatNumber ?? "—"}</td>
+                      <td className="py-2.5 pr-4 font-mono text-xs text-muted-foreground whitespace-nowrap">{a.student.matricNumber}</td>
+                      <td className="py-2.5 pr-4 text-sm text-foreground/80">{a.student.fullName}</td>
+                      <td className="py-2.5 pr-4 font-mono text-xs font-medium text-foreground">{a.timetableEntry.course.code}</td>
+                      <td className="py-2.5 pr-4 text-xs text-muted-foreground whitespace-nowrap">
+                        {new Date(a.timetableEntry.timeSlot.date).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}
+                      </td>
+                      <td className="py-2.5 pr-4 font-mono text-xs text-muted-foreground whitespace-nowrap">{a.examHall.code}</td>
+                      <td className="py-2.5 font-mono text-sm font-semibold text-right tabular-nums">{a.seatNumber ?? "—"}</td>
                     </tr>
                   ))}
                 </tbody>
