@@ -1,18 +1,17 @@
-import { z } from "zod";
-
-const envSchema = z.object({
-  DATABASE_URL:                  z.string().url("DATABASE_URL must be a valid URL"),
-  NEXT_PUBLIC_SUPABASE_URL:      z.string().url("NEXT_PUBLIC_SUPABASE_URL must be a valid URL"),
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1, "NEXT_PUBLIC_SUPABASE_ANON_KEY is required"),
-  SUPABASE_SERVICE_ROLE_KEY:     z.string().min(1, "SUPABASE_SERVICE_ROLE_KEY is required"),
-  ADMIN_SETUP_SECRET:            z.string().min(1, "ADMIN_SETUP_SECRET is required"),
-});
-
-const _parsed = envSchema.safeParse(process.env);
-
-if (!_parsed.success) {
-  const missing = _parsed.error.issues.map((i) => `  ${i.path.join(".")}: ${i.message}`).join("\n");
-  throw new Error(`Missing or invalid environment variables:\n${missing}\n\nCheck your .env.local file.`);
+/**
+ * Reads a required server-side environment variable, failing with a readable
+ * message (instead of an obscure connection error) when it is missing.
+ * Checked lazily — at first use — so builds don't need runtime secrets.
+ *
+ * Browser code must keep reading NEXT_PUBLIC_* variables directly
+ * (process.env.NEXT_PUBLIC_…) so Next.js can inline them at build time.
+ */
+export function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(
+      `Missing environment variable ${name}. Add it to .env.local (see README → Getting started).`
+    );
+  }
+  return value;
 }
-
-export const env = _parsed.data;

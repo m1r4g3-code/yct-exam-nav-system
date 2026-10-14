@@ -9,6 +9,8 @@ export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
     path: "prisma/migrations",
+    // `npx prisma db seed` and `prisma migrate reset` run this
+    seed: "tsx prisma/seed.ts",
   },
   datasource: {
     // DIRECT_URL bypasses pgBouncer — required for migrate dev/deploy

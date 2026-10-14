@@ -10,11 +10,13 @@ import { MoreHorizontal, DoorOpen } from "lucide-react"
 import type { ColumnDef } from "@tanstack/react-table"
 
 import { QUERY_KEYS } from "@/lib/query-keys"
+import { apiGet, apiSend, errorMessage } from "@/lib/fetcher"
 import { PageHeader } from "@/components/admin/page-header"
 import { DataTable } from "@/components/admin/data-table"
 import { MobileCardList } from "@/components/admin/mobile-card-list"
 import { ConfirmDialog } from "@/components/admin/confirm-dialog"
 import { EmptyState } from "@/components/admin/empty-state"
+import { ErrorState } from "@/components/admin/error-state"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -45,16 +47,66 @@ interface Hall {
 }
 
 const hallSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  code: z.string().min(1, "Code is required"),
-  capacity: z.number().int().min(1, "Capacity must be at least 1"),
-  latitude: z.number().optional(),
-  longitude: z.number().optional(),
+  name: z
+    .string()
+    .trim()
+    .min(2, "Name must be at least 2 characters")
+    .max(255, "Name must be at most 255 characters"),
+  code: z
+    .string()
+    .trim()
+    .min(2, "Code must be at least 2 characters")
+    .max(50, "Code must be at most 50 characters")
+    .transform((v) => v.toUpperCase()),
+  capacity: z
+    .number({ error: "Capacity is required" })
+    .int("Capacity must be a whole number")
+    .min(1, "Capacity must be at least 1"),
+  latitude: z
+    .number({ error: "Latitude is required" })
+    .min(-90, "Latitude must be between -90 and 90")
+    .max(90, "Latitude must be between -90 and 90"),
+  longitude: z
+    .number({ error: "Longitude is required" })
+    .min(-180, "Longitude must be between -180 and 180")
+    .max(180, "Longitude must be between -180 and 180"),
   description: z.string().optional(),
   isActive: z.boolean(),
 })
 
-type HallFormValues = z.infer<typeof hallSchema>
+type HallFormInput = z.input<typeof hallSchema>
+type HallFormValues = z.output<typeof hallSchema>
+
+const EMPTY_HALL: HallFormInput = {
+  name: "",
+  code: "",
+  capacity: 50,
+  latitude: Number.NaN,
+  longitude: Number.NaN,
+  description: "",
+  isActive: true,
+}
+
+/** "6.51923, 3.37612" — or a dash when the hall has no position yet. */
+function formatCoordinates(lat?: number | null, lng?: number | null): string {
+  if (lat == null || lng == null) return "—"
+  const la = Number(lat)
+  const lo = Number(lng)
+  if (!Number.isFinite(la) || !Number.isFinite(lo)) return "—"
+  return `${la.toFixed(5)}, ${lo.toFixed(5)}`
+}
+
+function ActiveBadge({ active }: { active: boolean }) {
+  return active ? (
+    <Badge className="border-emerald-600/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">
+      Active
+    </Badge>
+  ) : (
+    <Badge variant="outline" className="border-border text-muted-foreground">
+      Inactive
+    </Badge>
+  )
+}
 
 export default function HallsPage() {
   const queryClient = useQueryClient()
@@ -62,31 +114,31 @@ export default function HallsPage() {
   const [editTarget, setEditTarget] = useState<Hall | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Hall | null>(null)
 
-  const { data: halls = [], isLoading } = useQuery<Hall[]>({
+  const {
+    data: halls = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery<Hall[]>({
     queryKey: QUERY_KEYS.HALLS,
-    queryFn: async () => {
-      const res = await fetch("/api/halls")
-      const json = await res.json()
-      return json.data ?? []
-    },
+    queryFn: () => apiGet<Hall[]>("/api/halls"),
   })
 
-  const form = useForm<HallFormValues>({
+  const invalidateAll = () => {
+    queryClient.invalidateQueries({ queryKey: QUERY_KEYS.HALLS })
+    queryClient.invalidateQueries({ queryKey: QUERY_KEYS.NAV_HALLS })
+    queryClient.invalidateQueries({ queryKey: QUERY_KEYS.STATS })
+  }
+
+  const form = useForm<HallFormInput, unknown, HallFormValues>({
     resolver: zodResolver(hallSchema),
-    defaultValues: {
-      name: "",
-      code: "",
-      capacity: 50,
-      latitude: undefined,
-      longitude: undefined,
-      description: "",
-      isActive: true,
-    },
+    defaultValues: EMPTY_HALL,
   })
 
   const openCreate = () => {
     setEditTarget(null)
-    form.reset({ name: "", code: "", capacity: 50, latitude: undefined, longitude: undefined, description: "", isActive: true })
+    form.reset(EMPTY_HALL)
     setDialogOpen(true)
   }
 
@@ -96,8 +148,8 @@ export default function HallsPage() {
       name: hall.name,
       code: hall.code,
       capacity: hall.capacity,
-      latitude: hall.latitude ?? undefined,
-      longitude: hall.longitude ?? undefined,
+      latitude: hall.latitude != null ? Number(hall.latitude) : Number.NaN,
+      longitude: hall.longitude != null ? Number(hall.longitude) : Number.NaN,
       description: hall.description ?? "",
       isActive: hall.isActive,
     })
@@ -105,65 +157,41 @@ export default function HallsPage() {
   }
 
   const createMutation = useMutation({
-    mutationFn: async (body: HallFormValues) => {
-      const res = await fetch("/api/halls", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      })
-      const json = await res.json()
-      if (!json.success) throw new Error(json.message)
-      return json.data
-    },
+    mutationFn: (body: HallFormValues) => apiSend<Hall>("/api/halls", "POST", body),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.HALLS })
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.NAV_HALLS })
+      invalidateAll()
       toast.success("Hall created")
       setDialogOpen(false)
-      form.reset()
+      form.reset(EMPTY_HALL)
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e) => toast.error(errorMessage(e)),
   })
 
   const updateMutation = useMutation({
-    mutationFn: async (body: HallFormValues) => {
-      const res = await fetch(`/api/halls/${editTarget!.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      })
-      const json = await res.json()
-      if (!json.success) throw new Error(json.message)
-      return json.data
-    },
+    mutationFn: ({ id, body }: { id: string; body: HallFormValues }) =>
+      apiSend<Hall>(`/api/halls/${id}`, "PUT", body),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.HALLS })
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.NAV_HALLS })
+      invalidateAll()
       toast.success("Hall updated")
       setDialogOpen(false)
       setEditTarget(null)
-      form.reset()
+      form.reset(EMPTY_HALL)
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e) => toast.error(errorMessage(e)),
   })
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await fetch(`/api/halls/${id}`, { method: "DELETE" })
-      const json = await res.json()
-      if (!json.success) throw new Error(json.message)
-    },
+    mutationFn: (id: string) => apiSend(`/api/halls/${id}`, "DELETE"),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.HALLS })
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.NAV_HALLS })
+      invalidateAll()
       toast.success("Hall deleted")
       setDeleteTarget(null)
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e) => toast.error(errorMessage(e)),
   })
 
   const onSubmit = (values: HallFormValues) => {
-    if (editTarget) updateMutation.mutate(values)
+    if (editTarget) updateMutation.mutate({ id: editTarget.id, body: values })
     else createMutation.mutate(values)
   }
 
@@ -192,14 +220,18 @@ export default function HallsPage() {
       ),
     },
     {
+      id: "coordinates",
+      header: "Coordinates",
+      cell: ({ row }) => (
+        <span className="font-mono text-xs text-muted-foreground">
+          {formatCoordinates(row.original.latitude, row.original.longitude)}
+        </span>
+      ),
+    },
+    {
       id: "status",
       header: "Status",
-      cell: ({ row }) =>
-        row.original.isActive ? (
-          <Badge className="border-emerald-500/30 bg-emerald-500/15 text-emerald-400">Active</Badge>
-        ) : (
-          <Badge variant="outline" className="border-border text-muted-foreground">Inactive</Badge>
-        ),
+      cell: ({ row }) => <ActiveBadge active={row.original.isActive} />,
     },
     {
       id: "actions",
@@ -235,11 +267,13 @@ export default function HallsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Halls"
-        description="Manage examination halls and venues"
+        description="Inactive halls are not used for new timetables and are hidden from students' hall list"
         action={{ label: "Add Hall", onClick: openCreate }}
       />
 
-      {!isLoading && halls.length === 0 ? (
+      {isError ? (
+        <ErrorState error={error} onRetry={() => refetch()} />
+      ) : !isLoading && halls.length === 0 ? (
         <EmptyState
           icon={DoorOpen}
           title="No halls yet"
@@ -260,12 +294,11 @@ export default function HallsPage() {
                   <div>
                     <p className="font-medium text-foreground">{hall.name}</p>
                     <p className="text-sm text-muted-foreground">{hall.code} · {hall.capacity.toLocaleString()} seats</p>
+                    <p className="mt-0.5 font-mono text-xs text-muted-foreground">
+                      {formatCoordinates(hall.latitude, hall.longitude)}
+                    </p>
                     <div className="mt-1">
-                      {hall.isActive ? (
-                        <Badge className="border-emerald-500/30 bg-emerald-500/15 text-emerald-400 text-xs">Active</Badge>
-                      ) : (
-                        <Badge variant="outline" className="border-border text-muted-foreground text-xs">Inactive</Badge>
-                      )}
+                      <ActiveBadge active={hall.isActive} />
                     </div>
                   </div>
                   <DropdownMenu>
@@ -290,7 +323,7 @@ export default function HallsPage() {
             <DialogTitle>{editTarget ? "Edit Hall" : "Add Hall"}</DialogTitle>
           </DialogHeader>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label className="text-foreground/70">Name</Label>
                 <Input placeholder="e.g. Main Auditorium" {...form.register("name")} />
@@ -298,7 +331,7 @@ export default function HallsPage() {
               </div>
               <div className="space-y-1.5">
                 <Label className="text-foreground/70">Code</Label>
-                <Input placeholder="e.g. MA-01" {...form.register("code")} />
+                <Input placeholder="e.g. MA-01" className="uppercase" {...form.register("code")} />
                 {form.formState.errors.code && <p className="text-sm text-destructive">{form.formState.errors.code.message}</p>}
               </div>
             </div>
@@ -309,14 +342,16 @@ export default function HallsPage() {
               {form.formState.errors.capacity && <p className="text-sm text-destructive">{form.formState.errors.capacity.message}</p>}
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label className="text-foreground/70">Latitude</Label>
-                <Input type="number" step="any" placeholder="e.g. 6.5244" {...form.register("latitude", { valueAsNumber: true })} />
+                <Input type="number" step="any" placeholder="e.g. 6.51923" {...form.register("latitude", { valueAsNumber: true })} />
+                {form.formState.errors.latitude && <p className="text-sm text-destructive">{form.formState.errors.latitude.message}</p>}
               </div>
               <div className="space-y-1.5">
                 <Label className="text-foreground/70">Longitude</Label>
-                <Input type="number" step="any" placeholder="e.g. 3.3792" {...form.register("longitude", { valueAsNumber: true })} />
+                <Input type="number" step="any" placeholder="e.g. 3.37612" {...form.register("longitude", { valueAsNumber: true })} />
+                {form.formState.errors.longitude && <p className="text-sm text-destructive">{form.formState.errors.longitude.message}</p>}
               </div>
             </div>
 
@@ -347,7 +382,7 @@ export default function HallsPage() {
         open={!!deleteTarget}
         onOpenChange={(v) => !v && setDeleteTarget(null)}
         title="Delete Hall"
-        description={`Are you sure you want to delete "${deleteTarget?.name}"? This action cannot be undone.`}
+        description={`Delete "${deleteTarget?.name}"? A hall that already has exam seat assignments cannot be deleted — deactivate it instead, or reset the timetable first. This action cannot be undone.`}
         onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
         loading={deleteMutation.isPending}
       />

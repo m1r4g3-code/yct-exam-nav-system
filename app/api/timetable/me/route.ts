@@ -48,14 +48,15 @@ export async function GET(request: NextRequest) {
           },
         },
       },
-      // Hall-level assignments (always exist after generation)
+      // Hall-level assignments (always exist after generation) — the first hall by
+      // code is shown to students who have no individual seat yet.
       hallAssignments: {
         include: {
           examHall: {
             select: { id: true, name: true, code: true, latitude: true, longitude: true },
           },
         },
-        orderBy: { createdAt: "asc" },
+        orderBy: { examHall: { code: "asc" } },
         take: 1,
       },
     },

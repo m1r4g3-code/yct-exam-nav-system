@@ -18,6 +18,10 @@ interface ConfirmDialogProps {
   description: string
   onConfirm: () => void
   loading?: boolean
+  /** Text of the confirm button (default "Confirm"). */
+  confirmLabel?: string
+  /** "destructive" (default) for deletions, "default" for non-destructive actions. */
+  variant?: "destructive" | "default"
 }
 
 export function ConfirmDialog({
@@ -27,6 +31,8 @@ export function ConfirmDialog({
   description,
   onConfirm,
   loading = false,
+  confirmLabel = "Confirm",
+  variant = "destructive",
 }: ConfirmDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -44,12 +50,12 @@ export function ConfirmDialog({
             Cancel
           </Button>
           <Button
-            variant="destructive"
+            variant={variant}
             onClick={onConfirm}
             disabled={loading}
           >
             {loading && <Loader2 className="mr-2 size-4 animate-spin" />}
-            Confirm
+            {confirmLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

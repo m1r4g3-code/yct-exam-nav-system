@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { QUERY_KEYS } from "@/lib/query-keys";
+import { apiGet, errorMessage } from "@/lib/fetcher";
 import { useLogout } from "@/hooks/use-user";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { LogOut, Pencil } from "lucide-react";
 import {
   Dialog,
@@ -31,7 +33,47 @@ const AVATARS = [
   "🦁", "🐯", "🦊", "🐧", "🦋", "🐻",
 ];
 
-const AVATAR_STORAGE_KEY = "yct_profile_avatar";
+// One avatar per account — students may share a phone or computer.
+const AVATAR_STORAGE_PREFIX = "yct_profile_avatar:";
+const LEGACY_AVATAR_KEY = "yct_profile_avatar";
+const avatarListeners = new Set<() => void>();
+
+function avatarKey(email: string): string {
+  return `${AVATAR_STORAGE_PREFIX}${email.trim().toLowerCase()}`;
+}
+
+function readAvatar(email: string): string {
+  if (!email) return "";
+  try {
+    return window.localStorage.getItem(avatarKey(email)) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function writeAvatar(email: string, emoji: string) {
+  try {
+    if (emoji) window.localStorage.setItem(avatarKey(email), emoji);
+    else window.localStorage.removeItem(avatarKey(email));
+    // The old key was shared by everyone who signed in on this browser.
+    window.localStorage.removeItem(LEGACY_AVATAR_KEY);
+  } catch {
+    // Storage unavailable (private mode, blocked site data) — the choice isn't kept.
+  }
+  avatarListeners.forEach((notify) => notify());
+}
+
+function subscribeAvatar(notify: () => void) {
+  avatarListeners.add(notify);
+  const onStorage = (e: StorageEvent) => {
+    if (e.key?.startsWith(AVATAR_STORAGE_PREFIX)) notify();
+  };
+  window.addEventListener("storage", onStorage);
+  return () => {
+    avatarListeners.delete(notify);
+    window.removeEventListener("storage", onStorage);
+  };
+}
 
 function getInitials(name: string): string {
   return name
@@ -76,29 +118,31 @@ export default function ProfilePage() {
   const logout = useLogout();
   const [pickerOpen, setPickerOpen] = useState(false);
 
-  const [selectedAvatar, setSelectedAvatar] = useState<string>(() => {
-    if (typeof window === "undefined") return "";
-    return localStorage.getItem(AVATAR_STORAGE_KEY) ?? "";
+  const {
+    data: profile,
+    isPending,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: QUERY_KEYS.STUDENT("me"),
+    queryFn: () => apiGet<StudentProfile>("/api/students/me"),
   });
 
-  const { data: profile, isLoading } = useQuery<StudentProfile>({
-    queryKey: QUERY_KEYS.STUDENT("me"),
-    queryFn: async () => {
-      const res = await fetch("/api/students/me");
-      const json = await res.json();
-      return json.data;
-    },
-  });
+  const email = profile?.email ?? "";
+  const selectedAvatar = useSyncExternalStore(
+    subscribeAvatar,
+    () => readAvatar(email),
+    () => ""
+  );
 
   function handleAvatarSelect(emoji: string) {
-    setSelectedAvatar(emoji);
-    localStorage.setItem(AVATAR_STORAGE_KEY, emoji);
+    if (email) writeAvatar(email, emoji);
     setPickerOpen(false);
   }
 
   function clearAvatar() {
-    setSelectedAvatar("");
-    localStorage.removeItem(AVATAR_STORAGE_KEY);
+    if (email) writeAvatar(email, "");
     setPickerOpen(false);
   }
 
@@ -107,12 +151,16 @@ export default function ProfilePage() {
       <h1 className="text-xl font-semibold text-foreground mb-6">Profile</h1>
 
       <div className="mx-auto max-w-lg rounded-xl border border-border bg-card overflow-hidden">
-        {isLoading ? (
+        {isPending ? (
           <div className="p-6"><ProfileSkeleton /></div>
-        ) : !profile ? (
-          <p className="text-center text-sm text-muted-foreground py-12 px-6">
-            Could not load profile. Try refreshing.
-          </p>
+        ) : isError ? (
+          <div className="px-6 py-10 text-center">
+            <p className="text-sm font-medium text-destructive">Couldn&apos;t load your profile</p>
+            <p className="text-xs text-muted-foreground mt-1">{errorMessage(error)}</p>
+            <Button variant="outline" size="sm" className="mt-3" onClick={() => refetch()}>
+              Try again
+            </Button>
+          </div>
         ) : (
           <>
             {/* Brand gradient header */}
@@ -153,7 +201,7 @@ export default function ProfilePage() {
               </span>
             </div>
 
-            <div className="p-6">
+            <div className="px-6 pt-6">
               {/* Info rows */}
               <div className="divide-y divide-border/60">
                 <InfoRow label="Email" value={profile.email} />
@@ -167,21 +215,32 @@ export default function ProfilePage() {
                   value={`${profile.department.name} (${profile.department.code})`}
                 />
               </div>
-
-              <Separator className="mt-1 mb-5" />
-
-              {/* Logout */}
-              <Button
-                variant="destructive"
-                className="w-full"
-                onClick={logout}
-              >
-                <LogOut className="size-4 mr-2" />
-                Sign out
-              </Button>
             </div>
           </>
         )}
+
+        <div className="px-6 pb-6">
+          {/* Appearance — the theme switch, also reachable on phones (no top bar there) */}
+          <div className="flex items-center justify-between gap-4 border-t border-border/60 py-3">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-xs text-muted-foreground uppercase tracking-wide">Appearance</span>
+              <span className="text-sm text-foreground/80">Light or dark theme</span>
+            </div>
+            <ThemeToggle className="text-muted-foreground hover:text-foreground" />
+          </div>
+
+          <Separator className="mb-5" />
+
+          {/* Sign out — always available, even if the profile didn't load */}
+          <Button
+            variant="destructive"
+            className="w-full"
+            onClick={logout}
+          >
+            <LogOut className="size-4 mr-2" />
+            Sign out
+          </Button>
+        </div>
       </div>
 
       {/* Avatar picker dialog */}

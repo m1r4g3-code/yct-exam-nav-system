@@ -1,20 +1,23 @@
 "use client"
 /* eslint-disable react-hooks/incompatible-library -- react-hook-form's form.watch() is not yet annotated for React Compiler; behaviour is correct and Compiler already skips this component */
 
-import { useState, useRef } from "react"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useEffect, useRef, useState } from "react"
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { toast } from "sonner"
-import { MoreHorizontal, GraduationCap, Upload } from "lucide-react"
+import { MoreHorizontal, GraduationCap, Upload, Search } from "lucide-react"
 import type { ColumnDef } from "@tanstack/react-table"
 
 import { QUERY_KEYS } from "@/lib/query-keys"
+import { apiGet, apiGetPage, apiSend, apiUpload, errorMessage } from "@/lib/fetcher"
 import { DataTable } from "@/components/admin/data-table"
 import { MobileCardList } from "@/components/admin/mobile-card-list"
 import { ConfirmDialog } from "@/components/admin/confirm-dialog"
 import { EmptyState } from "@/components/admin/empty-state"
+import { ErrorState } from "@/components/admin/error-state"
+import { ImportReportDialog, type ImportReport } from "@/components/admin/import-report-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -40,30 +43,96 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
-interface School { id: string; name: string }
-interface Department { id: string; name: string; schoolId: string }
-interface Programme { id: string; name: string; departmentId: string }
-interface Level { id: string; name: string; programmeId: string }
+interface School { id: string; name: string; code: string }
+interface Department { id: string; name: string; code: string; schoolId: string }
+interface Programme { id: string; name: string; code: string; departmentId: string }
+interface Level { id: string; name: string; year: number; programmeId: string }
+
+type Semester = "FIRST" | "SECOND"
 
 interface Course {
   id: string
   code: string
   title: string
   creditUnits: number
-  semester: "FIRST" | "SECOND"
+  semester: Semester
   levelId: string
-  level?: { name: string }
+  level?: {
+    id: string
+    name: string
+    year: number
+    programme: {
+      id: string
+      name: string
+      code: string
+      department: { id: string; name: string; code: string; schoolId: string }
+    }
+  }
+}
+
+interface CourseImportReport extends ImportReport {
+  updated: number
+}
+
+const PAGE_SIZE = 50
+
+const SEMESTER_LABEL: Record<Semester, string> = {
+  FIRST: "First Semester",
+  SECOND: "Second Semester",
 }
 
 const courseSchema = z.object({
-  code: z.string().min(1, "Code is required"),
-  title: z.string().min(1, "Title is required"),
-  creditUnits: z.number().int().min(1),
+  code: z
+    .string()
+    .trim()
+    .min(2, "Code must be at least 2 characters")
+    .max(20, "Code must be at most 20 characters")
+    .transform((v) => v.toUpperCase()),
+  title: z
+    .string()
+    .trim()
+    .min(2, "Title must be at least 2 characters")
+    .max(255, "Title must be at most 255 characters"),
+  creditUnits: z
+    .number({ error: "Credit units must be a whole number from 1 to 6" })
+    .int("Credit units must be a whole number from 1 to 6")
+    .min(1, "Credit units must be from 1 to 6")
+    .max(6, "Credit units must be from 1 to 6"),
   semester: z.enum(["FIRST", "SECOND"]),
-  levelId: z.string().min(1, "Level is required"),
+  levelId: z.string().min(1, "Please select a level"),
 })
 
-type CourseFormValues = z.infer<typeof courseSchema>
+type CourseFormInput = z.input<typeof courseSchema>
+type CourseFormValues = z.output<typeof courseSchema>
+
+const EMPTY_COURSE: CourseFormInput = { code: "", title: "", creditUnits: 2, semester: "FIRST", levelId: "" }
+
+/** "ND 1 · CSC" */
+function levelLabel(course: Course): string {
+  if (!course.level) return "—"
+  const dept = course.level.programme?.department?.code
+  return dept ? `${course.level.name} · ${dept}` : course.level.name
+}
+
+const departmentsUrl = (schoolId?: string) =>
+  schoolId ? `/api/departments?school_id=${encodeURIComponent(schoolId)}` : "/api/departments"
+const programmesUrl = (departmentId: string) =>
+  `/api/programmes?department_id=${encodeURIComponent(departmentId)}`
+const levelsUrl = (programmeId: string) => `/api/levels?programme_id=${encodeURIComponent(programmeId)}`
+
+function SemesterBadge({ semester }: { semester: Semester }) {
+  return (
+    <Badge
+      className={
+        semester === "FIRST"
+          ? "border-blue-500/30 bg-blue-500/15 text-blue-700 dark:text-blue-400"
+          : "border-purple-500/30 bg-purple-500/15 text-purple-700 dark:text-purple-400"
+      }
+    >
+      {semester === "FIRST" ? "First" : "Second"}
+    </Badge>
+  )
+}
 
 export default function CoursesPage() {
   const queryClient = useQueryClient()
@@ -73,117 +142,133 @@ export default function CoursesPage() {
   const [filterDeptId, setFilterDeptId] = useState<string>("all")
   const [filterProgId, setFilterProgId] = useState<string>("all")
   const [filterLevelId, setFilterLevelId] = useState<string>("all")
+  const [searchInput, setSearchInput] = useState("")
+  const [search, setSearch] = useState("")
+  const [page, setPage] = useState(1)
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<Course | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Course | null>(null)
+  const [importReport, setImportReport] = useState<CourseImportReport | null>(null)
 
   const [formSchoolId, setFormSchoolId] = useState<string>("")
   const [formDeptId, setFormDeptId] = useState<string>("")
   const [formProgId, setFormProgId] = useState<string>("")
 
+  // Wait for a pause in typing before searching, and start again from page 1.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(searchInput.trim())
+      setPage(1)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchInput])
+
   const { data: schools = [] } = useQuery<School[]>({
     queryKey: QUERY_KEYS.SCHOOLS,
-    queryFn: async () => {
-      const res = await fetch("/api/schools")
-      const json = await res.json()
-      return json.data ?? []
-    },
+    queryFn: () => apiGet<School[]>("/api/schools"),
   })
 
+  const schoolIdParam = filterSchoolId !== "all" ? filterSchoolId : undefined
+  const deptIdParam = filterDeptId !== "all" ? filterDeptId : undefined
+  const progIdParam = filterProgId !== "all" ? filterProgId : undefined
+  const levelIdParam = filterLevelId !== "all" ? filterLevelId : undefined
+
   const { data: filterDepts = [] } = useQuery<Department[]>({
-    queryKey: QUERY_KEYS.DEPARTMENTS(filterSchoolId !== "all" ? filterSchoolId : undefined),
-    queryFn: async () => {
-      const url = filterSchoolId !== "all" ? `/api/departments?school_id=${filterSchoolId}` : "/api/departments"
-      const res = await fetch(url)
-      const json = await res.json()
-      return json.data ?? []
-    },
+    queryKey: QUERY_KEYS.DEPARTMENTS(schoolIdParam),
+    queryFn: () => apiGet<Department[]>(departmentsUrl(schoolIdParam)),
   })
 
   const { data: filterProgs = [] } = useQuery<Programme[]>({
-    queryKey: QUERY_KEYS.PROGRAMMES(filterDeptId !== "all" ? filterDeptId : undefined),
-    queryFn: async () => {
-      const url = filterDeptId !== "all" ? `/api/programmes?department_id=${filterDeptId}` : "/api/programmes"
-      const res = await fetch(url)
-      const json = await res.json()
-      return json.data ?? []
-    },
+    queryKey: QUERY_KEYS.PROGRAMMES(deptIdParam),
+    queryFn: () => apiGet<Programme[]>(programmesUrl(deptIdParam!)),
+    enabled: !!deptIdParam,
   })
 
   const { data: filterLevels = [] } = useQuery<Level[]>({
-    queryKey: QUERY_KEYS.LEVELS(filterProgId !== "all" ? filterProgId : undefined),
-    queryFn: async () => {
-      const url = filterProgId !== "all" ? `/api/levels?programme_id=${filterProgId}` : "/api/levels"
-      const res = await fetch(url)
-      const json = await res.json()
-      return json.data ?? []
-    },
+    queryKey: QUERY_KEYS.LEVELS(progIdParam),
+    queryFn: () => apiGet<Level[]>(levelsUrl(progIdParam!)),
+    enabled: !!progIdParam,
   })
 
-  const deptIdParam = filterDeptId !== "all" ? filterDeptId : undefined
-  const levelIdParam = filterLevelId !== "all" ? filterLevelId : undefined
-
-  const { data: courses = [], isLoading } = useQuery<Course[]>({
-    queryKey: ["courses", { level: levelIdParam, dept: deptIdParam }],
-    queryFn: async () => {
+  const {
+    data: coursePage,
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isPlaceholderData,
+  } = useQuery({
+    queryKey: [
+      "courses",
+      "list",
+      { school: schoolIdParam, dept: deptIdParam, prog: progIdParam, level: levelIdParam, search, page },
+    ],
+    queryFn: () => {
       const params = new URLSearchParams()
+      // The most specific filter wins (a level implies its programme, department and school).
       if (levelIdParam) params.set("level_id", levelIdParam)
+      else if (progIdParam) params.set("programme_id", progIdParam)
       else if (deptIdParam) params.set("department_id", deptIdParam)
-      const url = params.size ? `/api/courses?${params}` : "/api/courses"
-      const res = await fetch(url)
-      const json = await res.json()
-      return json.data ?? []
+      else if (schoolIdParam) params.set("school_id", schoolIdParam)
+      if (search) params.set("search", search)
+      params.set("page", String(page))
+      params.set("limit", String(PAGE_SIZE))
+      return apiGetPage<Course[]>(`/api/courses?${params}`)
     },
+    placeholderData: keepPreviousData,
   })
+
+  const courses = coursePage?.data ?? []
+  const total = coursePage?.meta?.total ?? courses.length
+  const pages = Math.max(1, coursePage?.meta?.pages ?? 1)
+  const hasFilters = !!(schoolIdParam || deptIdParam || progIdParam || levelIdParam || search)
 
   // Form cascade queries
   const { data: formDepts = [] } = useQuery<Department[]>({
     queryKey: QUERY_KEYS.DEPARTMENTS(formSchoolId || undefined),
-    queryFn: async () => {
-      const url = formSchoolId ? `/api/departments?school_id=${formSchoolId}` : "/api/departments"
-      const res = await fetch(url)
-      const json = await res.json()
-      return json.data ?? []
-    },
+    queryFn: () => apiGet<Department[]>(departmentsUrl(formSchoolId)),
+    enabled: !!formSchoolId,
   })
 
   const { data: formProgs = [] } = useQuery<Programme[]>({
     queryKey: QUERY_KEYS.PROGRAMMES(formDeptId || undefined),
-    queryFn: async () => {
-      const url = formDeptId ? `/api/programmes?department_id=${formDeptId}` : "/api/programmes"
-      const res = await fetch(url)
-      const json = await res.json()
-      return json.data ?? []
-    },
+    queryFn: () => apiGet<Programme[]>(programmesUrl(formDeptId)),
+    enabled: !!formDeptId,
   })
 
   const { data: formLevels = [] } = useQuery<Level[]>({
     queryKey: QUERY_KEYS.LEVELS(formProgId || undefined),
-    queryFn: async () => {
-      const url = formProgId ? `/api/levels?programme_id=${formProgId}` : "/api/levels"
-      const res = await fetch(url)
-      const json = await res.json()
-      return json.data ?? []
-    },
+    queryFn: () => apiGet<Level[]>(levelsUrl(formProgId)),
+    enabled: !!formProgId,
   })
 
-  const form = useForm<CourseFormValues>({
+  const form = useForm<CourseFormInput, unknown, CourseFormValues>({
     resolver: zodResolver(courseSchema),
-    defaultValues: { code: "", title: "", creditUnits: 2, semester: "FIRST", levelId: "" },
+    defaultValues: EMPTY_COURSE,
   })
+
+  const invalidateAll = () => {
+    queryClient.invalidateQueries({ queryKey: ["courses"] })
+    queryClient.invalidateQueries({ queryKey: QUERY_KEYS.STATS })
+  }
 
   const openCreate = () => {
     setEditTarget(null)
     setFormSchoolId("")
     setFormDeptId("")
     setFormProgId("")
-    form.reset({ code: "", title: "", creditUnits: 2, semester: "FIRST", levelId: "" })
+    form.reset(EMPTY_COURSE)
     setDialogOpen(true)
   }
 
   const openEdit = (course: Course) => {
     setEditTarget(course)
+    // Pre-fill the School → Department → Programme → Level chain from the course's level.
+    const programme = course.level?.programme
+    setFormSchoolId(programme?.department.schoolId ?? "")
+    setFormDeptId(programme?.department.id ?? "")
+    setFormProgId(programme?.id ?? "")
     form.reset({
       code: course.code,
       title: course.title,
@@ -194,89 +279,70 @@ export default function CoursesPage() {
     setDialogOpen(true)
   }
 
-  async function fetchCourse(url: string, method: string, body: CourseFormValues) {
-    const res = await fetch(url, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    })
-    const json = await res.json()
-    if (!json.success) {
-      const fieldErrors: { field: string; message: string }[] = json.errors ?? []
-      const detail = fieldErrors.length
-        ? fieldErrors.map((e) => `${e.field}: ${e.message}`).join(", ")
-        : json.message
-      throw new Error(detail)
-    }
-    return json.data
-  }
-
   const createMutation = useMutation({
-    mutationFn: (body: CourseFormValues) => fetchCourse("/api/courses", "POST", body),
+    mutationFn: (body: CourseFormValues) => apiSend<Course>("/api/courses", "POST", body),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["courses"] })
+      invalidateAll()
       toast.success("Course created")
       setDialogOpen(false)
-      form.reset()
+      form.reset(EMPTY_COURSE)
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e) => toast.error(errorMessage(e)),
   })
 
   const updateMutation = useMutation({
-    mutationFn: (body: CourseFormValues) => fetchCourse(`/api/courses/${editTarget!.id}`, "PUT", body),
+    mutationFn: ({ id, body }: { id: string; body: CourseFormValues }) =>
+      apiSend<Course>(`/api/courses/${id}`, "PUT", body),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["courses"] })
+      invalidateAll()
       toast.success("Course updated")
       setDialogOpen(false)
       setEditTarget(null)
-      form.reset()
+      form.reset(EMPTY_COURSE)
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e) => toast.error(errorMessage(e)),
   })
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await fetch(`/api/courses/${id}`, { method: "DELETE" })
-      const json = await res.json()
-      if (!json.success) throw new Error(json.message)
-    },
+    mutationFn: (id: string) => apiSend(`/api/courses/${id}`, "DELETE"),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["courses"] })
+      // Deleting the only course on the last page: step back so the list isn't empty.
+      if (courses.length === 1 && page > 1) setPage(page - 1)
+      invalidateAll()
       toast.success("Course deleted")
       setDeleteTarget(null)
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e) => toast.error(errorMessage(e)),
   })
 
   const uploadMutation = useMutation({
-    mutationFn: async (file: File) => {
+    mutationFn: (file: File) => {
       const formData = new FormData()
       formData.append("file", file)
-      const res = await fetch("/api/courses/upload-csv", {
-        method: "POST",
-        body: formData,
+      return apiUpload<CourseImportReport>("/api/courses/upload-csv", formData)
+    },
+    onSuccess: ({ data }) => {
+      invalidateAll()
+      setImportReport({
+        imported: data?.imported ?? 0,
+        updated: data?.updated ?? 0,
+        skipped: data?.skipped ?? 0,
+        errors: data?.errors ?? [],
       })
-      const json = await res.json()
-      if (!json.success) throw new Error(json.message)
-      return json.data
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["courses"] })
-      toast.success(`Imported: ${data?.imported ?? 0}, Skipped: ${data?.skipped ?? 0}`)
-    },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e) => toast.error(errorMessage(e)),
   })
 
   const onSubmit = (values: CourseFormValues) => {
-    if (!values.levelId) {
-      form.setError("levelId", { message: "Please select a level" })
-      return
-    }
-    if (editTarget) updateMutation.mutate(values)
+    if (editTarget) updateMutation.mutate({ id: editTarget.id, body: values })
     else createMutation.mutate(values)
   }
 
   const isSaving = createMutation.isPending || updateMutation.isPending
+
+  const deptLabel = (d: Department) => `${d.name} (${d.code})`
+  const formLevelId = form.watch("levelId")
+  const formSemester = form.watch("semester")
 
   const columns: ColumnDef<Course>[] = [
     {
@@ -290,7 +356,15 @@ export default function CoursesPage() {
       accessorKey: "title",
       header: "Title",
       cell: ({ row }) => (
-        <span className="text-foreground/70">{row.original.title}</span>
+        <span className="text-foreground/80">{row.original.title}</span>
+      ),
+    },
+    {
+      id: "level",
+      header: "Level",
+      accessorFn: (course) => levelLabel(course),
+      cell: ({ row }) => (
+        <span className="whitespace-nowrap text-muted-foreground">{levelLabel(row.original)}</span>
       ),
     },
     {
@@ -303,17 +377,7 @@ export default function CoursesPage() {
     {
       accessorKey: "semester",
       header: "Semester",
-      cell: ({ row }) => (
-        <Badge
-          className={
-            row.original.semester === "FIRST"
-              ? "border-blue-500/30 bg-blue-500/15 text-blue-400"
-              : "border-purple-500/30 bg-purple-500/15 text-purple-400"
-          }
-        >
-          {row.original.semester === "FIRST" ? "First" : "Second"}
-        </Badge>
-      ),
+      cell: ({ row }) => <SemesterBadge semester={row.original.semester} />,
     },
     {
       id: "actions",
@@ -347,10 +411,16 @@ export default function CoursesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-row items-start justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold text-foreground">Courses</h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">Manage courses within levels</p>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            CSV columns:{" "}
+            <code className="font-mono text-xs">
+              course_code,course_title,department_code,level_name,credit_units,semester
+            </code>{" "}
+            (existing codes are updated)
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} disabled={uploadMutation.isPending}>
@@ -360,7 +430,7 @@ export default function CoursesPage() {
           <input
             ref={fileRef}
             type="file"
-            accept=".csv"
+            accept=".csv,text/csv"
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0]
@@ -376,8 +446,8 @@ export default function CoursesPage() {
 
       {/* Cascade filters */}
       <div className="flex flex-wrap items-center gap-3">
-        <Select value={filterSchoolId} onValueChange={(v) => { if (v == null) return; setFilterSchoolId(v); setFilterDeptId("all"); setFilterProgId("all"); setFilterLevelId("all") }}>
-          <SelectTrigger className="w-44">
+        <Select value={filterSchoolId} onValueChange={(v) => { if (v == null) return; setFilterSchoolId(v); setFilterDeptId("all"); setFilterProgId("all"); setFilterLevelId("all"); setPage(1) }}>
+          <SelectTrigger className="w-full sm:w-48">
             <SelectValue>
               {filterSchoolId === "all" ? "All Schools" : (schools.find(s => s.id === filterSchoolId)?.name ?? "School")}
             </SelectValue>
@@ -388,24 +458,29 @@ export default function CoursesPage() {
           </SelectContent>
         </Select>
 
-        <Select value={filterDeptId} onValueChange={(v) => { if (v == null) return; setFilterDeptId(v); setFilterProgId("all"); setFilterLevelId("all") }}>
-          <SelectTrigger className="w-44">
+        <Select value={filterDeptId} onValueChange={(v) => { if (v == null) return; setFilterDeptId(v); setFilterProgId("all"); setFilterLevelId("all"); setPage(1) }}>
+          <SelectTrigger className="w-full sm:w-56">
             <SelectValue>
-              {filterDeptId === "all" ? "All Departments" : (filterDepts.find(d => d.id === filterDeptId)?.name ?? "Department")}
+              {filterDeptId === "all"
+                ? "All Departments"
+                : (() => {
+                    const d = filterDepts.find((x) => x.id === filterDeptId)
+                    return d ? deptLabel(d) : "Department"
+                  })()}
             </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Departments</SelectItem>
-            {filterDepts.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+            {filterDepts.map((d) => <SelectItem key={d.id} value={d.id}>{deptLabel(d)}</SelectItem>)}
           </SelectContent>
         </Select>
 
         <Select
           value={filterProgId}
-          onValueChange={(v) => { if (v == null) return; setFilterProgId(v); setFilterLevelId("all") }}
+          onValueChange={(v) => { if (v == null) return; setFilterProgId(v); setFilterLevelId("all"); setPage(1) }}
           disabled={filterDeptId === "all"}
         >
-          <SelectTrigger className="w-44">
+          <SelectTrigger className="w-full sm:w-56">
             <SelectValue>
               {filterProgId === "all" ? "All Programmes" : (filterProgs.find(p => p.id === filterProgId)?.name ?? "Programme")}
             </SelectValue>
@@ -418,10 +493,10 @@ export default function CoursesPage() {
 
         <Select
           value={filterLevelId}
-          onValueChange={(v) => v != null && setFilterLevelId(v)}
+          onValueChange={(v) => { if (v == null) return; setFilterLevelId(v); setPage(1) }}
           disabled={filterProgId === "all"}
         >
-          <SelectTrigger className="w-44">
+          <SelectTrigger className="w-full sm:w-36">
             <SelectValue>
               {filterLevelId === "all" ? "All Levels" : (filterLevels.find(l => l.id === filterLevelId)?.name ?? "Level")}
             </SelectValue>
@@ -431,21 +506,34 @@ export default function CoursesPage() {
             {filterLevels.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
           </SelectContent>
         </Select>
+
+        <div className="relative w-full sm:w-64">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="Search code or title"
+            className="pl-8"
+            aria-label="Search courses by code or title"
+          />
+        </div>
       </div>
 
-      {!isLoading && courses.length === 0 ? (
+      {isError ? (
+        <ErrorState error={error} onRetry={() => refetch()} />
+      ) : !isLoading && courses.length === 0 ? (
         <EmptyState
           icon={GraduationCap}
           title="No courses found"
-          description="Add or upload courses to get started"
+          description={hasFilters ? "No courses match these filters" : "Add or upload courses to get started"}
           action={{ label: "Add Course", onClick: openCreate }}
         />
       ) : (
         <>
-          <div className="hidden md:block">
+          <div className={`hidden md:block ${isPlaceholderData ? "opacity-60" : ""}`}>
             <DataTable columns={columns} data={courses} isLoading={isLoading} />
           </div>
-          <div className="md:hidden">
+          <div className={`md:hidden ${isPlaceholderData ? "opacity-60" : ""}`}>
             <MobileCardList
               items={courses}
               isLoading={isLoading}
@@ -453,9 +541,9 @@ export default function CoursesPage() {
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="font-mono text-sm font-medium text-foreground">{course.code}</p>
-                    <p className="text-sm text-foreground/70">{course.title}</p>
+                    <p className="text-sm text-foreground/80">{course.title}</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {course.creditUnits} credits · {course.semester === "FIRST" ? "First" : "Second"} Semester
+                      {levelLabel(course)} · {course.creditUnits} credits · {SEMESTER_LABEL[course.semester]}
                     </p>
                   </div>
                   <DropdownMenu>
@@ -471,6 +559,32 @@ export default function CoursesPage() {
               )}
             />
           </div>
+
+          {!isLoading && (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-muted-foreground">
+                Page {Math.min(page, pages)} of {pages} · {total.toLocaleString()} course{total === 1 ? "" : "s"}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page <= 1 || isPlaceholderData}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => p + 1)}
+                  disabled={page >= pages || isPlaceholderData}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
         </>
       )}
 
@@ -481,13 +595,13 @@ export default function CoursesPage() {
           </DialogHeader>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             {/* Cascade selects for level */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label className="text-foreground/70">School</Label>
                 <Select value={formSchoolId} onValueChange={(v) => { if (v == null) return; setFormSchoolId(v); setFormDeptId(""); setFormProgId(""); form.setValue("levelId", "") }}>
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue>
-                      {formSchoolId ? (schools.find(s => s.id === formSchoolId)?.name ?? "School") : "School"}
+                      {formSchoolId ? (schools.find(s => s.id === formSchoolId)?.name ?? "School") : "Select school"}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
@@ -498,22 +612,27 @@ export default function CoursesPage() {
               <div className="space-y-1.5">
                 <Label className="text-foreground/70">Department</Label>
                 <Select value={formDeptId} onValueChange={(v) => { if (v == null) return; setFormDeptId(v); setFormProgId(""); form.setValue("levelId", "") }} disabled={!formSchoolId}>
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue>
-                      {formDeptId ? (formDepts.find(d => d.id === formDeptId)?.name ?? "Department") : "Department"}
+                      {formDeptId
+                        ? (() => {
+                            const d = formDepts.find((x) => x.id === formDeptId)
+                            return d ? deptLabel(d) : "Department"
+                          })()
+                        : "Select department"}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    {formDepts.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                    {formDepts.map((d) => <SelectItem key={d.id} value={d.id}>{deptLabel(d)}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
                 <Label className="text-foreground/70">Programme</Label>
                 <Select value={formProgId} onValueChange={(v) => { if (v == null) return; setFormProgId(v); form.setValue("levelId", "") }} disabled={!formDeptId}>
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue>
-                      {formProgId ? (formProgs.find(p => p.id === formProgId)?.name ?? "Programme") : "Programme"}
+                      {formProgId ? (formProgs.find(p => p.id === formProgId)?.name ?? "Programme") : "Select programme"}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
@@ -523,10 +642,12 @@ export default function CoursesPage() {
               </div>
               <div className="space-y-1.5">
                 <Label className="text-foreground/70">Level</Label>
-                <Select value={form.watch("levelId")} onValueChange={(v) => v != null && form.setValue("levelId", v, { shouldValidate: true })} disabled={!formProgId}>
-                  <SelectTrigger>
+                <Select value={formLevelId} onValueChange={(v) => v != null && form.setValue("levelId", v, { shouldValidate: true })} disabled={!formProgId}>
+                  <SelectTrigger className="w-full">
                     <SelectValue>
-                      {form.watch("levelId") ? (formLevels.find(l => l.id === form.watch("levelId"))?.name ?? "Level") : "Level"}
+                      {formLevelId
+                        ? (formLevels.find(l => l.id === formLevelId)?.name ?? editTarget?.level?.name ?? "Level")
+                        : "Select level"}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
@@ -541,7 +662,7 @@ export default function CoursesPage() {
 
             <div className="space-y-1.5">
               <Label className="text-foreground/70">Course Code</Label>
-              <Input placeholder="e.g. CSC 201" {...form.register("code")} />
+              <Input placeholder="e.g. COM 211" className="uppercase" {...form.register("code")} />
               {form.formState.errors.code && <p className="text-sm text-destructive">{form.formState.errors.code.message}</p>}
             </div>
 
@@ -551,19 +672,21 @@ export default function CoursesPage() {
               {form.formState.errors.title && <p className="text-sm text-destructive">{form.formState.errors.title.message}</p>}
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label className="text-foreground/70">Credit Units</Label>
-                <Input type="number" min={1} {...form.register("creditUnits", { valueAsNumber: true })} />
+                <Label className="text-foreground/70">Credit Units (1–6)</Label>
+                <Input type="number" min={1} max={6} {...form.register("creditUnits", { valueAsNumber: true })} />
                 {form.formState.errors.creditUnits && <p className="text-sm text-destructive">{form.formState.errors.creditUnits.message}</p>}
               </div>
               <div className="space-y-1.5">
                 <Label className="text-foreground/70">Semester</Label>
-                <Select value={form.watch("semester")} onValueChange={(v) => form.setValue("semester", v as "FIRST" | "SECOND", { shouldValidate: true })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                <Select value={formSemester} onValueChange={(v) => v != null && form.setValue("semester", v as Semester, { shouldValidate: true })}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue>{SEMESTER_LABEL[formSemester]}</SelectValue>
+                  </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="FIRST">First</SelectItem>
-                    <SelectItem value="SECOND">Second</SelectItem>
+                    <SelectItem value="FIRST">First Semester</SelectItem>
+                    <SelectItem value="SECOND">Second Semester</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -581,9 +704,15 @@ export default function CoursesPage() {
         open={!!deleteTarget}
         onOpenChange={(v) => !v && setDeleteTarget(null)}
         title="Delete Course"
-        description={`Are you sure you want to delete "${deleteTarget?.title}"? This action cannot be undone.`}
+        description={`Delete ${deleteTarget?.code} — "${deleteTarget?.title}"? A course that is on a published timetable or has enrolled students cannot be deleted. This action cannot be undone.`}
         onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
         loading={deleteMutation.isPending}
+      />
+
+      <ImportReportDialog
+        report={importReport}
+        onOpenChange={(open) => !open && setImportReport(null)}
+        title="Course import report"
       />
     </div>
   )

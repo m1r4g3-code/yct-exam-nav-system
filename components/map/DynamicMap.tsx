@@ -8,8 +8,8 @@ const MapViewDynamic = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="h-full w-full bg-zinc-900 animate-pulse rounded-lg flex items-center justify-center">
-        <span className="text-zinc-600 text-sm">Loading map...</span>
+      <div className="h-full w-full bg-muted animate-pulse rounded-lg flex items-center justify-center">
+        <span className="text-muted-foreground text-sm">Loading map…</span>
       </div>
     ),
   }

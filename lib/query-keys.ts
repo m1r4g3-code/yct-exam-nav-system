@@ -32,6 +32,8 @@ export const QUERY_KEYS = {
 
   // Navigation
   NAV_HALLS: ["navigation", "halls"] as const,
-  NAV_NODES: ["navigation", "nodes"] as const,
-  NAV_PATH: (from: string, to: string) => ["navigation", "path", from, to] as const,
+  NAV_HALL: (id: string) => ["navigation", "halls", id] as const,
+
+  // Admin dashboard
+  STATS: ["stats"] as const,
 } as const;

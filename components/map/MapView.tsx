@@ -45,14 +45,13 @@ export interface MapViewProps {
   center: [number, number];
   zoom?: number;
   halls: Array<{ id: string; name: string; lat: number; lng: number }>;
-  polyline?: number[][];
+  /** Route to draw, as [lat, lng] points. Pass a stable (memoised) array — the map re-fits when it changes. */
+  polyline?: [number, number][];
   destinationHallId?: string;
   userLocation?: [number, number];
 }
 
 export function MapView({ center, zoom = 17, halls, polyline, destinationHallId, userLocation }: MapViewProps) {
-  const typedPolyline = polyline as [number, number][] | undefined;
-
   return (
     <MapContainer center={center} zoom={zoom} className="h-full w-full" scrollWheelZoom zoomControl={false}>
       <TileLayer
@@ -81,13 +80,13 @@ export function MapView({ center, zoom = 17, halls, polyline, destinationHallId,
           <Popup>You are here</Popup>
         </CircleMarker>
       )}
-      {typedPolyline && typedPolyline.length > 0 && (
+      {polyline && polyline.length > 0 && (
         <>
           <Polyline
-            positions={typedPolyline}
+            positions={polyline}
             pathOptions={{ color: "#006633", weight: 5, lineCap: "round", lineJoin: "round" }}
           />
-          <MapBoundsFitter polyline={typedPolyline} />
+          <MapBoundsFitter polyline={polyline} />
         </>
       )}
     </MapContainer>

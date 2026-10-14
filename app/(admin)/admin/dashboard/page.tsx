@@ -1,5 +1,6 @@
 "use client"
 
+import { useSyncExternalStore } from "react"
 import Link from "next/link"
 import { useQuery } from "@tanstack/react-query"
 import {
@@ -13,7 +14,16 @@ import {
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Button } from "@/components/ui/button"
+import { apiGet, errorMessage } from "@/lib/fetcher"
 import { QUERY_KEYS } from "@/lib/query-keys"
+
+interface Stats {
+  students: number
+  courses: number
+  activeHalls: number
+  activeSessions: number
+}
 
 interface StatCardProps {
   label: string
@@ -71,72 +81,44 @@ const QUICK_ACTIONS = [
   },
 ]
 
-function getGreeting(): string {
-  const hour = new Date().getHours()
+function getGreeting(now: Date): string {
+  const hour = now.getHours()
   if (hour < 12) return "Good morning"
   if (hour < 17) return "Good afternoon"
   return "Good evening"
 }
 
+const noopSubscribe = () => () => {}
+
+/** false during server rendering and hydration, true afterwards (avoids a time-dependent mismatch). */
+function useMounted(): boolean {
+  return useSyncExternalStore(noopSubscribe, () => true, () => false)
+}
+
 export default function DashboardPage() {
-  const { data: studentsData, isLoading: studentsLoading } = useQuery({
-    queryKey: QUERY_KEYS.STUDENTS,
-    queryFn: async () => {
-      const res = await fetch("/api/students")
-      if (!res.ok) throw new Error(`${res.status}`)
-      const json = await res.json()
-      return json.data ?? { total: 0 }
-    },
+  const mounted = useMounted()
+  const { data: stats, isLoading, isError, error, refetch } = useQuery({
+    queryKey: QUERY_KEYS.STATS,
+    queryFn: () => apiGet<Stats>("/api/stats"),
   })
 
-  const { data: coursesData, isLoading: coursesLoading } = useQuery({
-    queryKey: QUERY_KEYS.COURSES(undefined),
-    queryFn: async () => {
-      const res = await fetch("/api/courses")
-      if (!res.ok) throw new Error(`${res.status}`)
-      const json = await res.json()
-      return json.data ?? []
-    },
-  })
-
-  const { data: hallsData, isLoading: hallsLoading } = useQuery({
-    queryKey: QUERY_KEYS.HALLS,
-    queryFn: async () => {
-      const res = await fetch("/api/halls")
-      if (!res.ok) throw new Error(`${res.status}`)
-      const json = await res.json()
-      return json.data ?? []
-    },
-  })
-
-  const studentCount =
-    typeof studentsData?.total === "number"
-      ? studentsData.total
-      : Array.isArray(studentsData)
-      ? studentsData.length
-      : 0
-
-  const courseCount = Array.isArray(coursesData)
-    ? coursesData.length
-    : (coursesData?.total ?? 0)
-
-  const activeHallCount = Array.isArray(hallsData)
-    ? hallsData.filter((h: { isActive?: boolean }) => h.isActive !== false).length
-    : 0
-
-  const today = new Date().toLocaleDateString("en-NG", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  })
+  const now = mounted ? new Date() : null
+  const greeting = now ? getGreeting(now) : "Welcome"
+  const today = now
+    ? now.toLocaleDateString("en-NG", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : "\u00a0"
 
   return (
     <div className="space-y-8">
       {/* Welcome header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-xl font-semibold text-foreground">{getGreeting()}</h1>
+          <h1 className="text-xl font-semibold text-foreground">{greeting}</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">{today}</p>
         </div>
         <span className="inline-flex items-center gap-1.5 rounded-full bg-brand/10 text-brand text-xs font-medium px-3 py-1">
@@ -150,30 +132,40 @@ export default function DashboardPage() {
         <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">
           Overview
         </p>
+        {isError && (
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3">
+            <p className="text-sm text-destructive">
+              Couldn&apos;t load the figures: {errorMessage(error)}
+            </p>
+            <Button variant="outline" size="sm" onClick={() => refetch()}>
+              Try again
+            </Button>
+          </div>
+        )}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard
             label="Total Students"
-            value={studentCount}
+            value={stats?.students ?? "—"}
             icon={Users}
-            isLoading={studentsLoading}
+            isLoading={isLoading}
           />
           <StatCard
             label="Total Courses"
-            value={courseCount}
+            value={stats?.courses ?? "—"}
             icon={GraduationCap}
-            isLoading={coursesLoading}
+            isLoading={isLoading}
           />
           <StatCard
             label="Active Halls"
-            value={activeHallCount}
+            value={stats?.activeHalls ?? "—"}
             icon={DoorOpen}
-            isLoading={hallsLoading}
+            isLoading={isLoading}
           />
           <StatCard
             label="Active Sessions"
-            value={1}
+            value={stats?.activeSessions ?? "—"}
             icon={CalendarRange}
-            isLoading={false}
+            isLoading={isLoading}
           />
         </div>
       </div>

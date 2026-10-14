@@ -1,26 +1,29 @@
 import { prisma } from "@/lib/prisma";
 import { requireAdminUser, isErrorResponse } from "@/lib/auth";
-import { ok, serverError } from "@/lib/api-response";
+import { ok, parsePagination } from "@/lib/api-response";
+import { withHandler } from "@/lib/with-handler";
+import type { Prisma } from "@/lib/generated/prisma/client";
 import type { NextRequest } from "next/server";
 
-export async function GET(request: NextRequest) {
-  try {
+export const GET = withHandler(async (request: NextRequest) => {
   const auth = await requireAdminUser();
   if (isErrorResponse(auth)) return auth;
 
-  const departmentId = request.nextUrl.searchParams.get("department_id") ?? undefined;
-  const levelId = request.nextUrl.searchParams.get("level_id") ?? undefined;
-  const search = request.nextUrl.searchParams.get("search") ?? undefined;
-  const page = parseInt(request.nextUrl.searchParams.get("page") ?? "1", 10);
-  const limit = 50;
+  const params = request.nextUrl.searchParams;
+  const schoolId = params.get("school_id") || undefined;
+  const departmentId = params.get("department_id") || undefined;
+  const levelId = params.get("level_id") || undefined;
+  const search = params.get("search")?.trim() || undefined;
+  const { page, limit, skip } = parsePagination(params, { limit: 50, maxLimit: 100 });
 
-  const where = {
+  const where: Prisma.StudentWhereInput = {
     ...(search && {
       OR: [
-        { fullName: { contains: search, mode: "insensitive" as const } },
-        { matricNumber: { contains: search, mode: "insensitive" as const } },
+        { fullName: { contains: search, mode: "insensitive" } },
+        { matricNumber: { contains: search, mode: "insensitive" } },
       ],
     }),
+    ...(schoolId && { department: { schoolId } }),
     ...(departmentId && { departmentId }),
     ...(levelId && { levelId }),
   };
@@ -30,18 +33,14 @@ export async function GET(request: NextRequest) {
       where,
       include: {
         level: { select: { name: true } },
-        department: { select: { name: true } },
+        department: { select: { name: true, code: true } },
       },
       orderBy: { matricNumber: "asc" },
-      skip: (page - 1) * limit,
+      skip,
       take: limit,
     }),
     prisma.student.count({ where }),
   ]);
 
-  return ok({ students, total, page, pages: Math.ceil(total / limit) });
-  } catch (err) {
-    console.error("[route-error]", err);
-    return serverError();
-  }
-}
+  return ok({ students, total, page, pages: Math.max(1, Math.ceil(total / limit)) });
+});
