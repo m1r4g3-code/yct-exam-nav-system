@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>YCT Exam Portal — Student Guide</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  @page { @top-left { content: "YCT Exam Portal  ·  Student Guide"; } }
+</style>
+</head>
+<body>
+<!--#include file="partials/icons.html" -->
+
+<!-- ============================ COVER ============================ -->
+<section class="cover">
+  <!--#include file="partials/cover-pattern.html" -->
+  <div class="inner">
+    <div class="brand">
+      <div class="crest"><img src="assets/yabatech-crest.png" alt="Yaba College of Technology crest"></div>
+      <div class="brand-text"><b>Yaba College of Technology</b>Labore et Veritate</div>
+    </div>
+    <span class="doc-kind">Student Guide</span>
+    <h1>YCT Exam Portal</h1>
+    <div class="subtitle">Your exam timetable, hall and seat — and live directions to the hall — on your phone.</div>
+    <div class="rule"></div>
+    <div class="institution">Yaba College of Technology · School of Technology —<br><b>Department of Computer Science</b> (pilot)</div>
+    <div class="foot">
+      <div class="date">Student Guide · October 2026<span>For students of the pilot department</span></div>
+      <div class="url"><span>Open on your phone</span>smart-exam-timetable.vercel.app</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ CONTENTS ============================ -->
+<section class="toc-page">
+  <div class="toc-head">
+    <div><div class="eyebrow">Student Guide</div><h1>Contents</h1></div>
+    <img src="assets/yabatech-crest.png" alt="" style="width:46px;height:46px">
+  </div>
+  <ul class="toc">
+    <li><a href="#g-start"><span class="t-num">1</span><span class="t-title">Getting started</span><span class="t-page" data-ref="g-start"></span></a></li>
+    <li><a href="#g-around"><span class="t-num">2</span><span class="t-title">Finding your way around</span><span class="t-page" data-ref="g-around"></span></a></li>
+    <li><a href="#g-timetable"><span class="t-num">3</span><span class="t-title">Your exam timetable</span><span class="t-page" data-ref="g-timetable"></span></a></li>
+    <li><a href="#g-hall"><span class="t-num">4</span><span class="t-title">Getting to your exam hall</span><span class="t-page" data-ref="g-hall"></span></a></li>
+    <li><a href="#g-courses"><span class="t-num">5</span><span class="t-title">Managing your courses</span><span class="t-page" data-ref="g-courses"></span></a></li>
+    <li><a href="#g-profile"><span class="t-num">6</span><span class="t-title">Your profile</span><span class="t-page" data-ref="g-profile"></span></a></li>
+    <li><a href="#g-faq"><span class="t-num">7</span><span class="t-title">Frequently asked questions</span><span class="t-page" data-ref="g-faq"></span></a></li>
+  </ul>
+
+  <h3 style="margin-top:26px">In five minutes</h3>
+  <ol class="steps compact">
+    <li><b>Create your account</b>Sign up at <code>/register</code> with your matric number.</li>
+    <li><b>Select your courses</b>They are already ticked; untick any you are not taking.</li>
+    <li><b>Check your timetable</b>Once the exams office publishes it, you see the date, time, hall and seat.</li>
+    <li><b>Tap Navigate to Hall</b>On exam day, follow the live walking route to your hall.</li>
+  </ol>
+  <div class="callout plain">
+    <span class="c-title" style="color:var(--green)">About this guide</span>
+    <p>Screens shown are illustrations with sample data. Buttons and labels are quoted exactly as they appear in the app — for example "Enroll" and "Complete Enrollment".</p>
+  </div>
+</section>
+
+<!-- ============================ 1 START ============================ -->
+<section class="section" id="g-start">
+  <header class="opener"><div class="num">1</div><div><h1>Getting started</h1><p class="intro">Create your account and choose your courses — it takes a couple of minutes.</p></div></header>
+
+  <div class="two-col">
+    <div>
+      <h3 style="margin-top:0">Create your account</h3>
+      <ol class="steps compact">
+        <li><b>Open the sign-up page</b>Go to <code>smart-exam-timetable.vercel.app/register</code> on your phone or computer.</li>
+        <li><b>Enter your details</b>Full Name, Matric Number (for example <code>F/ND/24/3210001</code> — capitals are added for you), Email, then your Department → Programme → Level.</li>
+        <li><b>Choose a password</b>Type it in Password and again in Confirm Password, then tap <i>Create account</i>. You are signed in straight away.</li>
+      </ol>
+    </div>
+    <div>
+      <h3 style="margin-top:0">Choose your courses</h3>
+      <ol class="steps compact">
+        <li><b>Select Your Courses</b>Right after sign-up you see the courses for your level and the current semester — all ticked.</li>
+        <li><b>Untick any electives you are not taking</b>The counter shows how many courses are selected.</li>
+        <li><b>Tap Complete Enrollment</b>You are taken to your timetable. (<i>Skip for now</i> goes there too; you can enrol later on the Courses tab.)</li>
+      </ol>
+    </div>
+  </div>
+
+  <figure class="mock compact-phones">
+    <div class="mock-row">
+      <div class="mock-col"><!--#include file="partials/phone-signup.html" --><div class="sub-cap"><b>Sign up</b> — your details and level.</div></div>
+      <div class="mock-col"><!--#include file="partials/phone-select-courses.html" --><div class="sub-cap"><b>Select Your Courses</b> — everything pre-ticked.</div></div>
+    </div>
+    <figcaption><span class="cap">Creating an account and choosing courses.</span><span class="sample-tag">Illustration — sample data</span></figcaption>
+  </figure>
+</section>
+
+<!-- ============================ 2 AROUND ============================ -->
+<section class="section" id="g-around">
+  <header class="opener"><div class="num">2</div><div><h1>Finding your way around</h1><p class="intro">Four tabs, on your phone or on a computer.</p></div></header>
+
+  <p>Sign in at <code>/login</code> with your email and password. The portal has four tabs. On a <b>phone</b> they sit in a bar along the bottom of the screen; on a <b>computer</b> they are in a bar across the top, together with the light/dark switch and <b>Sign out</b>.</p>
+
+  <figure class="mock">
+    <!--#include file="partials/mock-student-desktop-bar.html" -->
+    <figcaption><span class="cap">On a computer: the tabs in the top bar.</span><span class="sample-tag">Illustration — sample data</span></figcaption>
+  </figure>
+
+  <table class="data">
+    <thead><tr><th style="width:18%">Tab</th><th>What you find there</th></tr></thead>
+    <tbody>
+      <tr><td class="k">Timetable</td><td>Your published exams: what is next (with a countdown), what is coming up and what is completed — with hall and seat.</td></tr>
+      <tr><td class="k">Navigate</td><td>Every exam hall on campus, each with a map and live walking directions.</td></tr>
+      <tr><td class="k">Courses</td><td>The courses for your level this semester: enrol or drop, and see your total credit units.</td></tr>
+      <tr><td class="k">Profile</td><td>Your details, your avatar, the light/dark switch and Sign out.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout tip">
+    <span class="c-title">Tip</span>
+    <p>Bookmark the portal — or add it to your home screen from your browser's menu — so it is one tap away on exam day. The portal opens in dark mode; switch to light mode on the Profile tab if you prefer.</p>
+  </div>
+
+  <div class="two-col" style="margin-top:8px">
+    <div>
+      <h3 style="margin-top:4px">Signing in next time</h3>
+      <ol class="steps compact">
+        <li><b>Open the portal</b>Go to <code>smart-exam-timetable.vercel.app</code> — you are taken to the sign-in page.</li>
+        <li><b>Enter your email and password</b>Then tap <i>Sign in</i>. You go straight to your Timetable.</li>
+        <li><b>Following a link?</b>If you opened a link to a particular page, you are taken back to it after signing in.</li>
+      </ol>
+    </div>
+    <div>
+      <h3 style="margin-top:4px">On a phone</h3>
+      <p class="small">The same four tabs sit along the bottom of the screen. The highlighted tab shows where you are.</p>
+      <figure class="mock" style="margin-top:6px">
+        <div style="width:100%;border:1px solid #c3cec7;border-radius:16px;overflow:hidden;background:#fff">
+          <div class="ui student" style="zoom:.86">
+            <div class="tabbar" style="height:70px">
+              <div class="on"><svg class="ic"><use href="#i-clipboard"/></svg>Timetable</div>
+              <div><svg class="ic"><use href="#i-nav"/></svg>Navigate</div>
+              <div><svg class="ic"><use href="#i-book"/></svg>Courses</div>
+              <div><svg class="ic"><use href="#i-user"/></svg>Profile</div>
+            </div>
+          </div>
+        </div>
+        <figcaption><span class="cap">The bottom tab bar on a phone.</span><span class="sample-tag">Illustration</span></figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 3 TIMETABLE ============================ -->
+<section class="section" id="g-timetable">
+  <header class="opener"><div class="num">3</div><div><h1>Your exam timetable</h1><p class="intro">Everything you need for each paper, on one screen.</p></div></header>
+
+  <div class="phone-side">
+    <div class="mock" style="margin:0">
+      <!--#include file="partials/phone-timetable.html" -->
+      <figcaption style="display:block"><span class="cap">The Timetable tab.</span><br><span class="sample-tag" style="display:inline-block;margin-top:4px">Illustration — sample data</span></figcaption>
+    </div>
+    <div>
+      <p>Your timetable appears as soon as the exams office <b>publishes</b> it. Use the session selector at the top if more than one session is shown.</p>
+      <h3>Up Next</h3>
+      <ul>
+        <li>A <b>countdown</b>: <i>Today</i>, <i>Tomorrow</i> or <i>In N days</i>.</li>
+        <li>Your <b>seat number</b>, the course code and title.</li>
+        <li>The <b>date and time</b>, and the <b>hall</b> name and code.</li>
+        <li><b>Navigate to Hall</b> — directions from where you are.</li>
+      </ul>
+      <h3>Upcoming and Completed</h3>
+      <p>The progress bar shows how many papers are done ("2 / 6", "4 remaining"). <b>Upcoming</b> lists your later exams, each with its hall and seat. An exam moves to <b>Completed</b> once it has finished; when every paper is done you see "All exams completed".</p>
+      <div class="callout tip">
+        <span class="c-title">Read hall and seat together</span>
+        <p>Seat numbers start at 1 in <b>each</b> hall. "Seat 14" in Block C Lecture Hall is a different seat from "Seat 14" in the Multipurpose Hall — always check both.</p>
+      </div>
+      <div class="callout note">
+        <span class="c-title">Seat number not yet assigned?</span>
+        <p>If your hall is shown with the notice "Seat number not yet assigned", please contact the exams office.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 4 HALL ============================ -->
+<section class="section" id="g-hall">
+  <header class="opener"><div class="num">4</div><div><h1>Getting to your exam hall</h1><p class="intro">Live walking directions from wherever you are on campus.</p></div></header>
+
+  <figure class="mock compact-phones">
+    <div class="mock-row">
+      <div class="mock-col"><!--#include file="partials/phone-navigate.html" --><div class="sub-cap"><b>Navigate</b> — every exam hall.</div></div>
+      <div class="mock-col"><!--#include file="partials/phone-map.html" --><div class="sub-cap"><b>The map</b> — you, the hall and the route.</div></div>
+    </div>
+    <figcaption><span class="cap">The hall directory and live directions.</span><span class="sample-tag">Illustration — sample data</span></figcaption>
+  </figure>
+
+  <ol class="steps">
+    <li><b>Open the directions</b>Tap <b>Navigate to Hall</b> on your timetable, or open the <b>Navigate</b> tab and tap <b>Navigate</b> on any hall.</li>
+    <li><b>Allow location access</b>Your browser asks for permission the first time. The blue dot shows where you are; the green pin is the hall.</li>
+    <li><b>Follow the route</b>The green line is the walking route, with the distance and time — for example "850 m · 11 min walk". It updates as you move; if the route service can't be reached, a straight line and an estimated walking time are shown instead.</li>
+    <li><b>Prefer Google Maps?</b>Tap <b>Open in Google Maps</b> for turn-by-turn walking directions. Tip: check the route the day before your first paper, and set off early.</li>
+  </ol>
+</section>
+
+<!-- ============================ 5 COURSES ============================ -->
+<section class="section" id="g-courses">
+  <header class="opener"><div class="num">5</div><div><h1>Managing your courses</h1><p class="intro">Keep your course list right, so your timetable is right.</p></div></header>
+
+  <div class="phone-side">
+    <div class="mock" style="margin:0">
+      <!--#include file="partials/phone-courses.html" -->
+      <figcaption style="display:block"><span class="cap">The Courses tab.</span><br><span class="sample-tag" style="display:inline-block;margin-top:4px">Illustration — sample data</span></figcaption>
+    </div>
+    <div>
+      <p>The <b>Courses</b> tab lists the courses for your level in the selected session's semester. The session you pick is remembered on the Timetable tab too.</p>
+      <table class="data compact">
+        <thead><tr><th style="width:30%">You see</th><th>What it means</th></tr></thead>
+        <tbody>
+          <tr><td><span style="color:#006633;font-weight:700">+ Enroll</span></td><td>You are not taking this course yet. Tap to add it.</td></tr>
+          <tr><td><span style="color:#c2410c;font-weight:700">× Drop</span></td><td>You are enrolled. Tap and confirm to remove it.</td></tr>
+          <tr><td><span class="pill" style="background:#f1f4f2;color:#5d6b63">Locked</span></td><td>The timetable for this course is published, so it stays on your list.</td></tr>
+        </tbody>
+      </table>
+      <p>At the bottom you can see how many courses you are enrolled in and your total credit units.</p>
+      <div class="callout tip">
+        <span class="c-title">Good to know</span>
+        <ul>
+          <li>If you enrol after the timetable has been generated, you are given a free seat automatically when there is room.</li>
+          <li>Dropping a course before publication frees your seat, and you can add the course again later.</li>
+          <li>Make your changes before the timetable is published.</li>
+        </ul>
+      </div>
+      <div class="mini-dialog">
+        <div class="ui"><div class="dialog" style="max-width:none">
+          <svg class="x"><use href="#i-x"/></svg>
+          <div class="h6">Drop COM113?</div>
+          <div class="d-desc">You can enrol again later, until the timetable is published.</div>
+          <div class="d-foot"><span class="btn">Cancel</span><span class="btn" style="background:#dc2626;border-color:#dc2626;color:#fff">Drop course</span></div>
+        </div></div>
+        <div class="mini-cap">Dropping asks for confirmation first.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 6 PROFILE ============================ -->
+<section class="section" id="g-profile">
+  <header class="opener"><div class="num">6</div><div><h1>Your profile</h1><p class="intro">Your details, your avatar and your preferences.</p></div></header>
+
+  <div class="phone-side">
+    <div class="mock" style="margin:0">
+      <!--#include file="partials/phone-profile.html" -->
+      <figcaption style="display:block"><span class="cap">The Profile tab.</span><br><span class="sample-tag" style="display:inline-block;margin-top:4px">Illustration — sample data</span></figcaption>
+    </div>
+    <div>
+      <p>The <b>Profile</b> tab shows your name, matric number, email, programme, level and department.</p>
+      <ul class="checks">
+        <li><b>Choose an avatar</b> — tap your picture or <i>Change avatar</i> and pick an emoji.</li>
+        <li><b>Light or dark theme</b> — use the switch under Appearance.</li>
+        <li><b>Sign out</b> — always sign out on a shared phone or computer.</li>
+      </ul>
+      <div class="callout note">
+        <span class="c-title">Details need correcting?</span>
+        <p>If your name, matric number, department or level is wrong, ask the exams office — they can update your record for you.</p>
+      </div>
+      <div class="mini-dialog">
+        <div class="ui"><div class="dialog" style="max-width:none">
+          <svg class="x"><use href="#i-x"/></svg>
+          <div class="h6">Choose an Avatar</div>
+          <div class="emo-grid"><span class="emo sel">🎓</span><span class="emo">📚</span><span class="emo">💻</span><span class="emo">🔬</span><span class="emo">⚗️</span><span class="emo">🧪</span><span class="emo">📐</span><span class="emo">🔭</span><span class="emo">🎯</span><span class="emo">🏅</span><span class="emo">🌟</span><span class="emo">🚀</span><span class="emo">🦁</span><span class="emo">🐯</span><span class="emo">🦊</span><span class="emo">🐧</span><span class="emo">🦋</span><span class="emo">🐻</span></div>
+          <div style="text-align:center;font-size:12px;color:#67756d;margin-top:8px">Remove avatar (use initials)</div>
+        </div></div>
+        <div class="mini-cap">The avatar picker.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 7 FAQ ============================ -->
+<section class="section" id="g-faq">
+  <header class="opener"><div class="num">7</div><div><h1>Frequently asked questions</h1><p class="intro">Quick answers to common questions.</p></div></header>
+
+  <div class="qa-list">
+    <div class="item"><div class="q">My timetable is empty.</div><p>Your timetable appears once the exams office publishes it. Check that the right session is selected at the top, and that you are enrolled in your courses on the Courses tab.</p></div>
+    <div class="item"><div class="q">I see "Seat number not yet assigned".</div><p>Your hall is known but your seat number is not set yet. Please contact the exams office.</p></div>
+    <div class="item"><div class="q">I registered in the wrong department or level.</div><p>Contact the exams office — they can correct your department, programme and level. Your sign-in stays the same; then check your courses on the Courses tab.</p></div>
+    <div class="item"><div class="q">I forgot my password.</div><p>Contact the exams office. They can set a new password for you, which you then use to sign in.</p></div>
+    <div class="item"><div class="q">Location isn't working.</div><p>Allow location access for the site in your browser settings and make sure your phone's location is switched on. The portal must be opened over a secure (https) address — use <code>https://smart-exam-timetable.vercel.app</code>. You can always tap <b>Open in Google Maps</b>.</p></div>
+    <div class="item"><div class="q">Why can't I drop a course?</div><p>Courses whose timetable has been published show <i>Locked</i> and stay on your list. Speak to the exams office if something needs to change.</p></div>
+    <div class="item"><div class="q">Can I use the portal on a computer?</div><p>Yes. It works in any modern browser — the tabs are simply at the top of the screen instead of the bottom.</p></div>
+  </div>
+  <div class="endmark"><img src="assets/yabatech-crest.png" alt="">YCT Exam Portal · Student Guide · Good luck in your exams!</div>
+</section>
+
+</body>
+</html>

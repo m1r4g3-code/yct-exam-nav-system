@@ -1,0 +1,66 @@
+<svg class="dg" viewBox="0 0 680 262" role="img" aria-label="Three security checkpoints on every request">
+  <defs>
+    <marker id="se-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#006633"/></marker>
+    <marker id="se-ahm" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#9aaca2"/></marker>
+  </defs>
+  <!-- request -->
+  <rect x="0" y="40" width="104" height="112" rx="12" class="box-t"/>
+  <text x="52" y="74" text-anchor="middle" class="tb" style="font-size:12px">Request</text>
+  <text x="52" y="94" text-anchor="middle" class="ts">from a browser,</text>
+  <text x="52" y="109" text-anchor="middle" class="ts">carrying the</text>
+  <text x="52" y="124" text-anchor="middle" class="ts">sign-in cookie</text>
+
+  <!-- checkpoint 1 -->
+  <rect x="122" y="40" width="134" height="112" rx="12" class="box-g"/>
+  <circle cx="189" cy="40" r="13" fill="#f2b705" stroke="#fff" stroke-width="2"/><text x="189" y="45" text-anchor="middle" style="font-size:12px;font-weight:800;fill:#2b2200">1</text>
+  <text x="189" y="72" text-anchor="middle" class="tb" style="font-size:12px">Access gateway</text>
+  <text x="189" y="88" text-anchor="middle" class="mono" style="fill:#006633">proxy.ts</text>
+  <text x="189" y="108" text-anchor="middle" class="ts">Signed in? Right role</text>
+  <text x="189" y="123" text-anchor="middle" class="ts">for this part of the</text>
+  <text x="189" y="138" text-anchor="middle" class="ts">site?</text>
+
+  <!-- checkpoint 2 -->
+  <rect x="274" y="40" width="134" height="112" rx="12" class="box-g"/>
+  <circle cx="341" cy="40" r="13" fill="#f2b705" stroke="#fff" stroke-width="2"/><text x="341" y="45" text-anchor="middle" style="font-size:12px;font-weight:800;fill:#2b2200">2</text>
+  <text x="341" y="72" text-anchor="middle" class="tb" style="font-size:12px">Portal layout</text>
+  <text x="341" y="88" text-anchor="middle" class="ts" style="font-style:italic">on the server</text>
+  <text x="341" y="108" text-anchor="middle" class="ts">Role checked again</text>
+  <text x="341" y="123" text-anchor="middle" class="ts">before any page of the</text>
+  <text x="341" y="138" text-anchor="middle" class="ts">portal is shown</text>
+
+  <!-- checkpoint 3 -->
+  <rect x="426" y="40" width="134" height="112" rx="12" class="box-g"/>
+  <circle cx="493" cy="40" r="13" fill="#f2b705" stroke="#fff" stroke-width="2"/><text x="493" y="45" text-anchor="middle" style="font-size:12px;font-weight:800;fill:#2b2200">3</text>
+  <text x="493" y="72" text-anchor="middle" class="tb" style="font-size:12px">API endpoint</text>
+  <text x="493" y="88" text-anchor="middle" class="mono" style="fill:#006633">/api/…</text>
+  <text x="493" y="108" text-anchor="middle" class="ts">Role checked again;</text>
+  <text x="493" y="123" text-anchor="middle" class="ts">every input validated</text>
+  <text x="493" y="138" text-anchor="middle" class="ts">(Zod schemas)</text>
+
+  <!-- database -->
+  <rect x="578" y="40" width="102" height="112" rx="12" class="box-gs"/>
+  <text x="629" y="72" text-anchor="middle" class="tb tw" style="font-size:12px">Database</text>
+  <text x="629" y="92" text-anchor="middle" class="ts" style="fill:#d3eadb">row-level</text>
+  <text x="629" y="107" text-anchor="middle" class="ts" style="fill:#d3eadb">security on</text>
+  <text x="629" y="122" text-anchor="middle" class="ts" style="fill:#d3eadb">every table;</text>
+  <text x="629" y="137" text-anchor="middle" class="ts" style="fill:#d3eadb">server-only key</text>
+
+  <g class="ln-g">
+    <line x1="105" y1="96" x2="120" y2="96" marker-end="url(#se-ah)"/>
+    <line x1="257" y1="96" x2="272" y2="96" marker-end="url(#se-ah)"/>
+    <line x1="409" y1="96" x2="424" y2="96" marker-end="url(#se-ah)"/>
+    <line x1="561" y1="96" x2="576" y2="96" marker-end="url(#se-ah)"/>
+  </g>
+  <text x="340" y="18" text-anchor="middle" class="ts" style="font-size:11.3px;font-weight:700;fill:#006633;letter-spacing:.06em">ALLOWED ONLY IF ALL THREE CHECKS PASS</text>
+
+  <!-- refusals -->
+  <g class="ln-d">
+    <line x1="189" y1="153" x2="189" y2="196" marker-end="url(#se-ahm)"/>
+    <line x1="341" y1="153" x2="341" y2="196" marker-end="url(#se-ahm)"/>
+    <line x1="493" y1="153" x2="493" y2="196" marker-end="url(#se-ahm)"/>
+  </g>
+  <rect x="122" y="198" width="438" height="60" rx="10" fill="#f7f8f7" stroke="#d9e3dd" stroke-width="1.5"/>
+  <text x="138" y="219" class="tb" style="font-size:11.3px;fill:#4b5852">OTHERWISE THE REQUEST STOPS</text>
+  <text x="138" y="237" class="ts" style="font-size:11.3px">Not signed in → sent to the sign-in page · wrong role → refused</text>
+  <text x="138" y="251" class="ts" style="font-size:11.3px">("Forbidden") · invalid input → a clear error message</text>
+</svg>

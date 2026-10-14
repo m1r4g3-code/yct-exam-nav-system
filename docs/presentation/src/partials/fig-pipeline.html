@@ -1,0 +1,72 @@
+<svg class="dg" viewBox="0 0 680 432" role="img" aria-label="The nine steps of timetable generation">
+  <defs>
+    <marker id="pl-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#006633"/></marker>
+  </defs>
+  <!-- inputs -->
+  <rect x="0" y="0" width="680" height="38" rx="10" fill="#fdf5dc" stroke="#e5c45c" stroke-width="1.5"/>
+  <text x="16" y="24" class="tb" style="font-size:11.5px;fill:#6b5a2e">INPUTS</text>
+  <text x="80" y="24" class="t" style="font-size:12px">Generate dialog:  <tspan font-weight="700">School</tspan> (one or all)  ·  <tspan font-weight="700">Exam Start Date</tspan>  ·  <tspan font-weight="700">Exam Period</tspan> (1–6 weeks)</text>
+  <line x1="102" y1="39" x2="102" y2="56" class="ln-g" marker-end="url(#pl-ah)"/>
+
+  <g style="font-size:11.3px">
+    <!-- row 1 -->
+    <rect x="0" y="58" width="204" height="98" rx="11" class="box"/>
+    <circle cx="22" cy="81" r="13" fill="#006633"/><text x="22" y="85.5" text-anchor="middle" class="tw" style="font-weight:800;font-size:12px">1</text>
+    <text x="42" y="86" class="tb">Lock</text>
+    <text x="14" y="108" class="ts">The session is locked so only</text><text x="14" y="123" class="ts">one generation runs at a time;</text><text x="14" y="138" class="ts">a lock expires after 10 minutes.</text>
+
+    <rect x="238" y="58" width="204" height="98" rx="11" class="box"/>
+    <circle cx="260" cy="81" r="13" fill="#006633"/><text x="260" y="85.5" text-anchor="middle" class="tw" style="font-weight:800;font-size:12px">2</text>
+    <text x="280" y="86" class="tb">Time slots</text>
+    <text x="252" y="108" class="ts">Mon–Fri, 08:00–10:00 and</text><text x="252" y="123" class="ts">12:00–14:00 across the period:</text><text x="252" y="138" class="ts">2 weeks = 10 days = 20 slots.</text>
+
+    <rect x="476" y="58" width="204" height="98" rx="11" class="box"/>
+    <circle cx="498" cy="81" r="13" fill="#006633"/><text x="498" y="85.5" text-anchor="middle" class="tw" style="font-weight:800;font-size:12px">3</text>
+    <text x="518" y="86" class="tb">Load data</text>
+    <text x="490" y="108" class="ts">This semester's courses, active</text><text x="490" y="123" class="ts">halls, every enrolment and the</text><text x="490" y="138" class="ts">number of students per level.</text>
+
+    <!-- row 2 -->
+    <rect x="0" y="186" width="204" height="98" rx="11" class="box"/>
+    <circle cx="22" cy="209" r="13" fill="#006633"/><text x="22" y="213.5" text-anchor="middle" class="tw" style="font-weight:800;font-size:12px">4</text>
+    <text x="42" y="214" class="tb">Headcount</text>
+    <text x="14" y="236" class="ts">Class size = students enrolled;</text><text x="14" y="251" class="ts">else the students at that level.</text><text x="14" y="266" class="ts">Empty courses are skipped.</text>
+
+    <rect x="238" y="186" width="204" height="98" rx="11" class="box-g"/>
+    <circle cx="260" cy="209" r="13" fill="#006633"/><text x="260" y="213.5" text-anchor="middle" class="tw" style="font-weight:800;font-size:12px">5</text>
+    <text x="280" y="214" class="tb">Clash rule</text><text x="352" y="214" class="ts" style="font-size:11.3px">conflict graph</text>
+    <text x="252" y="236" class="ts" style="fill:#2b3530">Each course is a node; courses</text><text x="252" y="251" class="ts" style="fill:#2b3530">in the same level are joined, so</text><text x="252" y="266" class="ts" style="fill:#2b3530">a level never has two at once.</text>
+
+    <rect x="476" y="186" width="204" height="98" rx="11" class="box-g"/>
+    <circle cx="498" cy="209" r="13" fill="#006633"/><text x="498" y="213.5" text-anchor="middle" class="tw" style="font-weight:800;font-size:12px">6</text>
+    <text x="518" y="214" class="tb">DSatur scheduling</text>
+    <text x="490" y="236" class="ts" style="fill:#2b3530">Most constrained course first,</text><text x="490" y="251" class="ts" style="fill:#2b3530">into the earliest slot with no</text><text x="490" y="266" class="ts" style="fill:#2b3530">clash and room for the class.</text>
+
+    <!-- row 3 -->
+    <rect x="0" y="314" width="204" height="98" rx="11" class="box"/>
+    <circle cx="22" cy="337" r="13" fill="#006633"/><text x="22" y="341.5" text-anchor="middle" class="tw" style="font-weight:800;font-size:12px">7</text>
+    <text x="42" y="342" class="tb">Halls &amp; seats</text>
+    <text x="14" y="364" class="ts">Largest class first, into the</text><text x="14" y="379" class="ts">smallest free hall that fits;</text><text x="14" y="394" class="ts">seats 1, 2, 3… by matric number.</text>
+
+    <rect x="238" y="314" width="204" height="98" rx="11" class="box"/>
+    <circle cx="260" cy="337" r="13" fill="#006633"/><text x="260" y="341.5" text-anchor="middle" class="tw" style="font-weight:800;font-size:12px">8</text>
+    <text x="280" y="342" class="tb">Save</text>
+    <text x="252" y="364" class="ts">Everything is written in one</text><text x="252" y="379" class="ts">all-or-nothing database</text><text x="252" y="394" class="ts">transaction, as a Draft.</text>
+
+    <rect x="476" y="314" width="204" height="98" rx="11" class="box-gold"/>
+    <circle cx="498" cy="337" r="13" fill="#f2b705"/><text x="498" y="341.5" text-anchor="middle" style="font-weight:800;font-size:12px;fill:#2b2200">9</text>
+    <text x="518" y="342" class="tb">Report</text>
+    <text x="490" y="364" class="ts" style="fill:#4a3f1e">"N courses scheduled", plus</text><text x="490" y="379" class="ts" style="fill:#4a3f1e">Unresolved and Hall Overflow</text><text x="490" y="394" class="ts" style="fill:#4a3f1e">lists if something needs action.</text>
+  </g>
+
+  <!-- connectors -->
+  <g class="ln-g">
+    <line x1="205" y1="107" x2="236" y2="107" marker-end="url(#pl-ah)"/>
+    <line x1="443" y1="107" x2="474" y2="107" marker-end="url(#pl-ah)"/>
+    <path d="M578 157 V171 H102 V184" marker-end="url(#pl-ah)"/>
+    <line x1="205" y1="235" x2="236" y2="235" marker-end="url(#pl-ah)"/>
+    <line x1="443" y1="235" x2="474" y2="235" marker-end="url(#pl-ah)"/>
+    <path d="M578 285 V299 H102 V312" marker-end="url(#pl-ah)"/>
+    <line x1="205" y1="363" x2="236" y2="363" marker-end="url(#pl-ah)"/>
+    <line x1="443" y1="363" x2="474" y2="363" marker-end="url(#pl-ah)"/>
+  </g>
+</svg>

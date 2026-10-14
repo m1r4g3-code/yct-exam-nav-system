@@ -1,0 +1,97 @@
+<svg class="dg" viewBox="0 0 680 548" role="img" aria-label="System architecture">
+  <defs>
+    <marker id="ar-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#5d6b63"/></marker>
+    <marker id="ar-ahg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#006633"/></marker>
+  </defs>
+
+  <!-- Browser -->
+  <rect x="6" y="2" width="448" height="104" rx="12" class="box-t"/>
+  <text x="20" y="22" class="tb" style="font-size:11.5px">Browser</text><text x="76" y="22" class="ts">phone or computer — nothing to install</text>
+  <rect x="20" y="32" width="206" height="64" rx="9" class="box"/>
+  <text x="34" y="52" class="tb" style="font-size:12px">Student portal</text>
+  <text x="34" y="70" class="mono" style="fill:#5d6b63">/dashboard  /courses</text>
+  <text x="34" y="86" class="mono" style="fill:#5d6b63">/navigate  /profile</text>
+  <rect x="236" y="32" width="206" height="64" rx="9" class="box"/>
+  <text x="250" y="52" class="tb" style="font-size:12px">Exams Office portal</text>
+  <text x="250" y="70" class="mono" style="fill:#5d6b63">/admin/dashboard</text>
+  <text x="250" y="86" class="mono" style="fill:#5d6b63">/admin/timetable …</text>
+
+  <!-- Vercel container -->
+  <rect x="0" y="126" width="460" height="276" rx="14" fill="none" stroke="#9aaca2" stroke-width="1.3" stroke-dasharray="5 4"/>
+  <rect x="330" y="117" width="118" height="18" rx="9" fill="#ffffff" stroke="#9aaca2" stroke-width="1"/>
+  <text x="389" y="130" text-anchor="middle" class="ts" style="font-weight:700">Hosted on Vercel</text>
+
+  <line x1="230" y1="107" x2="230" y2="142" class="ln" marker-end="url(#ar-ah)"/>
+  <text x="222" y="121" text-anchor="end" class="ts">every request (HTTPS)</text>
+
+  <!-- Gateway -->
+  <rect x="20" y="144" width="420" height="46" rx="10" class="box-gold"/>
+  <text x="34" y="164" class="tb" style="font-size:12px">Access gateway</text><text x="134" y="164" class="mono" style="fill:#6b5a2e">proxy.ts</text>
+  <text x="34" y="181" class="ts" style="fill:#5c5130">checks the sign-in session and role before every page and API call</text>
+
+  <line x1="230" y1="191" x2="230" y2="206" class="ln" marker-end="url(#ar-ah)"/>
+
+  <!-- Next.js app -->
+  <rect x="20" y="208" width="420" height="94" rx="10" class="box-g"/>
+  <text x="34" y="226" class="tb" style="font-size:12px;fill:#004d26">Next.js 16 application</text><text x="186" y="226" class="ts">React 19 · TypeScript</text>
+  <rect x="32" y="236" width="192" height="56" rx="8" class="box"/>
+  <text x="44" y="254" class="tb" style="font-size:11.5px">Pages (App Router)</text>
+  <text x="44" y="270" class="ts">server-rendered screens,</text>
+  <text x="44" y="284" class="ts">each with a role check</text>
+  <rect x="236" y="236" width="192" height="56" rx="8" class="box"/>
+  <text x="248" y="254" class="tb" style="font-size:11.5px">REST API  <tspan class="mono" style="font-weight:400;fill:#006633">/api</tspan></text>
+  <text x="248" y="270" class="ts">≈ 40 endpoints, each with</text>
+  <text x="248" y="284" class="ts">role and input checks</text>
+
+  <line x1="332" y1="293" x2="332" y2="318" class="ln" marker-end="url(#ar-ah)"/>
+
+  <!-- Engine -->
+  <rect x="20" y="320" width="420" height="72" rx="10" class="box-t"/>
+  <text x="34" y="338" class="tb" style="font-size:12px">Scheduling engine</text><text x="152" y="338" class="mono" style="fill:#5d6b63">lib/services</text>
+  <g style="font-size:11.3px" text-anchor="middle">
+    <rect x="32" y="348" width="96" height="34" rx="8" class="box-g"/><text x="80" y="369">Slot planner</text>
+    <rect x="134" y="348" width="96" height="34" rx="8" class="box-g"/><text x="182" y="369">Conflict graph</text>
+    <rect x="236" y="348" width="96" height="34" rx="8" class="box-g"/><text x="284" y="369">DSatur scheduler</text>
+    <rect x="338" y="348" width="96" height="34" rx="8" class="box-g"/><text x="386" y="369">Hall allocator</text>
+  </g>
+
+  <!-- Supabase -->
+  <rect x="6" y="428" width="448" height="116" rx="12" fill="#ffffff" stroke="#006633" stroke-width="1.5"/>
+  <text x="20" y="448" class="tb" style="font-size:11.5px;fill:#006633">Supabase</text><text x="250" y="448" class="ts">managed cloud backend</text>
+  <rect x="20" y="458" width="206" height="76" rx="9" class="box-gs"/>
+  <text x="34" y="479" class="tb tw" style="font-size:12px">PostgreSQL database</text>
+  <text x="34" y="497" class="ts" style="fill:#d3eadb">17 tables · row-level security</text>
+  <text x="34" y="513" class="ts" style="fill:#d3eadb">accessed through Prisma ORM 7</text>
+  <rect x="236" y="458" width="206" height="76" rx="9" class="box-gs"/>
+  <text x="250" y="479" class="tb tw" style="font-size:12px">Supabase Authentication</text>
+  <text x="250" y="497" class="ts" style="fill:#d3eadb">email + password sign-in</text>
+  <text x="250" y="513" class="ts" style="fill:#d3eadb">role checked on every request</text>
+
+  <line x1="123" y1="393" x2="123" y2="456" class="ln-g" marker-end="url(#ar-ahg)" marker-start="url(#ar-ahg)"/>
+  <text x="131" y="419" class="ts">Prisma (server only)</text>
+  <path d="M441 167 H451 V496 H444" class="ln-g" marker-end="url(#ar-ahg)"/>
+
+  <!-- External services -->
+  <rect x="476" y="2" width="200" height="214" rx="12" class="box-t"/>
+  <text x="490" y="22" class="tb" style="font-size:11.5px">Map services</text>
+  <text x="490" y="37" class="ts">called by the student's browser</text>
+  <rect x="488" y="48" width="176" height="46" rx="8" class="box"/>
+  <text x="500" y="67" class="tb" style="font-size:11.3px">OpenStreetMap tiles</text><text x="500" y="83" class="ts">the map itself (Leaflet)</text>
+  <rect x="488" y="102" width="176" height="56" rx="8" class="box"/>
+  <text x="500" y="121" class="tb" style="font-size:11.3px">OSM walking routes</text><text x="500" y="136" class="ts">routing.openstreetmap.de</text><text x="500" y="150" class="ts">"foot" profile</text>
+  <rect x="488" y="166" width="176" height="40" rx="8" class="box"/>
+  <text x="500" y="184" class="tb" style="font-size:11.3px">Google Maps</text><text x="500" y="199" class="ts">optional hand-off</text>
+  <path d="M455 60 C 466 60, 470 72, 486 72" class="ln-d" marker-end="url(#ar-ah)"/>
+
+  <!-- CI -->
+  <rect x="476" y="250" width="200" height="142" rx="12" class="box-t"/>
+  <text x="490" y="270" class="tb" style="font-size:11.5px">GitHub Actions CI</text>
+  <text x="490" y="286" class="ts">automatic quality checks:</text>
+  <g style="font-size:11.3px">
+    <circle cx="496" cy="302" r="3" fill="#006633"/><text x="506" y="306">linting</text>
+    <circle cx="496" cy="319" r="3" fill="#006633"/><text x="506" y="323">type-checking</text>
+    <circle cx="496" cy="336" r="3" fill="#006633"/><text x="506" y="340">unit tests</text>
+    <circle cx="496" cy="353" r="3" fill="#006633"/><text x="506" y="357">production build</text>
+  </g>
+  <text x="490" y="380" class="ts">on every push and pull request</text>
+</svg>

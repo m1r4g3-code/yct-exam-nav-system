@@ -1,0 +1,61 @@
+<svg class="dg" viewBox="0 0 680 262" role="img" aria-label="How hall navigation works">
+  <defs>
+    <marker id="nv-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#006633"/></marker>
+    <marker id="nv-ahm" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#9aaca2"/></marker>
+  </defs>
+  <!-- loop -->
+  <path d="M428 46 C 428 14, 380 10, 252 10 S 76 14, 76 44" fill="none" stroke="#1d4ed8" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#nv-ahm)"/>
+  <rect x="192" y="0" width="176" height="20" rx="10" fill="#ffffff" stroke="#c7d6f5"/>
+  <text x="280" y="14" text-anchor="middle" style="font-size:11.3px;font-weight:700;fill:#1d4ed8">updates as the student moves</text>
+
+  <!-- 1 GPS -->
+  <rect x="0" y="48" width="152" height="136" rx="12" class="box"/>
+  <rect x="58" y="60" width="36" height="52" rx="7" fill="#ffffff" stroke="#17201b" stroke-width="1.8"/>
+  <circle cx="76" cy="86" r="9" fill="#1d4ed8" fill-opacity="0.18"/><circle cx="76" cy="86" r="4.5" fill="#1d4ed8" stroke="#fff" stroke-width="1.5"/>
+  <text x="76" y="132" text-anchor="middle" class="tb" style="font-size:12px">1 · Phone GPS</text>
+  <text x="76" y="150" text-anchor="middle" class="ts">student allows location;</text>
+  <text x="76" y="164" text-anchor="middle" class="ts">position shared securely</text>
+  <text x="76" y="178" text-anchor="middle" class="ts">(https only)</text>
+
+  <!-- 2 Route -->
+  <rect x="176" y="48" width="152" height="136" rx="12" class="box"/>
+  <path d="M212 104 C 226 70, 246 104, 258 80 S 284 74, 292 68" fill="none" stroke="#006633" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="212" cy="104" r="5" fill="#1d4ed8"/><circle cx="292" cy="68" r="5" fill="#006633"/>
+  <text x="252" y="132" text-anchor="middle" class="tb" style="font-size:12px">2 · Walking route</text>
+  <text x="252" y="150" text-anchor="middle" class="ts">routing.openstreetmap.de</text>
+  <text x="252" y="164" text-anchor="middle" class="ts">"foot" profile: path,</text>
+  <text x="252" y="178" text-anchor="middle" class="ts">distance and time</text>
+
+  <!-- 3 Map -->
+  <rect x="352" y="48" width="152" height="136" rx="12" class="box-g"/>
+  <rect x="390" y="58" width="76" height="56" rx="6" fill="#f2efe9" stroke="#d3cbbb"/>
+  <path d="M390 92 H466 M424 58 V114" stroke="#ffffff" stroke-width="6"/>
+  <path d="M402 104 V92 H424 V74 H446" fill="none" stroke="#006633" stroke-width="2.5"/>
+  <circle cx="402" cy="104" r="4" fill="#1d4ed8" stroke="#fff" stroke-width="1.5"/>
+  <path d="M446 76 c -4 -5 -6 -7 -6 -10 a 6 6 0 0 1 12 0 c 0 3 -2 5 -6 10 z" fill="#006633"/>
+  <text x="428" y="132" text-anchor="middle" class="tb" style="font-size:12px">3 · Live map</text>
+  <text x="428" y="150" text-anchor="middle" class="ts" style="fill:#2b3530">Leaflet + OpenStreetMap:</text>
+  <text x="428" y="164" text-anchor="middle" class="ts" style="fill:#2b3530">green hall pin, blue dot,</text>
+  <text x="428" y="178" text-anchor="middle" style="font-size:11.3px;font-weight:700;fill:#006633">"850 m · 11 min walk"</text>
+
+  <!-- 4 Google -->
+  <rect x="528" y="48" width="152" height="136" rx="12" class="box"/>
+  <rect x="582" y="64" width="44" height="44" rx="9" fill="#ffffff" stroke="#17201b" stroke-width="1.8"/>
+  <path d="M598 92 L612 78 M603 78 H612 V87" fill="none" stroke="#17201b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="604" y="132" text-anchor="middle" class="tb" style="font-size:12px">4 · Google Maps</text>
+  <text x="604" y="150" text-anchor="middle" class="ts">optional hand-off:</text>
+  <text x="604" y="164" text-anchor="middle" class="ts">"Open in Google Maps"</text>
+  <text x="604" y="178" text-anchor="middle" class="ts">walking directions</text>
+
+  <g class="ln-g">
+    <line x1="153" y1="116" x2="174" y2="116" marker-end="url(#nv-ah)"/>
+    <line x1="329" y1="116" x2="350" y2="116" marker-end="url(#nv-ah)"/>
+    <line x1="505" y1="116" x2="526" y2="116" marker-end="url(#nv-ah)"/>
+  </g>
+
+  <!-- fallback -->
+  <line x1="252" y1="185" x2="252" y2="210" class="ln-d" marker-end="url(#nv-ahm)"/>
+  <rect x="140" y="212" width="400" height="46" rx="10" fill="#f4f9f6" stroke="#d9e3dd" stroke-width="1.5"/>
+  <text x="156" y="231" class="tb" style="font-size:11.3px;fill:#4b5852">IF THE ROUTE SERVICE CAN'T BE REACHED</text>
+  <text x="156" y="248" class="t" style="font-size:11.3px">a straight line and an estimated walking time are shown instead</text>
+</svg>

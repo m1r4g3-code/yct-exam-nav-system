@@ -1,0 +1,67 @@
+<svg class="dg" viewBox="0 0 680 342" role="img" aria-label="Timetable lifecycle from draft to published">
+  <defs>
+    <marker id="lc-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#006633"/></marker>
+    <marker id="lc-ahm" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#9aaca2"/></marker>
+    <marker id="lc-ahr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#5d6b63"/></marker>
+  </defs>
+
+  <!-- late registration banner -->
+  <rect x="196" y="0" width="484" height="50" rx="10" fill="#fdf5dc" stroke="#e5c45c" stroke-width="1.5"/>
+  <text x="210" y="16" class="tb" style="font-size:11.3px;fill:#6b5a2e">LATE REGISTRATION — in both states</text>
+  <text x="210" y="31" class="t" style="font-size:11.3px">A student who enrols after generation automatically gets the next free</text>
+  <text x="210" y="44" class="t" style="font-size:11.3px">seat in one of that course's halls, if there is room.</text>
+  <line x1="308" y1="51" x2="308" y2="62" class="ln-d" marker-end="url(#lc-ahm)"/>
+  <line x1="590" y1="51" x2="590" y2="62" class="ln-d" marker-end="url(#lc-ahm)"/>
+
+  <!-- state: none -->
+  <rect x="0" y="104" width="118" height="70" rx="14" class="box-grey"/>
+  <text x="59" y="134" text-anchor="middle" class="tb" style="font-size:12px">No timetable</text>
+  <text x="59" y="152" text-anchor="middle" class="ts" style="font-size:11.3px">for this session</text>
+
+  <!-- state: draft -->
+  <rect x="196" y="64" width="224" height="150" rx="16" class="box-g"/>
+  <text x="212" y="88" class="tb" style="font-size:14px;fill:#004d26">Draft</text>
+  <text x="258" y="88" class="ts" style="font-size:11.3px">seen by the exams office only</text>
+  <g style="font-size:11.3px">
+    <rect x="208" y="98" width="200" height="30" rx="8" fill="#ffffff" stroke="#b9dbc6"/>
+    <text x="218" y="117"><tspan font-weight="700">Generate</tspan> again — replaces the draft</text>
+    <rect x="208" y="134" width="200" height="40" rx="8" fill="#ffffff" stroke="#b9dbc6"/>
+    <text x="218" y="150"><tspan font-weight="700">Edit Slot</tspan> — move one exam; clash</text>
+    <text x="218" y="165">checked, halls and seats re-assigned</text>
+    <rect x="208" y="180" width="200" height="26" rx="8" fill="#ffffff" stroke="#b9dbc6"/>
+    <text x="218" y="197"><tspan font-weight="700">Drop</tspan> a course — frees the seat</text>
+  </g>
+
+  <!-- state: published -->
+  <rect x="496" y="64" width="184" height="150" rx="16" class="box-gs"/>
+  <text x="512" y="88" class="tb tw" style="font-size:14px">Published</text>
+  <text x="512" y="104" class="ts" style="font-size:11.3px;fill:#d3eadb">students see it (session Active)</text>
+  <g style="font-size:11.3px">
+    <rect x="504" y="114" width="168" height="26" rx="8" fill="#ffffff" fill-opacity="0.12" stroke="#ffffff" stroke-opacity="0.35"/>
+    <text x="514" y="131" class="tw">Exam, hall and seat on phones</text>
+    <rect x="504" y="146" width="168" height="26" rx="8" fill="#ffffff" fill-opacity="0.12" stroke="#ffffff" stroke-opacity="0.35"/>
+    <text x="514" y="163" class="tw">Courses locked (no drops)</text>
+    <rect x="504" y="178" width="168" height="26" rx="8" fill="#ffffff" fill-opacity="0.12" stroke="#ffffff" stroke-opacity="0.35"/>
+    <text x="514" y="195" class="tw">Seat Assignments list</text>
+  </g>
+
+  <!-- transitions -->
+  <line x1="119" y1="139" x2="194" y2="139" class="ln-g" style="stroke-width:2" marker-end="url(#lc-ah)"/>
+  <text x="156" y="130" text-anchor="middle" class="tb" style="font-size:11.3px;fill:#006633">Generate</text>
+  <line x1="421" y1="139" x2="494" y2="139" class="ln-g" style="stroke-width:2" marker-end="url(#lc-ah)"/>
+  <text x="458" y="122" text-anchor="middle" class="tb" style="font-size:11.3px;fill:#006633">Publish</text>
+  <text x="458" y="134" text-anchor="middle" class="tb" style="font-size:11.3px;fill:#006633">All</text>
+
+  <!-- publish checks -->
+  <line x1="458" y1="146" x2="458" y2="228" class="ln-d"/>
+  <rect x="248" y="228" width="384" height="58" rx="10" fill="#ffffff" stroke="#b9dbc6" stroke-width="1.5"/>
+  <text x="262" y="246" class="tb" style="font-size:11.3px;fill:#006633">BEFORE PUBLISHING, THE SYSTEM CHECKS THAT</text>
+  <text x="262" y="263" class="t" style="font-size:11.3px">every course has a hall · every enrolled student has a seat ·</text>
+  <text x="262" y="277" class="t" style="font-size:11.3px">every course with enrolled students is on the timetable</text>
+
+  <!-- reset -->
+  <path d="M658 215 V306 H59 V176" fill="none" stroke="#5d6b63" stroke-width="1.6" marker-end="url(#lc-ahr)"/>
+  <rect x="96" y="294" width="184" height="24" rx="12" fill="#ffffff" stroke="#cfd6d2"/>
+  <text x="188" y="310" text-anchor="middle" class="tb" style="font-size:11.3px;fill:#4b5852">Reset All · then generate again</text>
+  <text x="96" y="332" class="ts" style="font-size:11.3px">For bigger changes after publishing: Reset All clears the session's timetable; Generate and Publish again.</text>
+</svg>

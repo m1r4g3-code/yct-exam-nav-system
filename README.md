@@ -11,51 +11,45 @@ Built for Yaba College of Technology (Yabatech) — School of Technology, Comput
 
 **Live:** [smart-exam-timetable.vercel.app](https://smart-exam-timetable.vercel.app)
 
+**Documentation (PDF):** [Project Overview](docs/presentation/YCT-Exam-Portal-Project-Overview.pdf) · [Exams Office Guide](docs/presentation/YCT-Exam-Portal-Exams-Office-Guide.pdf) · [Student Guide](docs/presentation/YCT-Exam-Portal-Student-Guide.pdf)
+
 ---
 
 ## Why this exists
 
-Every semester, Yabatech's Computer Science department manually built exam timetables in a spreadsheet: cross-checking which courses shared students, which halls were free, and who sat where — for hundreds of students across multiple programmes and levels. Clashes slipped through, hall capacity was eyeballed, and students found out where to sit by reading a printed sheet on a noticeboard.
+Every semester, Yabatech's Computer Science department manually built exam timetables in a spreadsheet: cross-checking which courses clashed, which halls were free, and who sat where — for hundreds of students across multiple programmes and levels. Clashes slipped through, hall capacity was eyeballed, and students found out where to sit by reading a printed sheet on a noticeboard.
 
-This system replaces that process end-to-end: a graph-colouring engine generates a clash-free timetable in one click, a bin-packing assigner seats every enrolled student across the available halls, and each student gets a live GPS-guided walking route to their exact hall — computed with a real shortest-path algorithm over the actual campus footpath network, not a straight line through buildings.
+This system replaces that process end-to-end: a capacity-aware graph-colouring engine generates a clash-free timetable in one click, a best-fit hall allocator seats every enrolled student across the available halls, and each student gets their own timetable on their phone with a live GPS walking route to their exam hall.
+
+---
+
+## How it works
+
+1. **Exams office sets up the college** — schools → departments (each automatically gets ND and HND programmes and the ND 1, ND 2, HND 1, HND 2 levels) → courses, plus every exam hall with its capacity and GPS location. Departments and courses can be bulk-imported from CSV.
+2. **Students register themselves** with their matric number, choose department → programme → level, and tick the courses they are taking this semester.
+3. **One click generates the timetable** — the officer picks the first exam day and the exam period (1–6 weeks, default 2). Mon–Fri slots are created (Morning 08:00–10:00, Afternoon 12:00–14:00), every course is scheduled so no level ever sits two papers at once and no slot holds more exams than there are free halls, halls are booked and every enrolled student gets a numbered seat. The result is a **draft**.
+4. **Review, then publish** — department tabs, per-exam *Edit Slot* (clash-checked, halls and seats re-assigned automatically), then *Publish All*. Publishing is refused until every scheduled course has a hall, every enrolled student has a seat and every course with enrolled students is on the timetable.
+5. **Students see it on their phone** — next exam with countdown, date, time, hall and seat, and *Navigate to Hall* for a live walking route.
+
+Late registration is handled automatically: a student who enrols after generation is given a free seat in one of the course's halls straight away.
 
 ---
 
 ## Screenshots
 
-### Admin — generate a clash-free timetable in one click
-
-The core operation: pick a school and a start date, and the system builds two weeks of Mon–Fri exam slots and colours the course-conflict graph with DSatur — no two courses sharing an enrolled student ever land in the same slot.
-
-<img src="docs/screenshots/admin-generate-timetable.png" width="520" alt="Generate Timetable dialog showing DSatur graph-colouring configuration" />
-
-### Admin — timetable command centre
-
-Full multi-school view with per-department filters, live publish status, and per-slot editing — the operational surface an exams officer works from on publish day.
-
-<img src="docs/screenshots/admin-timetable-overview.png" width="820" alt="Admin timetable overview with department tabs and publish status" />
-
-Filtering also drills down by academic level (ND1, ND2, HND1, HND2) for departments running parallel programmes:
-
-<img src="docs/screenshots/admin-level-filter.png" width="420" alt="Level filter dropdown for ND and HND programmes" />
-
 ### Admin — automatic seat assignment
 
-Every published course pulls its enrolled roster and spreads students across halls and seats automatically, respecting hall capacity and avoiding overbooking.
+Every enrolled student is placed in a hall with a seat number; the officer can review the full list per session.
 
 <img src="docs/screenshots/admin-seat-assignments.png" width="820" alt="Seat assignment table mapping students to halls and seat numbers" />
 
-### Student — personal timetable, zero ambiguity
+### Student — personal timetable
 
-Students see only what's relevant to them: date, time, hall, and seat number for every course they're registered for, with the next exam surfaced front and centre.
+Students see only what's relevant to them: date, time, hall and seat number for every course they're registered for, with the next exam surfaced front and centre.
 
 <img src="docs/screenshots/student-timetable.png" width="820" alt="Student exam timetable dashboard with next exam highlighted" />
 
-### Student — live GPS navigation to the exam hall
-
-One tap computes the walking route from the student's live device location to the assigned hall, via Dijkstra's shortest path over a graph of real campus footpaths — not a straight line through buildings.
-
-<img src="docs/screenshots/student-navigation.png" width="820" alt="Live walking-route navigation from student location to exam hall on campus map" />
+More screens — including the Generate dialog, the timetable command centre and live hall navigation — are illustrated in the [Project Overview PDF](docs/presentation/YCT-Exam-Portal-Project-Overview.pdf).
 
 ---
 
@@ -63,54 +57,61 @@ One tap computes the walking route from the student's live device location to th
 
 ```mermaid
 flowchart LR
-    subgraph Client["Browser"]
+    subgraph Client["Browser (phone or desktop)"]
         A[Admin Portal]
         S[Student Portal]
     end
 
-    subgraph Edge["Vercel Edge / Node runtime"]
-        P[proxy.ts — route protection]
-        R[Next.js App Router]
-        API[API Routes]
+    subgraph App["Next.js 16 on Vercel"]
+        P[proxy.ts — session & role gate]
+        R[App Router pages]
+        API[REST API routes]
     end
 
-    subgraph Services["Domain services (lib/services)"]
-        DS[DSatur — timetable colouring]
-        HA[Hall Assigner — bin packing]
-        DJ[Dijkstra — shortest path, binary min-heap]
-        GB[Graph Builder — campus & conflict graphs]
+    subgraph Services["Scheduling engine (lib/services)"]
+        SL[Exam-slot planner]
+        GB[Conflict graph]
+        DS[DSatur — capacity-aware scheduling]
+        HA[Hall allocator — best fit]
+        DJ[Dijkstra — campus graph API]
     end
 
     subgraph Data["Supabase"]
-        PG[(PostgreSQL via Prisma 7)]
+        PG[(PostgreSQL via Prisma 7, RLS enabled)]
         AU[Supabase Auth]
     end
 
-    A -->|generate / publish| R
-    S -->|view / navigate| R
-    R --> P --> API
-    API --> DS & HA & DJ & GB
+    subgraph Maps["Map services (from the browser)"]
+        OSM[OpenStreetMap tiles]
+        OR[OSM walking routes]
+    end
+
+    A --> P
+    S --> P
+    P --> R
+    P --> API
+    API --> SL & GB & DS & HA & DJ
     API <--> PG
     API <--> AU
+    S --> OSM & OR
 ```
 
-**Request path:** `proxy.ts` (Next.js 16's `middleware.ts` successor) gates every request on session + role before it reaches a route. Server Components fetch through a Supabase server client; interactive portals hydrate as Client Components fed by React Query. Auth sign-in runs client-side only — Supabase's session cookie write does not reliably survive a server-side `signInWithPassword` call in this stack, so the browser client owns the auth handshake and `router.refresh()` lets the proxy pick up the new session.
+**Request path:** `proxy.ts` (Next.js 16's `middleware.ts` successor) gates every request on session + role before it reaches a route: signed-out page requests go to `/login` (and return to the requested page after sign-in), signed-out API calls get a JSON `401`, and wrong-role API calls get a JSON `403`. The `(admin)` and `(student)` server layouts check the role again, and every API handler checks it a third time. Pages are Client Components fed by React Query through a shared fetch helper (`lib/fetcher.ts`) that turns failures into readable errors. Sign-in runs client-side with the Supabase browser client; the proxy picks up the new session cookie on the next request.
 
 ---
 
 ## Engineering highlights
 
-Decisions made under real constraints, not defaults left in place:
-
-- **Concurrency-safe timetable generation.** Generation locking is a `generation_locks` table row (`INSERT ... ON CONFLICT DO NOTHING`), not an in-memory flag — a module-level boolean would silently break the moment the app runs on more than one Vercel instance. The lock is released in a `finally` block so a failed generation can't leave the system stuck.
-- **Atomic force-regeneration.** Force-deleting a draft and inserting the replacement happen inside the same `$transaction` array. If the insert fails, the delete rolls back with it — there is no window where a timetable exists in neither the old nor the new state.
-- **Publish-time integrity guard.** Publishing checks `enrolledCount > studentAssignmentCount` per course, not just "does this course have a hall assignment." A course can have a hall and still leave a subset of its own students without a seat if enrollment grew after assignment ran — the guard catches that partial-overflow case specifically.
-- **Dijkstra on a binary min-heap.** The original campus-routing implementation re-sorted the frontier on every iteration (`O(V²)`); routing now runs on a binary min-heap, `O((V + E) log V)`, so navigation latency doesn't degrade as the campus node graph grows.
-- **N+1 elimination in the generation path.** Enrollments are fetched once, up front, into a `Map`, and passed into the hall-assignment pass — nothing queries per-course or per-student inside the transaction loop.
-- **Deterministic conflict colouring.** DSatur tie-breaks on saturation degree, then raw degree, then course ID — the same input always produces the same timetable, which matters when an exams officer needs to explain *why* a slot landed where it did.
-- **Cache-aware read paths.** `GET /api/sessions` and `GET /api/slots` serve `Cache-Control: public, max-age=300`, matched by a 5-minute React Query `staleTime`, so semester/slot dropdowns that rarely change don't refetch on every navigation.
-
-Full history of audits and fixes is tracked in [`CLAUDE.md`](./CLAUDE.md) under Session Notes.
+- **Capacity-aware scheduling.** DSatur places each course in the earliest slot that has no clashing course *and* still has enough free halls to seat the whole class (checked with the same packing routine the hall allocator uses), so a slot never holds more exams than the halls can take and the exam period is spread instead of overloaded.
+- **Hall bookings respected across runs.** Generating one school at a time, or several sessions over the same dates, never double-books a hall: halls already booked in a slot by timetables that a run keeps are treated as unavailable. *Edit Slot* re-plans halls and seats in the target slot using only free halls.
+- **Concurrency-safe generation.** Generation locking is a `generation_locks` table row (`INSERT … ON CONFLICT`), not an in-memory flag — a module-level boolean would silently break the moment the app runs on more than one Vercel instance. The lock is released in a `finally` block, and a lock left behind by an interrupted run is taken over after 10 minutes. Writes that book halls (generation and *Edit Slot*) are additionally serialised with a Postgres advisory transaction lock and re-check hall availability inside the transaction, so two officers working on different sessions at the same moment can never book the same hall twice.
+- **Atomic force-regeneration.** Deleting the old draft and inserting the replacement happen inside one `$transaction` — there is no window where a timetable exists in neither the old nor the new state.
+- **Publish-time integrity guard.** Publishing checks that every scheduled course has a hall, that `enrolled ≤ seats` for every course (catching enrolments that arrived after generation) and that every course with enrolled students was actually scheduled.
+- **Race-free late seating.** A late enrolee is seated inside a transaction that first locks the exam's row (`SELECT … FOR UPDATE`), then takes the lowest unused seat in the course's hall with the most room — so two simultaneous enrolments can never receive the same seat, and a seat freed by a dropped course is reused.
+- **N+1 elimination in the generation path.** Courses, slots, halls, enrolments and existing hall bookings are fetched once, up front, into `Map`s — nothing queries per course or per student inside the planning loop.
+- **Deterministic results.** DSatur tie-breaks on saturation, then degree, then class size, then course ID; halls tie-break on capacity then ID — the same input always produces the same timetable, which matters when an exams officer needs to explain *why* a slot landed where it did.
+- **Defence in depth.** Three role checks per request, students only ever addressed through their own sign-in (never by an ID they send), roles stored in server-only `app_metadata`, and Row Level Security enabled on every table so the browser-visible anon key cannot query data directly.
+- **Tested engine.** The scheduling engine, hall packing, exam-slot planning, CSV parsing and input normalisation are covered by unit tests (`npm test`), run in CI on every push.
 
 ---
 
@@ -118,15 +119,19 @@ Full history of audits and fixes is tracked in [`CLAUDE.md`](./CLAUDE.md) under 
 
 ### DSatur — timetable generation
 
-Models every course as a graph node; an edge connects two courses if any student is enrolled in both. Colouring the graph with DSatur (Degree of Saturation) assigns each course a time slot such that no two courses sharing a student ever collide — the same technique used for classic exam-scheduling and register-allocation problems, chosen over greedy colouring because it minimises the number of slots needed by prioritising the most-constrained nodes first.
+Models every course as a graph node; an edge connects two courses in the **same level**, because the same students sit both. Colouring the graph with DSatur (Degree of Saturation) assigns each course a time slot so that no level ever has two papers at once — protecting every student at that level, including those who have not finished enrolling. DSatur picks the most-constrained course first (most distinct slots already used by its neighbours), which keeps the number of slots needed low. Each course goes to the earliest clash-free slot whose free halls can seat its whole class; a course with no clash-free slot left is reported as **unresolved** (choose a longer exam period), and a class bigger than the free hall space is reported as **hall overflow**.
 
-### Dijkstra — hall navigation
+### Hall assignment — best-fit packing
 
-The campus is modelled as a weighted, bidirectional graph (`navigation_nodes` + `navigation_paths`), built once and cached at module level. A student's live GPS coordinate is snapped to its nearest graph node, and Dijkstra's algorithm (binary min-heap priority queue) computes the shortest walking path from there to the assigned hall's node — rendered as a real route over campus footpaths via Leaflet, not a straight line.
+Within each slot, larger classes choose first. A class takes the **smallest free hall that seats everyone**; a class too big for any single hall fills the largest free hall and continues in the next best fit. A hall hosts one course per slot. Seats are numbered 1…n inside each hall, in matric-number order.
 
-### Hall assignment — bin packing
+### Navigation
 
-Enrolled students for each published course are packed across the available exam halls up to capacity, spreading overflow into additional halls rather than overbooking a single room.
+The student map (Leaflet + OpenStreetMap) shows the hall, the student's live GPS position and a **walking route with distance and walking time** from OpenStreetMap's walking-route service ([routing.openstreetmap.de](https://routing.openstreetmap.de), foot profile), re-routed as the student moves, with a straight-line estimate as fallback and a hand-off to Google Maps walking directions.
+
+### Dijkstra — campus graph API
+
+The campus is also modelled as a weighted, bidirectional graph (`navigation_nodes` + `navigation_paths`), cached at module level. `GET /api/navigation/path?from=&to=` runs Dijkstra on a binary min-heap (`O((V + E) log V)`) and returns the node sequence, route polyline and distance — available for campus-specific routing.
 
 ---
 
@@ -135,54 +140,63 @@ Enrolled students for each published course are packed across the available exam
 | Layer | Technology |
 |---|---|
 | Framework | Next.js 16 (App Router) |
-| Language | TypeScript 5 |
-| Database | Supabase (hosted PostgreSQL) |
+| Language | TypeScript 5 (strict) |
+| Database | Supabase (hosted PostgreSQL, Row Level Security) |
 | ORM | Prisma 7 (`prisma-client` TS generator + `@prisma/adapter-pg`) |
 | Auth | Supabase Auth + role metadata (`admin`, `superadmin`, `student`) |
-| Styling | TailwindCSS v4 + shadcn/ui on `@base-ui/react` |
+| Styling | Tailwind CSS v4 + shadcn/ui on `@base-ui/react` |
 | Fonts | Figtree (body) · JetBrains Mono (headings) · Geist Mono (code) |
-| Map | Leaflet.js + react-leaflet + OpenStreetMap tiles, OSRM walking routes |
+| Map | Leaflet + react-leaflet + OpenStreetMap tiles, OSM walking routes, Google Maps hand-off |
 | State | TanStack React Query |
-| Forms | React Hook Form + Zod |
-| CI | GitHub Actions — lint, type-check, build on every push/PR |
+| Forms | React Hook Form + Zod (validated in the browser and again in every API route) |
+| Tests | Node.js test runner via `tsx` |
+| CI | GitHub Actions — lint, type-check, unit tests, build on every push/PR |
 | Hosting | Vercel |
 
 ## Data model
 
-17 Prisma models covering the full academic hierarchy — `School → Department → Programme → Level → Course`, student enrollment (`StudentCourse`), scheduling (`TimeSlot`, `TimetableEntry`), seating (`HallAssignment`, `StudentHallAssignment`), campus routing (`NavigationNode`, `NavigationPath`), and operational safety (`GenerationLock`, `Session`). Full schema: [`prisma/schema.prisma`](./prisma/schema.prisma).
+17 Prisma models covering the full academic hierarchy — `School → Department → Programme → Level → Course`, student enrolment (`StudentCourse`), scheduling (`TimeSlot`, `TimetableEntry`), seating (`HallAssignment`, `StudentHallAssignment`), campus routing (`NavigationNode`, `NavigationPath`), and operational safety (`GenerationLock`, `Session`). Full schema: [`prisma/schema.prisma`](./prisma/schema.prisma).
 
 ---
 
 ## Getting started
 
+Requirements: Node.js 20.19+, 22.12+ or 24+, and a [Supabase](https://supabase.com) project.
+
 ### 1. Clone & install
 
 ```bash
 git clone https://github.com/m1r4g3-code/yct-exam-nav-system.git
-cd yct-exam-nav-system/smart-exam-timetable
-npm install
+cd yct-exam-nav-system
+npm ci
 ```
 
 ### 2. Environment variables
 
-Create `.env.local`:
+Create `.env.local` in the project root:
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
-DATABASE_URL=your_supabase_transaction_pooler_url   # port 6543
-DIRECT_URL=your_supabase_direct_url                 # port 5432
-ADMIN_SETUP_SECRET=a_secure_random_secret
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key   # server only
+DATABASE_URL=your_supabase_transaction_pooler_url          # port 6543
+DIRECT_URL=your_supabase_direct_or_session_url             # port 5432 — used by migrations
+ADMIN_SETUP_SECRET=a_long_random_secret                    # one-time admin setup (optional)
+
+# Optional: let the seed create the first super-admin sign-in
+SEED_ADMIN_EMAIL=admin@yabatech-examportal.com
+SEED_ADMIN_PASSWORD=choose_a_strong_password
 ```
 
 ### 3. Database
 
 ```bash
-npm run db:generate    # generate Prisma client
-npm run db:migrate     # apply migrations
-npm run db:seed        # seed demo data (schools, courses, students, nav nodes)
+npm run db:generate       # generate the Prisma client
+npm run db:migrate:prod   # apply all migrations (incl. row-level security)
+npm run db:seed           # reference + demo data (takes a few minutes)
 ```
+
+The seed loads Yabatech's 8 schools, 47 departments (each with ND/HND programmes and four levels), about 1,000 courses, 2 verified exam halls, a small campus graph and 50 demo Computer Technology students. To add 11 more campus buildings as exam halls (2,520 seats), run [`prisma/seed-halls.sql`](./prisma/seed-halls.sql) in the Supabase SQL editor, then confirm their coordinates in **Admin → Halls**.
 
 ### 4. Run
 
@@ -192,7 +206,15 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-Default superadmin after seed: `admin@yabatech-examportal.com` / `Admin@2025`
+### 5. First admin sign-in
+
+There is no default password. Create the first super-admin in one of these ways:
+
+- **Seed:** set `SEED_ADMIN_PASSWORD` (and optionally `SEED_ADMIN_EMAIL`) in `.env.local` and run `npm run db:seed`.
+- **Setup endpoint:** `POST /api/admin/setup` with `{ "secret": "<ADMIN_SETUP_SECRET>", "email": "...", "password": "...", "fullName": "..." }`. It works only until the first admin exists.
+- **Supabase dashboard:** create the user, then set `app_metadata.role` to `"superadmin"` (or `"admin"`).
+
+Students create their own accounts at `/register`.
 
 ---
 
@@ -201,13 +223,17 @@ Default superadmin after seed: `admin@yabatech-examportal.com` / `Admin@2025`
 | Command | Description |
 |---|---|
 | `npm run dev` | Start dev server |
-| `npm run build` | Production build |
+| `npm run build` | Production build (`prisma generate` + `next build`) |
+| `npm run start` | Serve the production build |
 | `npm run lint` | ESLint |
 | `npx tsc --noEmit` | Type check |
+| `npm test` | Unit tests |
 | `npm run db:generate` | Regenerate Prisma client |
-| `npm run db:migrate` | Run pending migrations |
-| `npm run db:seed` | Seed demo data |
+| `npm run db:migrate:prod` | Apply pending migrations (`prisma migrate deploy`) |
+| `npm run db:migrate` | Create a new migration during development (`prisma migrate dev`) |
+| `npm run db:seed` | Seed reference + demo data |
 | `npm run db:studio` | Open Prisma Studio |
+| `npm run db:reset` | **Erase** the database, re-apply migrations and re-seed |
 
 ---
 
@@ -215,34 +241,44 @@ Default superadmin after seed: `admin@yabatech-examportal.com` / `Admin@2025`
 
 ```
 app/
-  (auth)/         Login, register, course selection
-  (admin)/        Admin portal — CRUD, timetable generation
-  (student)/      Student portal — dashboard, navigation, profile
-  api/            Next.js API routes (REST)
+  (auth)/           Login, register, course selection
+  (admin)/          Admin portal — academic structure, halls, timetable, students
+  (student)/        Student portal — timetable, courses, navigation, profile
+  api/              REST API routes
 components/
-  ui/             shadcn/ui components (@base-ui/react)
-  map/            Leaflet map (dynamic import, SSR disabled)
+  ui/               shadcn/ui components (@base-ui/react)
+  admin/            Shared admin widgets (tables, dialogs, empty states)
+  map/              Leaflet map (dynamic import, SSR disabled)
+hooks/              Shared React hooks (session selection, sign-out, breakpoints)
 lib/
-  services/       DSatur, Dijkstra, hall assigner, graph builder, slot manager
-  supabase/       Browser, server, and admin Supabase clients
+  services/         Scheduling engine: exam slots, conflict graph, DSatur, hall packing, Dijkstra
+  supabase/         Browser, server and service-role Supabase clients
+  fetcher.ts        Client-side API helper
 prisma/
-  schema.prisma   Full DB schema (17 models)
-  migrations/     Hand-authored + Prisma-generated migrations
-  seed.ts         Demo data
-proxy.ts          Route protection (Next.js 16 middleware successor)
+  schema.prisma     Full DB schema (17 models)
+  migrations/       Prisma migrations
+  seed.ts           Reference + demo data
+tests/              Unit tests (npm test)
+docs/
+  presentation/     Project Overview, Exams Office Guide, Student Guide (PDF + sources)
+proxy.ts            Route protection (Next.js 16 middleware successor)
 ```
 
 ---
 
 ## Deployment
 
-Deployed on Vercel. Every push to `main` runs CI (lint, type-check, build) and triggers an automatic redeploy on success.
+Deployed on Vercel through its Git integration. CI (GitHub Actions) runs lint, type-check, unit tests and a production build on every push or pull request to `master`/`main`.
+
+Runtime environment variables on Vercel: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (both needed at build time), `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`, and `ADMIN_SETUP_SECRET` while bootstrapping. `DIRECT_URL` is only needed where migrations run.
+
+Database migrations are not run by the build — apply them with `npm run db:migrate:prod` before deploying code that needs them.
 
 To deploy your own instance:
 
 ```bash
 npm i -g vercel
 vercel link
-vercel env add   # add all six env vars
+vercel env add   # add the variables above
 vercel --prod
 ```

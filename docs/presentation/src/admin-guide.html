@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>YCT Exam Portal — Exams Office Guide</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  @page { @top-left { content: "YCT Exam Portal  ·  Exams Office Guide"; } }
+</style>
+</head>
+<body>
+<!--#include file="partials/icons.html" -->
+
+<!-- ============================ COVER ============================ -->
+<section class="cover">
+  <!--#include file="partials/cover-pattern.html" -->
+  <div class="inner">
+    <div class="brand">
+      <div class="crest"><img src="assets/yabatech-crest.png" alt="Yaba College of Technology crest"></div>
+      <div class="brand-text"><b>Yaba College of Technology</b>Labore et Veritate</div>
+    </div>
+    <span class="doc-kind">Exams Office Guide</span>
+    <h1>YCT Exam Portal</h1>
+    <div class="subtitle">Smart Examination Timetable Generator &amp; Real-Time Hall Navigation</div>
+    <div class="rule"></div>
+    <div class="institution">Yaba College of Technology · School of Technology —<br><b>Department of Computer Science</b> (pilot)</div>
+    <div class="foot">
+      <div class="date">Exams Office Guide · October 2026<span>For exams officers and portal administrators</span></div>
+      <div class="url"><span>Sign in at</span>smart-exam-timetable.vercel.app/login</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ CONTENTS ============================ -->
+<section class="toc-page">
+  <div class="toc-head">
+    <div><div class="eyebrow">Exams Office Guide</div><h1>Contents</h1></div>
+    <img src="assets/yabatech-crest.png" alt="" style="width:46px;height:46px">
+  </div>
+  <ul class="toc">
+    <li><a href="#a-role"><span class="t-num">1</span><span class="t-title">Your role and signing in</span><span class="t-page" data-ref="a-role"></span></a></li>
+    <li><a href="#a-screens"><span class="t-num">2</span><span class="t-title">Screen reference</span><span class="t-page" data-ref="a-screens"></span></a></li>
+    <li><a href="#a-period"><span class="t-num">3</span><span class="t-title">Running an exam period, step by step</span><span class="t-page" data-ref="a-period"></span></a></li>
+    <li class="sub"><a href="#a-prepare"><span class="t-num">3.1</span><span class="t-title">Prepare: structure, halls and session</span><span class="t-page" data-ref="a-prepare"></span></a></li>
+    <li class="sub"><a href="#a-generate"><span class="t-num">3.2</span><span class="t-title">Generate and read the report</span><span class="t-page" data-ref="a-generate"></span></a></li>
+    <li class="sub"><a href="#a-review"><span class="t-num">3.3</span><span class="t-title">Review, adjust and publish</span><span class="t-page" data-ref="a-review"></span></a></li>
+    <li class="sub"><a href="#a-after"><span class="t-num">3.4</span><span class="t-title">After publishing</span><span class="t-page" data-ref="a-after"></span></a></li>
+    <li><a href="#a-students"><span class="t-num">4</span><span class="t-title">Managing students</span><span class="t-page" data-ref="a-students"></span></a></li>
+    <li><a href="#a-csv"><span class="t-num">5</span><span class="t-title">Importing data from CSV</span><span class="t-page" data-ref="a-csv"></span></a></li>
+    <li><a href="#a-good"><span class="t-num">6</span><span class="t-title">Good practice</span><span class="t-page" data-ref="a-good"></span></a></li>
+    <li><a href="#a-faq"><span class="t-num">7</span><span class="t-title">Frequently asked questions</span><span class="t-page" data-ref="a-faq"></span></a></li>
+  </ul>
+
+  <div class="stats" style="margin-top:22px">
+    <div class="stat"><div class="big" style="font-size:17pt">Set up</div><div class="sub">structure, halls and the session</div></div>
+    <div class="stat"><div class="big" style="font-size:17pt">Generate</div><div class="sub">slots, schedule, halls and seats in one click</div></div>
+    <div class="stat"><div class="big" style="font-size:17pt">Review</div><div class="sub">department by department; Edit Slot</div></div>
+    <div class="stat"><div class="big" style="font-size:17pt">Publish</div><div class="sub">students see exam, hall and seat</div></div>
+  </div>
+  <div class="callout plain toc-note">
+    <span class="c-title" style="color:var(--green)">About this guide</span>
+    <p>This handout is for exams officers and administrators of YCT Exam Portal. It explains every screen of the Exams Office portal and walks through a complete exam period. Screens shown are illustrations with sample data; on-screen labels are quoted exactly as they appear in the app.</p>
+  </div>
+</section>
+
+<!-- ============================ 1 ROLE ============================ -->
+<section class="section" id="a-role">
+  <header class="opener"><div class="num">1</div><div><h1>Your role and signing in</h1><p class="intro">What an exams officer does in the portal, and how to get started.</p></div></header>
+
+  <p>As an exams officer you keep the college's academic structure and exam halls up to date, prepare each semester's session, generate the examination timetable, review and publish it, and look after student accounts. Students then see their own exams, halls and seats on their phones.</p>
+
+  <div class="cards three">
+    <div class="card"><div class="ct"><span class="icon"><svg><use href="#i-user"/></svg></span>Your account</div><p>Admin accounts are created by the system administrator — not by public sign-up. Exams officers and the super admin (the first account, created during setup) have the same permissions.</p></div>
+    <div class="card"><div class="ct"><span class="icon"><svg><use href="#i-key"/></svg></span>Signing in</div><p>Open <code>/login</code>, enter your email and password, and you are taken to the <b>Dashboard</b>. If you followed a link to a particular admin page, you return to it after signing in.</p></div>
+    <div class="card"><div class="ct"><span class="icon"><svg><use href="#i-logout"/></svg></span>Signing out</div><p>Use the <b>Sign out</b> button at the bottom of the sidebar, next to your email and role — especially on shared computers.</p></div>
+  </div>
+
+  <h2>The portal layout</h2>
+  <figure class="mock">
+    <!--#include file="partials/mock-admin-annotated.html" -->
+    <figcaption><span class="cap">The Exams Office portal, with its main areas numbered.</span><span class="sample-tag">Illustration — sample data</span></figcaption>
+  </figure>
+  <div class="anno-legend">
+    <div><span class="an">1</span><span><b>Crest and title</b> — the top of the sidebar.</span></div>
+    <div><span class="an">4</span><span><b>Light/dark switch</b> — changes the colour theme.</span></div>
+    <div><span class="an">2</span><span><b>Menu</b> — Dashboard, Schools, Departments, Courses, Halls, Timetable, Students. Ctrl/Cmd + B collapses it to icons; on a phone it slides in from the side.</span></div>
+    <div><span class="an">5</span><span><b>Your account</b> — signed-in email and role, with <b>Sign out</b>.</span></div>
+    <div><span class="an">3</span><span><b>Page name</b> — shows which screen you are on.</span></div>
+    <div><span class="an">6</span><span><b>Page content</b> — here the Dashboard: four headline figures and the quick actions <i>Generate Timetable, Import Courses, Manage Halls, View Students</i>.</span></div>
+  </div>
+</section>
+
+<!-- ============================ 2 SCREENS ============================ -->
+<section class="section" id="a-screens">
+  <header class="opener"><div class="num">2</div><div><h1>Screen reference</h1><p class="intro">Each screen of the Exams Office portal: what it is for and what you can do there.</p></div></header>
+
+  <p>Every list is a sortable table on a computer and a set of cards on a phone. The portal asks for confirmation before anything is deleted, and every action shows a short success or error message.</p>
+
+  <table class="data">
+    <thead><tr><th style="width:15%">Screen</th><th style="width:30%">Purpose</th><th>Main actions</th></tr></thead>
+    <tbody>
+      <tr><td class="k">Dashboard</td><td>A summary as soon as you sign in.</td><td>Greeting and today's date; stat cards <i>Total Students, Total Courses, Active Halls, Active Sessions</i>; quick actions <i>Generate Timetable, Import Courses, Manage Halls, View Students</i>.</td></tr>
+      <tr><td class="k">Schools</td><td>The top of the academic structure (e.g. School of Technology, SOT).</td><td>Add, edit and delete schools (name and code).</td></tr>
+      <tr><td class="k">Departments</td><td>Departments within each school (e.g. Computer Technology, CSC).</td><td>Filter by school. <b>Add Department</b> also creates its two programmes — "National Diploma (ND)" and "Higher National Diploma (HND)" — and the four levels ND 1, ND 2, HND 1, HND 2. <b>Upload CSV</b> (see section 5) with an import report.</td></tr>
+      <tr><td class="k">Courses</td><td>The course catalogue the timetable is built from.</td><td>Cascading filters School → Department → Programme → Level; columns Code, Title, Level, Credits, Semester; pages of 50. <b>Add Course</b> (code, title, credit units 1–6, First or Second semester, level); <b>Upload CSV</b> (existing codes are updated) with an import report.</td></tr>
+      <tr><td class="k">Halls</td><td>The exam venues used for seating and shown on students' maps.</td><td>Columns Name, Code, Capacity, Coordinates, Status. <b>Add Hall</b>: name, code, capacity, latitude, longitude, description and Active. Inactive halls are not used for new timetables and are hidden from students' hall list.</td></tr>
+      <tr><td class="k">Timetable</td><td>The command centre for each session.</td><td>Choose or create a session (<b>+</b>); switch it <b>Active</b> / <b>Inactive</b>; delete a session; <b>Generate</b>; read the result report; department tabs; <b>Edit Slot</b> on drafts; <b>Publish All</b>; <b>Seat Assignments</b>; <b>Reset All</b>.</td></tr>
+      <tr><td class="k">Students</td><td>The directory of registered students.</td><td>Search by name or matric number; filter by school, department and level; 50 per page. <b>View</b> opens a profile with enrolments; actions <b>Edit</b>, <b>Reset password</b>, <b>Delete</b>.</td></tr>
+      <tr><td class="k">Advanced pages</td><td>Occasional fine-tuning, opened by typing the address.</td><td><code>/admin/programmes</code>, <code>/admin/levels</code> and <code>/admin/slots</code> — for example to rename a programme or adjust a time slot.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>The Timetable screen</h3>
+  <figure class="mock">
+    <!--#include file="partials/mock-admin-timetable.html" -->
+    <figcaption><span class="cap">Timetable — session controls, toolbar, department tabs and a draft ready for review (sidebar collapsed).</span><span class="sample-tag">Illustration — sample data</span></figcaption>
+  </figure>
+  <div class="cards">
+    <div class="card"><div class="ct">Session controls</div><p>The session selector, <b>+</b> to create a session ("YYYY/YYYY First Semester" or "Second Semester"), the <b>Active</b> / <b>Inactive</b> switch (Active = visible to students) and the delete button.</p></div>
+    <div class="card"><div class="ct">Toolbar</div><p><b>Generate</b> creates or replaces the draft; <b>Publish All</b> appears while there are drafts; <b>Seat Assignments</b> appears once published; <b>Reset All</b> clears the session's timetable.</p></div>
+  </div>
+  <div class="two-col" style="gap:10px;align-items:start;margin-top:2px">
+    <div class="card"><div class="ct">Edit Slot</div><p>On a draft row, <b>Edit Slot</b> opens <i>Move to Different Slot</i>. Choose the new slot under <i>Select Time Slot</i> and click <b>Save</b>. The move is checked for clashes, and halls and seats in the new slot are re-assigned automatically. Published rows show <i>Locked</i> instead of Edit Slot.</p></div>
+    <div class="mini-dialog" style="margin-top:0">
+      <div class="ui"><div class="dialog" style="max-width:none">
+        <svg class="x"><use href="#i-x"/></svg>
+        <div class="h6">Move to Different Slot</div>
+        <div class="d-desc">The move is checked for clashes, and halls and seats are re-assigned automatically for the new slot.</div>
+        <div class="field-label" style="margin-top:14px">Select Time Slot</div>
+        <div class="input" style="font-size:11px;white-space:nowrap;gap:8px">Wed, 18 Nov Afternoon — Wed, 18 Nov 2026, 12:00 PM–2:00 PM<svg><use href="#i-chev-down"/></svg></div>
+        <div class="d-foot"><span class="btn">Cancel</span><span class="btn primary">Save</span></div>
+      </div></div>
+      <div class="mini-cap">Edit Slot on a draft row.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 3 PERIOD ============================ -->
+<section class="section" id="a-period">
+  <header class="opener"><div class="num">3</div><div><h1>Running an exam period, step by step</h1><p class="intro">From checking the structure to the last paper — the complete routine.</p></div></header>
+
+  <figure class="fig">
+    <div class="frame"><!--#include file="partials/fig-lifecycle.html" --></div>
+    <figcaption>The timetable lifecycle you will follow: Generate a Draft, review and adjust it, Publish All, and use Reset All for larger changes.</figcaption>
+  </figure>
+
+  <h2 id="a-prepare"><span class="h-num">3.1</span> Prepare: structure, halls and session</h2>
+  <ol class="steps">
+    <li><b>Check the academic structure</b>
+      <ul>
+        <li><b>Schools</b> and <b>Departments</b> are in place. Adding a department creates its ND and HND programmes and the four levels automatically.</li>
+        <li><b>Courses</b> for the semester exist at the right levels, with the correct semester (First or Second) and credit units. Use <b>Upload CSV</b> for many courses at once (section 5).</li>
+      </ul>
+    </li>
+    <li><b>Set up the halls</b>
+      <ul>
+        <li>For every venue in use: name, code, <b>real seating capacity</b>, latitude and longitude, a short description, and <b>Active</b>.</li>
+        <li>Capacity drives seating; the coordinates place the hall on students' maps and walking routes.</li>
+        <li>Set halls that are not in use to Inactive — they are left out of new timetables and hidden from students.</li>
+      </ul>
+    </li>
+    <li><b>Create and activate the session</b>
+      <ul>
+        <li>On <b>Timetable</b>, click <b>+</b>, enter the start year and choose the semester — for example "2025/2026 First Semester".</li>
+        <li>Make sure the session is <b>Active</b> so students can see it; set older sessions to Inactive.</li>
+      </ul>
+    </li>
+    <li><b>Open the registration window</b>
+      <ul>
+        <li>Ask students to sign up at <code>/register</code>. Straight after sign-up they see their level's courses for the semester, all pre-ticked, and tap <i>Complete Enrollment</i>.</li>
+        <li>Follow progress on the <b>Students</b> screen and the Dashboard's <i>Total Students</i>.</li>
+      </ul>
+    </li>
+  </ol>
+
+  <h2 id="a-generate"><span class="h-num">3.2</span> Generate and read the report</h2>
+  <ol class="steps" style="counter-reset: step 4">
+    <li><b>Generate the timetable</b>When registration has closed, open <b>Timetable</b>, choose the session and click <b>Generate</b>. The dialog has three fields:
+      <table class="data compact" style="margin-top:6px">
+        <thead><tr><th style="width:22%">Field</th><th>What to choose</th></tr></thead>
+        <tbody>
+          <tr><td class="k">School</td><td><i>All Schools</i>, or one school. When you generate for one school, halls already booked by other schools' timetables are respected.</td></tr>
+          <tr><td class="k">Exam Start Date</td><td>The first exam day (next Monday by default).</td></tr>
+          <tr><td class="k">Exam Period</td><td>1 to 6 weeks (2 weeks by default). Monday–Friday slots, 8:00–10:00 AM and 12:00–2:00 PM, are created automatically — 2 weeks gives 20 slots.</td></tr>
+        </tbody>
+      </table>
+      <p class="small">Generating again replaces the existing draft entries for the session (or for the chosen school).</p>
+    </li>
+  </ol>
+  <figure class="mock">
+    <!--#include file="partials/mock-generate-pair.html" -->
+    <figcaption><span class="cap">The Generate dialog and the result report.</span><span class="sample-tag">Illustration — sample data</span></figcaption>
+  </figure>
+  <ol class="steps" style="counter-reset: step 5">
+    <li><b>Read the report</b>"<i>N</i> courses scheduled across <i>M</i> time slots" confirms the draft. Two lists appear only when something needs attention:
+      <ul>
+        <li><b>Unresolved</b> — no clash-free slot was left for these courses: choose a longer <b>Exam Period</b> and generate again.</li>
+        <li><b>Hall Overflow</b> — not enough hall space for these courses: add halls or capacity (or activate a hall), or choose a longer exam period, and generate again.</li>
+      </ul>
+    </li>
+  </ol>
+  <figure class="mock">
+    <!--#include file="partials/mock-report-and-seats.html" -->
+    <figcaption><span class="cap">A report with items to act on, and the Seat Assignments list.</span><span class="sample-tag">Illustration — sample data</span></figcaption>
+  </figure>
+
+  <h2 id="a-review"><span class="h-num">3.3</span> Review, adjust and publish</h2>
+  <ol class="steps" style="counter-reset: step 6">
+    <li><b>Review department by department</b>Use the tabs — <i>All</i> and one per department, each with its number of exams. Check the columns Code, Title, Level, Date, Time, Halls and Status (Draft) for each department.</li>
+    <li><b>Adjust with Edit Slot</b>On a draft row, <b>Edit Slot</b> opens <i>Move to Different Slot</i>: choose a slot under <i>Select Time Slot</i>. The move is checked for clashes, and halls and seats in the new slot are re-assigned automatically.</li>
+    <li><b>Publish All</b>Click <b>Publish All</b> and confirm. The system first checks that every scheduled course has a hall, every enrolled student has a seat, and every course with enrolled students is on the timetable. When published, students with the session Active see their exams, halls and seats immediately.</li>
+    <li><b>Share Seat Assignments</b>Once published, <b>Seat Assignments</b> lists every student's course, date, hall and seat — ready for invigilators.</li>
+  </ol>
+
+  <h2 id="a-after"><span class="h-num">3.4</span> After publishing</h2>
+  <div class="cards">
+    <div class="card"><div class="ct"><span class="icon"><svg><use href="#i-lock"/></svg></span>Published exams are locked</div><p>Published rows show <i>Locked</i> instead of Edit Slot, and students can no longer drop published courses.</p></div>
+    <div class="card"><div class="ct"><span class="icon"><svg><use href="#i-plus"/></svg></span>Late registrations are seated</div><p>A student who enrols after the timetable was generated automatically receives the next free seat in one of that course's halls, when there is room.</p></div>
+    <div class="card"><div class="ct"><span class="icon"><svg><use href="#i-rotate"/></svg></span>Bigger changes: Reset All</div><p>To restructure a published timetable, click <b>Reset All</b> and confirm, then <b>Generate</b> and <b>Publish All</b> again.</p></div>
+    <div class="card"><div class="ct"><span class="icon"><svg><use href="#i-eye"/></svg></span>Visibility</div><p>Switching a session to <b>Inactive</b> hides it from students; switch it back to <b>Active</b> to show it again.</p></div>
+  </div>
+
+  <div class="callout plain" style="margin-top:16px">
+    <span class="c-title" style="color:var(--green)">Exam-period checklist</span>
+    <div class="two-col" style="gap:4px 18px">
+      <ul class="checks" style="margin:4px 0 0">
+        <li>Schools, departments and courses checked</li>
+        <li>Halls: real capacity, coordinates, Active</li>
+        <li>Session created and set to Active</li>
+        <li>Older sessions set to Inactive</li>
+        <li>Students told to register and choose courses</li>
+        <li>Registration closed</li>
+      </ul>
+      <ul class="checks" style="margin:4px 0 0">
+        <li>Generate: School, Exam Start Date, Exam Period</li>
+        <li>Report read; Unresolved / Hall Overflow cleared</li>
+        <li>Every department tab reviewed</li>
+        <li>Publish All</li>
+        <li>Seat Assignments shared with invigilators</li>
+        <li>Students reminded to check Navigate before exam day</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 4 STUDENTS ============================ -->
+<section class="section" id="a-students">
+  <header class="opener"><div class="num">4</div><div><h1>Managing students</h1><p class="intro">Find any student, correct their record, reset a password or remove an account.</p></div></header>
+
+  <figure class="mock">
+    <!--#include file="partials/mock-admin-students.html" -->
+    <figcaption><span class="cap">Students — search, filters and the actions menu on a row.</span><span class="sample-tag">Illustration — sample data</span></figcaption>
+  </figure>
+
+  <table class="data">
+    <thead><tr><th style="width:18%">Task</th><th>How</th></tr></thead>
+    <tbody>
+      <tr><td class="k">Find a student</td><td>Type a name or matric number in the search box, and narrow by <i>All Schools</i> → <i>All Departments</i> → <i>All Levels</i>. Results come 50 per page.</td></tr>
+      <tr><td class="k">View</td><td><b>View</b> opens the student's profile: details, department, programme, level and enrolments — with the same Edit, Reset password and Delete actions.</td></tr>
+      <tr><td class="k">Edit</td><td>Open the row menu (<b>⋯</b>) → <b>Edit</b>: Full name, Matric number, Email, and Department → Programme → Level. Matric numbers are stored in capitals and must be unique; a changed email also becomes the student's sign-in address.</td></tr>
+      <tr><td class="k">Reset password</td><td><b>⋯</b> → <b>Reset password</b>: enter a New password and Confirm new password (at least 8 characters), then give it to the student privately.</td></tr>
+      <tr><td class="k">Delete</td><td><b>⋯</b> → <b>Delete</b> and confirm. The student's record, enrolments, seats and sign-in account are removed.</td></tr>
+    </tbody>
+  </table>
+  <div class="callout tip">
+    <span class="c-title">Tip</span>
+    <p>If a student registered in the wrong department or level, <b>Edit</b> their record rather than asking them to register again — their sign-in stays the same. They can then update their courses on the Courses tab.</p>
+  </div>
+</section>
+
+<!-- ============================ 5 CSV ============================ -->
+<section class="section" id="a-csv">
+  <header class="opener"><div class="num">5</div><div><h1>Importing data from CSV</h1><p class="intro">Add many departments or courses at once from a spreadsheet.</p></div></header>
+
+  <p>Save the spreadsheet as CSV (comma-separated values) with a header row, then use <b>Upload CSV</b> on the Departments or Courses screen. Header names are matched without regard to capitals, and quoted fields may contain commas. After each upload an <b>import report</b> lists what was imported, skipped or rejected, with the line number and reason for every rejected row.</p>
+
+  <h3>Departments — <code>school_name,name,code</code></h3>
+  <table class="data compact">
+    <thead><tr><th>school_name</th><th>name</th><th>code</th></tr></thead>
+    <tbody>
+      <tr><td>School of Technology</td><td>Computer Technology</td><td class="mono">CSC</td></tr>
+      <tr><td>School of Engineering</td><td>Mechanical Engineering</td><td class="mono">MCE</td></tr>
+      <tr><td>School of Science</td><td>Statistics</td><td class="mono">STA</td></tr>
+    </tbody>
+  </table>
+  <ul class="small">
+    <li>Each new department is created with its ND and HND programmes and four levels.</li>
+    <li>Rows whose department code already exists are skipped, so the same file can be uploaded again safely.</li>
+  </ul>
+
+  <h3>Courses — <code>course_code,course_title,department_code,level_name,credit_units,semester</code></h3>
+  <table class="data compact">
+    <thead><tr><th>course_code</th><th>course_title</th><th>department_code</th><th>level_name</th><th>credit_units</th><th>semester</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">COM111</td><td>Introduction to Computing</td><td class="mono">CSC</td><td>ND 1</td><td>3</td><td>first</td></tr>
+      <tr><td class="mono">COM121</td><td>Introduction to Java Programming</td><td class="mono">CSC</td><td>ND 1</td><td>3</td><td>second</td></tr>
+      <tr><td class="mono">COM311</td><td>Operating Systems I</td><td class="mono">CSC</td><td>HND 1</td><td>3</td><td>first</td></tr>
+    </tbody>
+  </table>
+  <ul class="small">
+    <li><b>level_name</b> is ND 1, ND 2, HND 1 or HND 2; <b>department_code</b> says which department's level is meant.</li>
+    <li><b>credit_units</b> is a whole number from 1 to 6; <b>semester</b> is <i>first</i> or <i>second</i>.</li>
+    <li>Rows with an existing course code <b>update</b> that course; the report shows new, updated and rejected rows.</li>
+  </ul>
+  <div class="callout note">
+    <span class="c-title">Good to know</span>
+    <p>Published timetables stay stable: a course that is already on a published timetable keeps its semester and level when a file is imported. To move such a course to another semester or level, use <b>Reset All</b> first.</p>
+  </div>
+</section>
+
+<!-- ============================ 6 GOOD PRACTICE ============================ -->
+<section class="section" id="a-good">
+  <header class="opener"><div class="num">6</div><div><h1>Good practice</h1><p class="intro">Habits that keep every exam period smooth.</p></div></header>
+
+  <div class="cards">
+    <div class="card"><div class="ct"><span class="icon"><svg><use href="#i-eye"/></svg></span>Keep only the current session Active</div><p>Students then see exactly one session's timetable and courses, with no confusion between semesters.</p></div>
+    <div class="card"><div class="ct"><span class="icon"><svg><use href="#i-door"/></svg></span>Enter real capacities and coordinates</div><p>Accurate seat numbers keep classes in halls that fit; accurate coordinates give students the right walking route.</p></div>
+    <div class="card"><div class="ct"><span class="icon"><svg><use href="#i-clock"/></svg></span>Generate after registration closes</div><p>Class sizes then match real enrolments, so halls and seats are right first time. Late registrations are still seated automatically when there is room.</p></div>
+    <div class="card"><div class="ct"><span class="icon"><svg><use href="#i-list"/></svg></span>Review every department tab</div><p>Look through each department before <b>Publish All</b>; use Edit Slot for small adjustments.</p></div>
+    <div class="card"><div class="ct"><span class="icon"><svg><use href="#i-door"/></svg></span>Deactivate rather than delete halls</div><p>Set halls you no longer use to Inactive: they leave new timetables and the students' list, while past records stay intact.</p></div>
+    <div class="card"><div class="ct"><span class="icon"><svg><use href="#i-calendar"/></svg></span>Choose a comfortable exam period</div><p>Two weeks gives 20 slots. If the report lists Unresolved courses, a longer period gives the engine more room.</p></div>
+    <div class="card"><div class="ct"><span class="icon"><svg><use href="#i-printer"/></svg></span>Share Seat Assignments early</div><p>Once published, pass the list to invigilators so they can check hall and seat at the door.</p></div>
+    <div class="card"><div class="ct"><span class="icon"><svg><use href="#i-shield"/></svg></span>Sign out on shared computers</div><p>Use <b>Sign out</b> in the sidebar footer when you leave an office computer.</p></div>
+  </div>
+</section>
+
+<!-- ============================ 7 FAQ ============================ -->
+<section class="section" id="a-faq">
+  <header class="opener"><div class="num">7</div><div><h1>Frequently asked questions</h1><p class="intro">Quick answers to the questions exams officers ask most.</p></div></header>
+
+  <div class="qa-list">
+    <div class="item"><div class="q">What does Hall Overflow mean?</div><p>There was not enough free hall space to seat the whole class for the listed courses. Add a hall, increase a hall's capacity, activate an inactive hall or choose a longer exam period, then click <b>Generate</b> again.</p></div>
+    <div class="item"><div class="q">What does Unresolved mean?</div><p>No clash-free slot was left for the listed courses within the exam period. Choose a longer <b>Exam Period</b> in the Generate dialog and generate again.</p></div>
+    <div class="item"><div class="q">How do I change a published timetable?</div><p>Published exams are locked. Click <b>Reset All</b>, confirm, then <b>Generate</b> and <b>Publish All</b> again. Small changes are best made with <b>Edit Slot</b> before publishing.</p></div>
+    <div class="item"><div class="q">A student forgot their password.</div><p>Find them on <b>Students</b>, open the row menu (⋯) and choose <b>Reset password</b>. Enter and confirm a new password of at least 8 characters and give it to the student privately.</p></div>
+    <div class="item"><div class="q">A student registered in the wrong level or department.</div><p>Choose <b>Edit</b> on their row and set the correct Department → Programme → Level. Their sign-in stays the same; they can then update their courses on the Courses tab.</p></div>
+    <div class="item"><div class="q">Can I generate for one school at a time?</div><p>Yes. Choose that school in the <b>School</b> field. Halls already booked in a slot by other schools' timetables are respected, so schools can be scheduled one after another.</p></div>
+    <div class="item"><div class="q">Why can't students see the timetable yet?</div><p>Students see only <b>published</b> timetables for <b>Active</b> sessions. Check that you clicked <b>Publish All</b> and that the session's switch shows Active.</p></div>
+    <div class="item"><div class="q">A student enrolled after I generated. Do they have a seat?</div><p>Yes, when there is room: they automatically receive the next free seat in one of that course's halls. The seat appears in Seat Assignments and on the student's timetable.</p></div>
+  </div>
+  <div class="endmark"><img src="assets/yabatech-crest.png" alt="">YCT Exam Portal · Exams Office Guide · October 2026</div>
+</section>
+
+</body>
+</html>

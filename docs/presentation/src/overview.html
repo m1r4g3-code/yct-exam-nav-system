@@ -1,0 +1,985 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>YCT Exam Portal — Project Overview</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  @page { @top-left { content: "YCT Exam Portal  ·  Project Overview"; } }
+</style>
+</head>
+<body>
+<!--#include file="partials/icons.html" -->
+
+<!-- ============================ COVER ============================ -->
+<section class="cover">
+  <!--#include file="partials/cover-pattern.html" -->
+  <div class="inner">
+    <div class="brand">
+      <div class="crest"><img src="assets/yabatech-crest.png" alt="Yaba College of Technology crest"></div>
+      <div class="brand-text"><b>Yaba College of Technology</b>Labore et Veritate</div>
+    </div>
+    <span class="doc-kind">Project Documentation</span>
+    <h1>YCT Exam Portal</h1>
+    <div class="subtitle">Smart Examination Timetable Generator &amp; Real-Time Hall Navigation</div>
+    <div class="rule"></div>
+    <div class="institution">Yaba College of Technology · School of Technology —<br><b>Department of Computer Science</b> (pilot)</div>
+    <div class="foot">
+      <div class="date">Project Documentation · October 2026<span>For college management, the exams office and academic staff</span></div>
+      <div class="url"><span>Live pilot</span>smart-exam-timetable.vercel.app</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ CONTENTS ============================ -->
+<section class="toc-page">
+  <div class="toc-head">
+    <div><div class="eyebrow">Project Overview</div><h1>Contents</h1></div>
+    <img src="assets/yabatech-crest.png" alt="" style="width:46px;height:46px">
+  </div>
+  <ul class="toc">
+    <li><a href="#s-summary"><span class="t-num">1</span><span class="t-title">Executive summary</span><span class="t-page" data-ref="s-summary"></span></a></li>
+    <li><a href="#s-challenge"><span class="t-num">2</span><span class="t-title">The challenge</span><span class="t-page" data-ref="s-challenge"></span></a></li>
+    <li><a href="#s-solution"><span class="t-num">3</span><span class="t-title">The solution at a glance</span><span class="t-page" data-ref="s-solution"></span></a></li>
+    <li><a href="#s-benefits"><span class="t-num">4</span><span class="t-title">Benefits</span><span class="t-page" data-ref="s-benefits"></span></a></li>
+    <li><a href="#s-users"><span class="t-num">5</span><span class="t-title">Who uses it</span><span class="t-page" data-ref="s-users"></span></a></li>
+    <li><a href="#s-how"><span class="t-num">6</span><span class="t-title">How it works</span><span class="t-page" data-ref="s-how"></span></a></li>
+    <li class="sub"><a href="#s-arch"><span class="t-num">6.1</span><span class="t-title">Architecture</span><span class="t-page" data-ref="s-arch"></span></a></li>
+    <li class="sub"><a href="#s-security"><span class="t-num">6.2</span><span class="t-title">Security and access control</span><span class="t-page" data-ref="s-security"></span></a></li>
+    <li class="sub"><a href="#s-data"><span class="t-num">6.3</span><span class="t-title">Data model</span><span class="t-page" data-ref="s-data"></span></a></li>
+    <li class="sub"><a href="#s-engine"><span class="t-num">6.4</span><span class="t-title">The timetable engine</span><span class="t-page" data-ref="s-engine"></span></a></li>
+    <li class="sub"><a href="#s-lifecycle"><span class="t-num">6.5</span><span class="t-title">Timetable lifecycle</span><span class="t-page" data-ref="s-lifecycle"></span></a></li>
+    <li class="sub"><a href="#s-nav"><span class="t-num">6.6</span><span class="t-title">Hall navigation</span><span class="t-page" data-ref="s-nav"></span></a></li>
+    <li><a href="#s-admin"><span class="t-num">7</span><span class="t-title">The Exams Office portal</span><span class="t-page" data-ref="s-admin"></span></a></li>
+    <li><a href="#s-student"><span class="t-num">8</span><span class="t-title">The Student portal</span><span class="t-page" data-ref="s-student"></span></a></li>
+    <li><a href="#s-running"><span class="t-num">9</span><span class="t-title">Running an exam period</span><span class="t-page" data-ref="s-running"></span></a></li>
+    <li><a href="#s-journey"><span class="t-num">10</span><span class="t-title">The student journey</span><span class="t-page" data-ref="s-journey"></span></a></li>
+    <li><a href="#s-tech"><span class="t-num">11</span><span class="t-title">Technology</span><span class="t-page" data-ref="s-tech"></span></a></li>
+    <li><a href="#s-deploy"><span class="t-num">12</span><span class="t-title">Deployment and operations</span><span class="t-page" data-ref="s-deploy"></span></a></li>
+    <li><a href="#s-ahead"><span class="t-num">13</span><span class="t-title">Looking ahead</span><span class="t-page" data-ref="s-ahead"></span></a></li>
+    <li class="part"><a href="#s-appA"><span class="t-num">A</span><span class="t-title">Appendix A — Codebase guide</span><span class="t-page" data-ref="s-appA"></span></a></li>
+    <li><a href="#s-appB"><span class="t-num">B</span><span class="t-title">Appendix B — API reference</span><span class="t-page" data-ref="s-appB"></span></a></li>
+    <li><a href="#s-appC"><span class="t-num">C</span><span class="t-title">Appendix C — Glossary</span><span class="t-page" data-ref="s-appC"></span></a></li>
+  </ul>
+  <div class="callout plain toc-note">
+    <span class="c-title" style="color:var(--green)">How to read this document</span>
+    <p>Sections 1–5 explain the purpose and value of the system for every reader. Section 6 explains how it works, with diagrams. Sections 7–10 tour the two portals and the day-to-day workflow. Sections 11–12 and the appendices are reference material for technical staff, and section 13 looks ahead. Two companion handouts — the <b>Exams Office Guide</b> and the <b>Student Guide</b> — cover each audience step by step. Screens shown are illustrations with sample data.</p>
+  </div>
+</section>
+
+<!-- ============================ 1 SUMMARY ============================ -->
+<section class="section" id="s-summary">
+  <header class="opener"><div class="num">1</div><div><h1>Executive summary</h1><p class="intro">What YCT Exam Portal is, why it matters and where it stands today.</p></div></header>
+
+  <p class="lede"><b>YCT Exam Portal</b> is a web application that produces Yaba College of Technology's examination timetable automatically — free of clashes, with every class placed in a hall that can hold it and every student given a numbered seat — and then guides each student to the right hall on the day, using the phone in their pocket.</p>
+
+  <div class="two-col" style="margin-top:12px">
+    <div class="card tinted">
+      <div class="ct"><span class="icon"><svg><use href="#i-alert"/></svg></span>The challenge</div>
+      <p>Every semester the timetable has been built by hand in a spreadsheet: checking which courses clash, which halls are free and whether each class will fit, then pinning seat lists on noticeboards. It takes days, mistakes are hard to spot, and students crowd round printed sheets before setting off to find a building some have never visited.</p>
+    </div>
+    <div class="card tinted">
+      <div class="ct"><span class="icon"><svg><use href="#i-check-circle"/></svg></span>The solution</div>
+      <p>The exams office keeps the academic structure and exam halls in one system; students register and choose their courses themselves. One click creates the exam slots, schedules every course without clashes, books halls and numbers every seat. After review the officer publishes, and each student sees their own timetable — with live walking directions to the hall.</p>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="big">1 click</div><div class="label">Full timetable</div><div class="sub">exam slots, halls and seats generated in seconds</div></div>
+    <div class="stat"><div class="big">0 clashes</div><div class="label">By design</div><div class="sub">no level ever sits two papers at the same time</div></div>
+    <div class="stat"><div class="big">1 seat</div><div class="label">For every enrolled student</div><div class="sub">numbered within the hall, in matric order</div></div>
+    <div class="stat"><div class="big">Live</div><div class="label">Walking directions</div><div class="sub">from where the student stands to the exam hall</div></div>
+  </div>
+
+  <h3>Who it serves</h3>
+  <div class="cards three">
+    <div class="card"><div class="ct"><span class="icon"><svg><use href="#i-calendar"/></svg></span>Exams office</div><p>Maintains schools, departments, courses and halls; generates, reviews and publishes the timetable; manages student accounts.</p></div>
+    <div class="card"><div class="ct"><span class="icon"><svg><use href="#i-phone"/></svg></span>Students</div><p>Register with their matric number, choose their courses, see their personal timetable with hall and seat, and follow a walking route to the hall.</p></div>
+    <div class="card"><div class="ct"><span class="icon"><svg><use href="#i-school"/></svg></span>College management</div><p>Gains a transparent, repeatable process and one reliable source of truth for courses, halls and examinations.</p></div>
+  </div>
+
+  <div class="callout tip">
+    <span class="c-title">Where it stands</span>
+    <p>Piloted in the <b>School of Technology — Department of Computer Science</b> (shown in the app as "Computer Technology", code CSC) and live at <code>smart-exam-timetable.vercel.app</code>. The database is pre-loaded with Yabatech's <b>8 schools</b> and <b>47 departments</b> (each with ND and HND programmes and four levels — <b>94 programmes, 188 levels</b>), about <b>1,000 course definitions</b>, two verified exam halls (Multipurpose Hall — MPHA, 200 seats; Block C Lecture Hall — BCLH, 80 seats), an optional set of 11 further campus buildings with 2,520 seats, a campus map graph and 50 demonstration students.</p>
+  </div>
+</section>
+
+<!-- ============================ 2 CHALLENGE ============================ -->
+<section class="section" id="s-challenge">
+  <header class="opener"><div class="num">2</div><div><h1>The challenge</h1><p class="intro">How the examination timetable has been produced until now — and what that costs.</p></div></header>
+
+  <p>Every semester, the Department of Computer Science prepared its examination timetable by hand in a spreadsheet. Staff collected the course list for every level, checked by eye which papers could not sit together, found out which halls were free, estimated whether each class would fit, typed seat lists and pinned them on a noticeboard. The work took days and had to be partly repeated whenever something changed.</p>
+
+  <div class="cards four" style="margin-top:6px">
+    <div class="card"><div class="ct" style="font-size:9.8pt">Days of work</div><p>Every timetable assembled and re-checked by hand, each semester.</p></div>
+    <div class="card"><div class="ct" style="font-size:9.8pt">Clashes slip through</div><p>Two papers for the same class can land in the same slot unnoticed.</p></div>
+    <div class="card"><div class="ct" style="font-size:9.8pt">Halls overflow</div><p>Without exact numbers, a class can be sent to a hall that is too small.</p></div>
+    <div class="card"><div class="ct" style="font-size:9.8pt">Crowds and lost students</div><p>Students queue at noticeboards, then search for unfamiliar buildings.</p></div>
+  </div>
+
+  <figure class="fig">
+    <div class="frame"><!--#include file="partials/fig-before-after.html" --></div>
+    <figcaption>Before and after. Seven manual steps that took days become a short, guided workflow in which the slow and error-prone parts are done by the system in seconds.</figcaption>
+  </figure>
+</section>
+
+<!-- ============================ 3 SOLUTION ============================ -->
+<section class="section" id="s-solution">
+  <header class="opener"><div class="num">3</div><div><h1>The solution at a glance</h1><p class="intro">One shared system for the exams office and every student — on any phone or computer.</p></div></header>
+
+  <p>YCT Exam Portal is a web application: it runs in any modern browser, on phones and computers, with nothing to install. It replaces the whole manual process in five steps.</p>
+
+  <ol class="steps compact">
+    <li><b>The exams office keeps the college's structure in the system</b>Schools → departments → programmes (ND / HND) → levels (ND 1, ND 2, HND 1, HND 2) → courses, plus every exam hall with its seating capacity and GPS location.</li>
+    <li><b>Students register themselves</b>With their matric number, department, programme and level — then tick the courses they are taking this semester.</li>
+    <li><b>The officer clicks Generate</b>After choosing the first exam day and the length of the exam period, the system creates the time slots, places every course so that no level sits two papers at once, never schedules more exams in a slot than there are halls, books halls and gives every enrolled student a numbered seat — then reports anything that needs attention.</li>
+    <li><b>Review, then Publish</b>The officer checks the draft department by department, adjusts if needed and clicks Publish. Only then do students see it.</li>
+    <li><b>Students open the portal on their phone</b>Their next exam with a countdown, date, time, hall and seat — and a <b>Navigate to Hall</b> button that shows a live walking route from where they stand.</li>
+  </ol>
+
+  <figure class="fig">
+    <div class="frame"><!--#include file="partials/fig-swimlane.html" --></div>
+    <figcaption>End-to-end flow. The exams office sets up and decides; the portal does the heavy lifting; students register, then view and navigate.</figcaption>
+  </figure>
+</section>
+
+<!-- ============================ 4 BENEFITS ============================ -->
+<section class="section" id="s-benefits">
+  <header class="opener"><div class="num">4</div><div><h1>Benefits</h1><p class="intro">What changes for the exams office, for students and for the college.</p></div></header>
+
+  <div class="cards three" style="gap:12px;margin-top:4px">
+    <div class="benefit-col">
+      <div class="bc-head"><div class="eyebrow">For the</div><div class="bc-title">Exams office</div></div>
+      <ul>
+        <li><b>One click instead of days</b>The full timetable, halls and seats in seconds.</li>
+        <li><b>Re-run in seconds</b>After a change, generate again; the new draft replaces the old.</li>
+        <li><b>Clashes impossible by design</b>No level is ever given two papers at once.</li>
+        <li><b>Hall capacity always respected</b>No slot holds more exams than the halls can seat.</li>
+        <li><b>Consistent seat numbers</b>Produced automatically; the same input gives the same timetable.</li>
+        <li><b>Bulk CSV import</b>Departments and courses from a spreadsheet, with an import report.</li>
+        <li><b>Review, then publish</b>A clear draft-to-published workflow.</li>
+        <li><b>Complete student directory</b>Search, correct records, reset passwords.</li>
+      </ul>
+    </div>
+    <div class="benefit-col">
+      <div class="bc-head"><div class="eyebrow">For</div><div class="bc-title">Students</div></div>
+      <ul>
+        <li><b>A personal timetable</b>On their own phone, always up to date.</li>
+        <li><b>Exact hall and seat</b>No searching through printed lists.</li>
+        <li><b>Countdown to the next paper</b>"Today", "Tomorrow" or "In N days".</li>
+        <li><b>Walking directions</b>A live route from where they stand to the hall.</li>
+        <li><b>Own course registration</b>Enrol and drop courses themselves.</li>
+        <li><b>No crowding at noticeboards</b>Everything is on the phone.</li>
+      </ul>
+    </div>
+    <div class="benefit-col">
+      <div class="bc-head"><div class="eyebrow">For the</div><div class="bc-title">College</div></div>
+      <ul>
+        <li><b>Fewer errors and complaints</b>Clashes and over-full halls are designed out.</li>
+        <li><b>Transparent and auditable</b>Draft first, published only when approved.</li>
+        <li><b>Data in one place</b>Courses, halls, students and timetables together.</li>
+        <li><b>Low running cost</b>Cloud hosting and open map data.</li>
+        <li><b>Modern, widely used technology</b>Easy to maintain and to find skills for.</li>
+        <li><b>Ready to scale</b>From the pilot department to more departments and schools.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="stats three" style="margin-top:16px">
+    <div class="stat"><div class="big">Seconds</div><div class="label">To generate or re-generate</div><div class="sub">instead of days of spreadsheet work</div></div>
+    <div class="stat"><div class="big">Repeatable</div><div class="label">Same input, same timetable</div><div class="sub">results can be checked and reproduced</div></div>
+    <div class="stat"><div class="big">Any device</div><div class="label">Phone or computer</div><div class="sub">nothing to install, light and dark themes</div></div>
+  </div>
+</section>
+
+<!-- ============================ 5 USERS ============================ -->
+<section class="section" id="s-users">
+  <header class="opener"><div class="num">5</div><div><h1>Who uses it</h1><p class="intro">Three roles, two portals and one sign-in page.</p></div></header>
+
+  <table class="data">
+    <thead><tr><th style="width:17%">Role</th><th style="width:26%">Portal and pages</th><th>What they can do</th><th style="width:20%">How the account is created</th></tr></thead>
+    <tbody>
+      <tr><td class="k">Student</td><td>Student portal: <code>/dashboard</code> (Timetable), <code>/courses</code>, <code>/navigate</code>, <code>/profile</code></td><td>Register; choose courses; view the published timetable with hall and seat; get walking directions to any exam hall; manage their profile, avatar and theme.</td><td>Self-registration at <code>/register</code></td></tr>
+      <tr><td class="k">Exams officer<br><span class="muted" style="font-weight:500">(admin)</span></td><td>Exams Office portal under <code>/admin/…</code></td><td>Manage schools, departments, courses and halls; create and activate sessions; generate, review, adjust and publish the timetable; view seat assignments; manage student accounts.</td><td>Created by the system administrator</td></tr>
+      <tr><td class="k">Super admin</td><td>Exams Office portal under <code>/admin/…</code></td><td>The same permissions as an exams officer.</td><td>The first account, created during setup</td></tr>
+    </tbody>
+  </table>
+
+  <h3>One sign-in page for everyone</h3>
+  <p>Everybody signs in at <code>/login</code>. The system recognises each person's role and sends them to the right portal; if they originally asked for a particular page, they are taken back to it after signing in. Admin accounts are never created by public sign-up.</p>
+
+  <figure class="fig">
+    <div class="frame">
+      <svg class="dg" viewBox="0 0 680 150" role="img" aria-label="Sign-in routing by role">
+        <defs><marker id="us-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#006633"/></marker></defs>
+        <rect x="0" y="48" width="130" height="54" rx="11" class="box-t"/>
+        <text x="65" y="72" text-anchor="middle" class="tb" style="font-size:12px">Sign in</text><text x="65" y="90" text-anchor="middle" class="mono" style="fill:#006633">/login</text>
+        <line x1="131" y1="75" x2="186" y2="75" class="ln-g" marker-end="url(#us-ah)"/>
+        <rect x="188" y="40" width="160" height="70" rx="11" class="box-gold"/>
+        <text x="268" y="64" text-anchor="middle" class="tb" style="font-size:12px">Role check</text>
+        <text x="268" y="81" text-anchor="middle" class="ts">role stored in protected</text><text x="268" y="95" text-anchor="middle" class="ts">account metadata</text>
+        <path d="M349 66 C 380 66, 380 30, 412 30" class="ln-g" marker-end="url(#us-ah)"/>
+        <path d="M349 84 C 380 84, 380 120, 412 120" class="ln-g" marker-end="url(#us-ah)"/>
+        <rect x="414" y="4" width="266" height="52" rx="11" class="box-g"/>
+        <text x="428" y="26" class="tb" style="font-size:12px">Student</text><text x="490" y="26" class="ts">→ Student portal</text>
+        <text x="428" y="44" class="mono" style="fill:#006633">/dashboard</text>
+        <rect x="414" y="94" width="266" height="52" rx="11" class="box-gs"/>
+        <text x="428" y="116" class="tb tw" style="font-size:12px">Admin · Super admin</text><text x="560" y="116" class="ts" style="fill:#d3eadb">→ Exams Office</text>
+        <text x="428" y="134" class="mono" style="fill:#d3eadb">/admin/dashboard</text>
+      </svg>
+    </div>
+    <figcaption>Sign-in routing. One page, two destinations; after signing in, people return to the page they first asked for.</figcaption>
+  </figure>
+
+  <div class="callout note">
+    <span class="c-title">Good to know</span>
+    <p>Exams officers and the super admin have the same permissions in the app. The super admin is simply the first account created when the system is set up; further admin accounts are added by the system administrator.</p>
+  </div>
+</section>
+
+<!-- ============================ 6 HOW IT WORKS ============================ -->
+<section class="section" id="s-how">
+  <header class="opener"><div class="num">6</div><div><h1>How it works</h1><p class="intro">Architecture, security, data, the timetable engine and navigation — explained for a mixed audience.</p></div></header>
+
+  <h2 id="s-arch"><span class="h-num">6.1</span> Architecture</h2>
+  <p>Everything a user does starts in the browser and passes through an access gateway before it reaches the application. The application's pages and its REST API share one codebase; the scheduling engine is a set of focused services; and all data lives in a managed PostgreSQL database on Supabase.</p>
+  <figure class="fig">
+    <div class="frame"><!--#include file="partials/fig-architecture.html" --></div>
+    <figcaption>Architecture. The access gateway checks every request; the application and engine run on Vercel; Supabase provides the database and sign-in; map services are called directly by the student's browser.</figcaption>
+  </figure>
+
+  <table class="data compact keep">
+    <thead><tr><th style="width:22%">Layer</th><th>What it does</th><th style="width:26%">Built with</th></tr></thead>
+    <tbody>
+      <tr><td class="k">Browser</td><td>Two portals in one web app: the Student portal (designed phone-first) and the Exams Office portal.</td><td>React 19, Tailwind CSS 4, shadcn/ui</td></tr>
+      <tr><td class="k">Access gateway</td><td>Runs before every request: refreshes the sign-in session, checks the role, redirects or refuses.</td><td><code>proxy.ts</code> (Next.js 16)</td></tr>
+      <tr><td class="k">Application</td><td>Server-rendered pages and a REST API of about 40 endpoints under <code>/api</code>.</td><td>Next.js 16 App Router, TypeScript</td></tr>
+      <tr><td class="k">Scheduling engine</td><td>Plans exam slots, builds the conflict graph, schedules with DSatur, allocates halls and seats.</td><td><code>lib/services</code></td></tr>
+      <tr><td class="k">Data and sign-in</td><td>17 tables in PostgreSQL with row-level security; email and password sign-in with roles.</td><td>Supabase, Prisma ORM 7</td></tr>
+      <tr><td class="k">Maps</td><td>Map tiles, walking routes and an optional hand-off to Google Maps.</td><td>Leaflet, OpenStreetMap</td></tr>
+      <tr><td class="k">Hosting and quality</td><td>Hosted on Vercel; GitHub Actions lints, type-checks, tests and builds every change.</td><td>Vercel, GitHub Actions</td></tr>
+    </tbody>
+  </table>
+
+  <div class="keep">
+  <h2 id="s-security"><span class="h-num">6.2</span> Security and access control</h2>
+  <p>Access is checked at three independent points on every request, so each page and each action is only ever available to the people it is meant for.</p>
+  <figure class="fig">
+    <div class="frame"><!--#include file="partials/fig-security.html" --></div>
+    <figcaption>Three checkpoints. The gateway, the portal's server-side layout and every API endpoint each verify the role; the database itself is closed to direct access from browsers.</figcaption>
+  </figure>
+  </div>
+  <div class="cards">
+    <div class="card"><div class="ct"><span class="icon"><svg><use href="#i-lock"/></svg></span>Roles cannot be self-assigned</div><p>Roles live in protected account metadata that only the server can write — nobody can promote themselves.</p></div>
+    <div class="card"><div class="ct"><span class="icon"><svg><use href="#i-user"/></svg></span>Students only see their own data</div><p>Students never send their own ID; the server identifies them from their sign-in, so they can only ever read and change their own records.</p></div>
+    <div class="card"><div class="ct"><span class="icon"><svg><use href="#i-key"/></svg></span>Passwords handled by Supabase</div><p>Sign-in is provided by Supabase Authentication; the application never stores passwords.</p></div>
+    <div class="card"><div class="ct"><span class="icon"><svg><use href="#i-database"/></svg></span>Row-level security on every table</div><p>The public key used by browsers cannot read the tables; only the server, with its private credentials, talks to the database.</p></div>
+    <div class="card"><div class="ct"><span class="icon"><svg><use href="#i-check-circle"/></svg></span>Every input validated</div><p>Forms and API requests are checked with the same Zod rules in the browser and on the server.</p></div>
+    <div class="card"><div class="ct"><span class="icon"><svg><use href="#i-cap"/></svg></span>Clean, unique matric numbers</div><p>Matric numbers are normalised (<code>f/nd/24/3210001</code> → <code>F/ND/24/3210001</code>) and checked for duplicates regardless of letter case.</p></div>
+  </div>
+  <p class="small muted">Admins can correct student records, reset a student's password or remove an account from the Students screen.</p>
+
+  <div class="keep">
+  <h2 id="s-data"><span class="h-num">6.3</span> Data model</h2>
+  <p>Seventeen tables hold the academic structure, the people, course registration, examinations, the campus map and one operational safeguard.</p>
+  <figure class="fig">
+    <div class="frame"><!--#include file="partials/fig-data-model.html" --></div>
+    <figcaption>Data model. The academic tree runs School → Department → Programme → Level → Course. Enrolments link students to courses for a session; timetable entries place courses in time slots; hall assignments and seat assignments record where each exam and each student sits.</figcaption>
+  </figure>
+  </div>
+  <table class="data compact keep">
+    <thead><tr><th style="width:20%">Group</th><th>Tables and what they hold</th></tr></thead>
+    <tbody>
+      <tr><td class="k">Academic structure</td><td><b>School</b>, <b>Department</b>, <b>Programme</b> (ND / HND), <b>Level</b> (ND 1, ND 2, HND 1, HND 2) and <b>Course</b> (code, title, credit units 1–6, First or Second semester).</td></tr>
+      <tr><td class="k">People</td><td><b>Student</b> (matric number, name, email, level, programme and department, linked to a sign-in account) and <b>Admin</b>.</td></tr>
+      <tr><td class="k">Registration</td><td><b>StudentCourse</b> — an enrolment: student + course + session, e.g. "2025/2026 First Semester". <b>Session</b> — the list of academic sessions; each can be Active (visible to students) or Inactive.</td></tr>
+      <tr><td class="k">Exams</td><td><b>TimeSlot</b> (date, start and end), <b>TimetableEntry</b> (course + slot + session, Draft or Published), <b>HallAssignment</b> (which halls an exam uses and how many seats), <b>StudentHallAssignment</b> (each student's hall and seat number), <b>ExamHall</b> (name, code, capacity, latitude/longitude, active).</td></tr>
+      <tr><td class="k">Navigation</td><td><b>NavigationNode</b> and <b>NavigationPath</b> — the campus map graph of points and walkable links.</td></tr>
+      <tr><td class="k">Operations</td><td><b>GenerationLock</b> — makes sure only one timetable generation runs for a session at a time.</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="s-engine"><span class="h-num">6.4</span> The timetable engine</h2>
+  <p>When the officer clicks <b>Generate</b>, the engine turns courses, enrolments and halls into a complete draft timetable in nine steps. The officer chooses three inputs in the Generate dialog: the <b>School</b> ("All Schools" or one school), the <b>Exam Start Date</b> (next Monday by default) and the <b>Exam Period</b> (1–6 weeks, two weeks by default).</p>
+  <figure class="fig">
+    <div class="frame"><!--#include file="partials/fig-pipeline.html" --></div>
+    <figcaption>The nine-step pipeline. Steps 5 and 6 are the heart of the engine: a conflict graph and the DSatur graph-colouring algorithm, in which every time slot is a "colour".</figcaption>
+  </figure>
+
+  <table class="data compact keep">
+    <thead><tr><th style="width:4%">#</th><th style="width:19%">Step</th><th>What happens</th></tr></thead>
+    <tbody>
+      <tr><td class="k">1</td><td class="k">Lock</td><td>The session is locked so two generations cannot run at the same time. A lock left by an interrupted run expires automatically after 10 minutes.</td></tr>
+      <tr><td class="k">2</td><td class="k">Time slots</td><td>Monday to Friday, two papers a day — <b>Morning 08:00–10:00</b> and <b>Afternoon 12:00–14:00</b> — for the whole exam period (2 weeks = 10 weekdays = 20 slots). Only slots inside the exam period are used.</td></tr>
+      <tr><td class="k">3</td><td class="k">Load data</td><td>The courses for the semester (the session name says First or Second), the active halls, every student's enrolments and the number of students at each level.</td></tr>
+      <tr><td class="k">4</td><td class="k">Headcount</td><td>Class size is the number of students enrolled in the course; if nobody has enrolled yet, the number of students registered at that level. Courses with no students are skipped.</td></tr>
+      <tr><td class="k">5</td><td class="k">Clash rule</td><td>Every course is a node; two courses in the same level are joined by an edge, because the same students sit both. No level ever has two papers at once — protecting every student, including those still finishing enrolment.</td></tr>
+      <tr><td class="k">6</td><td class="k">DSatur scheduling</td><td>The engine repeatedly takes the most constrained course — the one whose clashing courses already occupy the most different slots (ties decided by number of clashes, then class size, then a fixed order) — and places it in the <b>earliest slot that holds no clashing course and still has enough free hall space for the whole class</b>. Halls already booked in that slot by another timetable (another school or session) are treated as unavailable.</td></tr>
+      <tr><td class="k">7</td><td class="k">Halls and seats</td><td>Within each slot the largest class chooses first and takes the <b>smallest free hall that fits the whole class</b>; a class too big for any single hall fills the largest free hall and continues in the next. A hall holds one course per slot. Seats are numbered 1, 2, 3… inside each hall, in matric-number order.</td></tr>
+      <tr><td class="k">8</td><td class="k">Save</td><td>Everything is written in one all-or-nothing database transaction, as a <b>Draft</b>.</td></tr>
+      <tr><td class="k">9</td><td class="k">Report</td><td>"N courses scheduled", plus <b>Unresolved</b> (no clash-free slot left — choose a longer exam period) and <b>Hall Overflow</b> (not enough hall space — add halls or capacity) when needed. Generating again replaces the draft.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout tip">
+    <span class="c-title">DSatur in plain English</span>
+    <p>Think of each time slot as a colour and each course as a dot; dots joined by a line must get different colours. DSatur ("degree of saturation") always colours next the dot that is hardest to place — the one already surrounded by the most colours — so difficult courses are placed while there is still room. Because ties are always decided in the same fixed order, the same input always produces the same timetable.</p>
+  </div>
+
+  <h3>Worked example</h3>
+  <p>Three levels — ND 1 with four courses, ND 2 with three and HND 1 with three — and two halls. The conflict graph on the left joins courses of the same level. On the right, each column is a time slot: no column ever holds two courses of the same level, and no column holds more than two exams, because there are only two halls.</p>
+  <figure class="fig">
+    <div class="frame"><!--#include file="partials/fig-slot-grid.html" --></div>
+    <figcaption>Worked example (illustrative): one clash-free arrangement of ten exams for three levels in five slots with two halls. Each course carries the colour of its slot.</figcaption>
+  </figure>
+
+  <h3>Halls and seats</h3>
+  <p>Once a course has its slot, it is given halls and every enrolled student receives a seat. Best fit keeps big halls free for big classes; a class larger than any hall is split across halls automatically.</p>
+  <figure class="fig">
+    <div class="frame"><!--#include file="partials/fig-best-fit.html" --></div>
+    <figcaption>Best fit and seat numbering (sample halls). Larger classes choose first and take the smallest hall that fits; oversized classes fill the largest free hall and continue in the next; seats are numbered from 1 in each hall, in matric-number order.</figcaption>
+  </figure>
+
+  <div class="keep">
+  <h2 id="s-lifecycle"><span class="h-num">6.5</span> Timetable lifecycle</h2>
+  <p>A timetable is always created as a private <b>Draft</b> and becomes visible to students only when the officer publishes it.</p>
+  <figure class="fig">
+    <div class="frame"><!--#include file="partials/fig-lifecycle.html" --></div>
+    <figcaption>Lifecycle. Generate creates a Draft that can be regenerated or adjusted with Edit Slot; Publish All releases it after completeness checks; Reset All starts again for larger changes.</figcaption>
+  </figure>
+  </div>
+  <ul>
+    <li><b>Edit Slot</b> (drafts only) moves one exam to another slot. The system checks for clashes and automatically re-assigns halls and seats in the new slot.</li>
+    <li><b>Publish All</b> releases the timetable to students after checking that every scheduled course has a hall, every enrolled student has a seat, and every course with enrolled students is on the timetable.</li>
+    <li><b>Late registration:</b> a student who enrols after the timetable has been generated is automatically given the next free seat in one of that course's halls, if there is room. Dropping a course before publication frees the seat, and a dropped course can be added again.</li>
+    <li><b>After publishing</b>, students can no longer drop published courses. For bigger changes the officer uses <b>Reset All</b>, then generates and publishes again.</li>
+    <li><b>Seat Assignments</b> lists every student's course, date, hall and seat — ready to share with invigilators.</li>
+  </ul>
+
+  <div class="keep">
+  <h2 id="s-nav"><span class="h-num">6.6</span> Hall navigation</h2>
+  <p>The Navigate tab lists every active exam hall with a small map preview, its code, description and coordinates. Opening a hall — or tapping <b>Navigate to Hall</b> on the timetable — shows a full-screen map with the hall (green pin), the student's live position from the phone's GPS (blue dot) and the walking route, with distance and time such as "850 m · 11 min walk".</p>
+  <figure class="fig">
+    <div class="frame"><!--#include file="partials/fig-navigation.html" --></div>
+    <figcaption>Hall navigation. The phone's position and OpenStreetMap's walking-route service produce a live route on the map; Google Maps is one tap away.</figcaption>
+  </figure>
+  </div>
+  <ul>
+    <li>The route <b>updates as the student moves</b>. If the route service cannot be reached, a straight line and an estimated walking time are shown instead.</li>
+    <li><b>Open in Google Maps</b> hands off to Google Maps walking directions for turn-by-turn guidance.</li>
+    <li>Location is shared only with the student's permission, and browsers provide it over a secure (https) connection.</li>
+    <li>A campus map graph (navigation nodes and paths) with a Dijkstra shortest-path API, <code>/api/navigation/path</code>, is also available for campus-specific routing.</li>
+  </ul>
+</section>
+
+<!-- ============================ 7 ADMIN PORTAL ============================ -->
+<section class="section" id="s-admin">
+  <header class="opener"><div class="num">7</div><div><h1>The Exams Office portal</h1><p class="intro">A guided tour of the screens the exams office uses every semester.</p></div></header>
+
+  <p>The portal opens on the <b>Dashboard</b>. A sidebar lists <b>Dashboard, Schools, Departments, Courses, Halls, Timetable</b> and <b>Students</b>; the header shows the page name and a light/dark switch; the sidebar footer shows the signed-in email, role and <b>Sign out</b>. <b>Ctrl/Cmd + B</b> collapses the sidebar. Every list is a sortable table on computers and a set of cards on phones; deletions always ask for confirmation, and every action confirms success or explains an error.</p>
+
+  <figure class="mock">
+    <!--#include file="partials/mock-admin-dashboard.html" -->
+    <figcaption><span class="cap">Dashboard — greeting, today's date, four headline figures and four quick actions.</span><span class="sample-tag">Illustration — sample data</span></figcaption>
+  </figure>
+
+  <table class="data compact">
+    <thead><tr><th style="width:15%">Screen</th><th>Purpose and main actions</th></tr></thead>
+    <tbody>
+      <tr><td class="k">Dashboard</td><td>Stat cards: <i>Total Students, Total Courses, Active Halls, Active Sessions</i>. Quick actions: <i>Generate Timetable, Import Courses, Manage Halls, View Students</i>.</td></tr>
+      <tr><td class="k">Schools</td><td>Add, edit and delete schools (name and code).</td></tr>
+      <tr><td class="k">Departments</td><td>Filter by school. <i>Add Department</i> also creates its two programmes — "National Diploma (ND)" and "Higher National Diploma (HND)" — and the four levels ND 1, ND 2, HND 1, HND 2. <i>Upload CSV</i> (<code>school_name,name,code</code>) with an import report of imported, skipped and rejected rows.</td></tr>
+      <tr><td class="k">Courses</td><td>Cascading filters School → Department → Programme → Level; columns Code, Title, Level, Credits, Semester; pages of 50. <i>Add Course</i> and <i>Upload CSV</i> (<code>course_code,course_title,department_code,level_name,credit_units,semester</code>; existing codes are updated).</td></tr>
+      <tr><td class="k">Halls</td><td>Name, Code, Capacity, Coordinates, Status. <i>Add Hall</i> with latitude, longitude, description and Active. Inactive halls are not used for new timetables and are hidden from students.</td></tr>
+      <tr><td class="k">Timetable</td><td>The command centre: sessions, Generate, the result report, department tabs, Edit Slot, Publish All, Seat Assignments and Reset All.</td></tr>
+      <tr><td class="k">Students</td><td>Search by name or matric number; filter by school, department and level; 50 per page. <i>View</i> opens a profile with enrolments; actions <i>Edit</i>, <i>Reset password</i>, <i>Delete</i>.</td></tr>
+      <tr><td class="k">Advanced</td><td>Opened by URL when needed: <code>/admin/programmes</code>, <code>/admin/levels</code> and <code>/admin/slots</code>.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>The Timetable screen — the command centre</h3>
+  <p>Choose a session, or create one with <b>+</b> ("YYYY/YYYY First Semester" or "Second Semester"). The <b>Active / Inactive</b> switch controls whether students can see the session; a session can also be deleted. The toolbar offers <b>Generate</b>, <b>Publish All</b>, <b>Seat Assignments</b> and <b>Reset All</b>; department tabs split the timetable for review, with columns Code, Title, Level, Date, Time, Halls and Status (Draft / Published) and an <b>Edit Slot</b> action on drafts.</p>
+  <figure class="mock">
+    <!--#include file="partials/mock-admin-timetable.html" -->
+    <figcaption><span class="cap">Timetable — a draft for the Computer Technology department, ready for review (sidebar collapsed with Ctrl/Cmd + B).</span><span class="sample-tag">Illustration — sample data</span></figcaption>
+  </figure>
+
+  <figure class="mock">
+    <!--#include file="partials/mock-generate-pair.html" -->
+    <figcaption><span class="cap">Generate and the result report.</span><span class="sample-tag">Illustration — sample data</span></figcaption>
+  </figure>
+
+  <p>When a run needs attention, the report names the courses concerned and the remedy — a longer exam period for <b>Unresolved</b> courses, more hall space for <b>Hall Overflow</b>. Once the timetable is published, <b>Seat Assignments</b> lists every student's course, date, hall and seat for invigilators.</p>
+  <figure class="mock">
+    <!--#include file="partials/mock-report-and-seats.html" -->
+    <figcaption><span class="cap">A report with items to act on, and the Seat Assignments list.</span><span class="sample-tag">Illustration — sample data</span></figcaption>
+  </figure>
+</section>
+
+<!-- ============================ 8 STUDENT PORTAL ============================ -->
+<section class="section" id="s-student">
+  <header class="opener"><div class="num">8</div><div><h1>The Student portal</h1><p class="intro">Designed for the phone in every student's pocket — and just as good on a computer.</p></div></header>
+
+  <p>Students sign up at <code>/register</code> with their Full Name, Matric Number, Email, Department → Programme → Level and a password, and are signed in immediately. They then see <b>Select Your Courses</b>: the courses for their level and the current semester, all pre-ticked — they untick any electives they are not taking and tap <b>Complete Enrollment</b> (or <i>Skip for now</i>). On a computer the portal has a top bar (Timetable, Navigate, Courses, Profile, theme switch, Sign out); on a phone the same tabs sit in a bottom tab bar.</p>
+
+  <figure class="mock">
+    <div class="mock-row">
+      <div class="mock-col"><!--#include file="partials/phone-select-courses.html" --><div class="sub-cap"><b>Select Your Courses</b> — right after sign-up, everything pre-ticked.</div></div>
+      <div class="mock-col"><!--#include file="partials/phone-timetable.html" --><div class="sub-cap"><b>Timetable</b> — Up Next with countdown, hall and seat.</div></div>
+    </div>
+    <figcaption><span class="cap">Course selection and the personal timetable.</span><span class="sample-tag">Illustration — sample data</span></figcaption>
+  </figure>
+
+  <h3>Timetable</h3>
+  <p>The Timetable tab has a session selector and a progress bar ("2 / 6", "4 remaining"). The <b>Up Next</b> card shows a countdown (Today, Tomorrow or In N days), the seat number, course code and title, date, time, and the hall's name and code, with a <b>Navigate to Hall</b> button. Below are the <b>Upcoming</b> exams and a collapsible <b>Completed</b> list — an exam moves there once it has finished — ending with "All exams completed". Only published timetables appear. If a hall is shown before a seat number has been assigned, the student sees "Seat number not yet assigned — please contact the exams office".</p>
+
+  <figure class="mock">
+    <div class="mock-row">
+      <div class="mock-col"><!--#include file="partials/phone-map.html" --><div class="sub-cap"><b>Navigate</b> — live walking route, distance and time.</div></div>
+      <div class="mock-col"><!--#include file="partials/phone-courses.html" --><div class="sub-cap"><b>Courses</b> — enrol and drop; locked once published.</div></div>
+    </div>
+    <figcaption><span class="cap">Directions to the hall and course management.</span><span class="sample-tag">Illustration — sample data</span></figcaption>
+  </figure>
+
+  <div class="two-col">
+    <div>
+      <h3 style="margin-top:6px">Navigate</h3>
+      <p>A directory of every active hall, and a full-screen map for each: the hall, the student's position and the walking route, with <b>Open in Google Maps</b> for turn-by-turn directions.</p>
+    </div>
+    <div>
+      <h3 style="margin-top:6px">Courses and Profile</h3>
+      <p><b>Courses</b> lists the level's courses for the selected session's semester with <i>Enroll</i> and <i>Drop</i> (with confirmation); published courses show <i>Locked</i>, alongside the enrolled count and total credit units. The chosen session is remembered between Timetable and Courses. <b>Profile</b> shows the student's details, an emoji avatar, the light/dark switch and Sign out.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 9 RUNNING ============================ -->
+<section class="section" id="s-running">
+  <header class="opener"><div class="num">9</div><div><h1>Running an exam period</h1><p class="intro">The exams officer's checklist, from set-up to the last paper.</p></div></header>
+
+  <ol class="steps">
+    <li><b>Check the academic structure</b>Schools, departments and courses are in place. Adding a department creates its ND and HND programmes and four levels automatically; courses can be imported in bulk from CSV.</li>
+    <li><b>Confirm the halls</b>Every hall in use has its real seating capacity and GPS coordinates and is marked Active. Halls no longer used are set to Inactive.</li>
+    <li><b>Prepare the session</b>On the Timetable screen, create the session with <b>+</b> (e.g. "2025/2026 First Semester") and make it <b>Active</b>, so students can see it.</li>
+    <li><b>Open student registration</b>Students sign up at <code>/register</code> and choose their courses. The Students screen shows who has registered.</li>
+    <li><b>Generate</b>When registration closes, click <b>Generate</b> and choose the School ("All Schools" or one), the Exam Start Date and the Exam Period.</li>
+    <li><b>Read the report</b>"N courses scheduled". If <b>Unresolved</b> courses are listed, choose a longer exam period; if <b>Hall Overflow</b> is listed, add halls or capacity — then generate again.</li>
+    <li><b>Review department by department</b>Use the department tabs to check dates, times and halls. <b>Edit Slot</b> moves a single exam; clashes are checked and halls and seats re-assigned automatically.</li>
+    <li><b>Publish All</b>The system confirms that every course has a hall, every enrolled student has a seat and every course with students is scheduled — then students can see their timetable.</li>
+    <li><b>Share Seat Assignments</b>The list of every student's course, date, hall and seat is ready for invigilators.</li>
+    <li><b>During the exam period</b>Late registrations receive the next free seat automatically when there is room. For bigger changes, use <b>Reset All</b>, then generate and publish again.</li>
+  </ol>
+
+  <div class="callout tip">
+    <span class="c-title">Tip</span>
+    <p>Keep only the current session Active, generate after registration has closed, and look through every department tab before publishing. The Exams Office Guide covers each step in detail.</p>
+  </div>
+</section>
+
+<!-- ============================ 10 JOURNEY ============================ -->
+<section class="section" id="s-journey">
+  <header class="opener"><div class="num">10</div><div><h1>The student journey</h1><p class="intro">From creating an account to finding the right seat in the right hall.</p></div></header>
+
+  <figure class="fig">
+    <div class="frame tint">
+      <svg class="dg" viewBox="0 0 680 128" role="img" aria-label="Student journey in six steps">
+        <defs><marker id="sj-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#006633"/></marker></defs>
+        <g style="font-size:11.3px" text-anchor="middle">
+          <circle cx="50" cy="40" r="28" fill="#006633"/><text x="50" y="47" class="tw" style="font-size:20px;font-weight:800">1</text><text x="50" y="92" class="tb" style="font-size:11.6px">Sign up</text><text x="50" y="108" class="ts">matric number</text>
+          <circle cx="166" cy="40" r="28" fill="#006633"/><text x="166" y="47" class="tw" style="font-size:20px;font-weight:800">2</text><text x="166" y="92" class="tb" style="font-size:11.6px">Choose courses</text><text x="166" y="108" class="ts">pre-ticked list</text>
+          <circle cx="282" cy="40" r="28" fill="#1f8a4c"/><text x="282" y="47" class="tw" style="font-size:20px;font-weight:800">3</text><text x="282" y="92" class="tb" style="font-size:11.6px">Timetable appears</text><text x="282" y="108" class="ts">once published</text>
+          <circle cx="398" cy="40" r="28" fill="#1f8a4c"/><text x="398" y="47" class="tw" style="font-size:20px;font-weight:800">4</text><text x="398" y="92" class="tb" style="font-size:11.6px">Check Up Next</text><text x="398" y="108" class="ts">date, hall, seat</text>
+          <circle cx="514" cy="40" r="28" fill="#004d26"/><text x="514" y="47" class="tw" style="font-size:20px;font-weight:800">5</text><text x="514" y="92" class="tb" style="font-size:11.6px">Navigate to Hall</text><text x="514" y="108" class="ts">live walking route</text>
+          <circle cx="630" cy="40" r="28" fill="#f2b705"/><text x="630" y="47" style="font-size:20px;font-weight:800;fill:#2b2200">6</text><text x="630" y="92" class="tb" style="font-size:11.6px">Find the seat</text><text x="630" y="108" class="ts">hall + seat number</text>
+        </g>
+        <g class="ln-g"><line x1="80" y1="40" x2="134" y2="40" marker-end="url(#sj-ah)"/><line x1="196" y1="40" x2="250" y2="40" marker-end="url(#sj-ah)"/><line x1="312" y1="40" x2="366" y2="40" marker-end="url(#sj-ah)"/><line x1="428" y1="40" x2="482" y2="40" marker-end="url(#sj-ah)"/><line x1="544" y1="40" x2="598" y2="40" marker-end="url(#sj-ah)"/></g>
+      </svg>
+    </div>
+    <figcaption>The student journey at a glance.</figcaption>
+  </figure>
+
+  <ol class="steps">
+    <li><b>Create an account</b>At <code>/register</code>: Full Name, Matric Number, Email, Department → Programme → Level, Password and Confirm Password, then <i>Create account</i>. The student is signed in straight away.</li>
+    <li><b>Select Your Courses</b>The courses for their level and the current semester appear, all ticked. They untick electives they are not taking and tap <i>Complete Enrollment</i>.</li>
+    <li><b>Wait for publication</b>The timetable appears on the Timetable tab as soon as the exams office publishes it — nothing to check on a noticeboard.</li>
+    <li><b>Check what is next</b>The Up Next card shows the countdown, date, time, hall and seat; Upcoming lists the rest; finished papers move to Completed.</li>
+    <li><b>Navigate to Hall</b>On exam day, tap the button, allow location access, and follow the live walking route — or open it in Google Maps.</li>
+    <li><b>Take the right seat</b>Seat numbers start at 1 in each hall, so the student reads hall and seat together.</li>
+    <li><b>Keep courses up to date</b>On the Courses tab students enrol in or drop courses. Once a course's timetable is published it shows <i>Locked</i> and stays on their list; a late enrolment still receives a seat when there is room.</li>
+  </ol>
+
+  <div class="callout note">
+    <span class="c-title">Help when it is needed</span>
+    <p>Forgotten passwords and corrections to a student's department or level are handled by the exams office, which can update records and reset passwords. The Student Guide answers the most common questions.</p>
+  </div>
+</section>
+
+<!-- ============================ 11 TECHNOLOGY ============================ -->
+<section class="section" id="s-tech">
+  <header class="opener"><div class="num">11</div><div><h1>Technology</h1><p class="intro">A modern, widely used and well-supported stack — chosen for reliability, low cost and ease of maintenance.</p></div></header>
+
+  <table class="data">
+    <thead><tr><th style="width:19%">Area</th><th style="width:31%">Technology</th><th>Why this choice</th></tr></thead>
+    <tbody>
+      <tr><td class="k">Web framework</td><td>Next.js 16 (App Router) + React 19</td><td>Pages and API in one codebase; fast server-rendered screens; first-class hosting on Vercel.</td></tr>
+      <tr><td class="k">Language</td><td>TypeScript (strict mode)</td><td>Catches mistakes before they reach users and makes the code self-documenting.</td></tr>
+      <tr><td class="k">Database</td><td>PostgreSQL on Supabase</td><td>A proven relational database, fully managed, with row-level security.</td></tr>
+      <tr><td class="k">Database access</td><td>Prisma ORM 7</td><td>Type-safe queries, versioned migrations and one schema file as the source of truth.</td></tr>
+      <tr><td class="k">Sign-in</td><td>Supabase Authentication</td><td>Email and password sign-in with roles; passwords are never stored by the application.</td></tr>
+      <tr><td class="k">Data fetching</td><td>TanStack Query</td><td>Caching and automatic refresh keep screens fast and up to date.</td></tr>
+      <tr><td class="k">Admin tables</td><td>TanStack Table</td><td>Sortable, paginated tables for long lists of courses and students.</td></tr>
+      <tr><td class="k">Forms and validation</td><td>React Hook Form + Zod</td><td>The same validation rules run in the browser and on the server.</td></tr>
+      <tr><td class="k">Interface</td><td>Tailwind CSS 4 + shadcn/ui on Base UI</td><td>Consistent, accessible components with light and dark themes.</td></tr>
+      <tr><td class="k">Maps</td><td>Leaflet + OpenStreetMap</td><td>Open map data with no licence fees.</td></tr>
+      <tr><td class="k">Walking routes</td><td>OpenStreetMap routing service ("foot" profile)</td><td>Real walking paths with distance and time.</td></tr>
+      <tr><td class="k">Directions hand-off</td><td>Google Maps</td><td>Familiar turn-by-turn directions, one tap away.</td></tr>
+      <tr><td class="k">Automated tests</td><td>Node's built-in test runner via <code>tsx</code> (<code>npm test</code>)</td><td>Fast unit tests of the scheduling rules, with no extra test framework.</td></tr>
+      <tr><td class="k">Continuous integration</td><td>GitHub Actions</td><td>Linting, type-checking, tests and a production build on every change.</td></tr>
+      <tr><td class="k">Hosting</td><td>Vercel</td><td>Automatic HTTPS, global delivery and no servers to maintain.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout tip">
+    <span class="c-title">Open standards, low running cost</span>
+    <p>The map data comes from OpenStreetMap, the database is standard PostgreSQL, and the whole application is written in TypeScript — skills that are widely taught, including in the college's own computing programmes.</p>
+  </div>
+</section>
+
+<!-- ============================ 12 DEPLOYMENT ============================ -->
+<section class="section" id="s-deploy">
+  <header class="opener"><div class="num">12</div><div><h1>Deployment and operations</h1><p class="intro">How the system is hosted, configured, checked and kept running.</p></div></header>
+
+  <div class="cards three">
+    <div class="card"><div class="ct"><span class="icon"><svg><use href="#i-globe"/></svg></span>Hosting</div><p>The application runs on <b>Vercel</b>; the production build runs <code>prisma generate</code> and <code>next build</code>. Live pilot: <code>smart-exam-timetable.vercel.app</code>.</p></div>
+    <div class="card"><div class="ct"><span class="icon"><svg><use href="#i-database"/></svg></span>Database</div><p>A <b>Supabase</b> project provides PostgreSQL and sign-in. Database migrations are applied with <code>npm run db:migrate:prod</code>.</p></div>
+    <div class="card"><div class="ct"><span class="icon"><svg><use href="#i-shield"/></svg></span>Quality checks</div><p><b>GitHub Actions</b> runs linting, type-checking, the automated unit tests and a production build on every change.</p></div>
+  </div>
+
+  <h3>Environment settings (<code>.env.local</code>)</h3>
+  <table class="data compact">
+    <thead><tr><th style="width:38%">Setting</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">NEXT_PUBLIC_SUPABASE_URL</td><td>Address of the Supabase project.</td></tr>
+      <tr><td class="mono">NEXT_PUBLIC_SUPABASE_ANON_KEY</td><td>Public key used by browsers for sign-in; row-level security keeps the tables private.</td></tr>
+      <tr><td class="mono">SUPABASE_SERVICE_ROLE_KEY</td><td>Server-only key for managing sign-in accounts; never sent to browsers.</td></tr>
+      <tr><td class="mono">DATABASE_URL</td><td>Database connection through Supabase's transaction pooler (port 6543), used by the running app.</td></tr>
+      <tr><td class="mono">DIRECT_URL</td><td>Direct / session connection (port 5432), used for migrations.</td></tr>
+      <tr><td class="mono">ADMIN_SETUP_SECRET</td><td>Secret for the one-time first-admin setup.</td></tr>
+      <tr><td class="mono">SEED_ADMIN_EMAIL, SEED_ADMIN_PASSWORD</td><td>Optional: when set, the seed script creates the first super-admin sign-in.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="two-col">
+    <div>
+      <h3>Getting started</h3>
+      <p class="small">Requirements: Node.js 20.19+, 22.12+ or 24+, and a Supabase project.</p>
+      <table class="cmds">
+        <tr><td>npm ci</td><td>install dependencies</td></tr>
+        <tr><td>npm run db:generate</td><td>generate the database client</td></tr>
+        <tr><td>npm run db:migrate:prod</td><td>apply migrations</td></tr>
+        <tr><td>npm run db:seed</td><td>load reference + demo data</td></tr>
+        <tr><td>npm run dev</td><td>run at localhost:3000</td></tr>
+        <tr><td>npm test</td><td>automated unit tests</td></tr>
+        <tr><td>npm run lint</td><td>code style checks</td></tr>
+        <tr><td>npm run build</td><td>production build</td></tr>
+        <tr><td>npm run db:studio</td><td>browse the database</td></tr>
+      </table>
+      <p class="small muted" style="margin-top:6px">Unit tests in <code>tests/</code> cover the exam-slot planner, conflict graph and scheduler, hall packing, matric numbers, session names and CSV import.</p>
+    </div>
+    <div>
+      <h3>The first admin</h3>
+      <p class="small">Either set <code>SEED_ADMIN_PASSWORD</code> before seeding — this creates <code>admin@yabatech-examportal.com</code> (or <code>SEED_ADMIN_EMAIL</code>) as super admin — or call <code>POST /api/admin/setup</code> with <code>ADMIN_SETUP_SECRET</code>, which works only until the first admin exists.</p>
+      <h3>Pre-loaded data</h3>
+      <ul class="small">
+        <li>8 schools: SOE, SADP, SOS, SOT, SES, SLS, SMBS, STE.</li>
+        <li>47 departments, each with ND and HND programmes and four levels (94 programmes, 188 levels).</li>
+        <li>About 1,000 course definitions.</li>
+        <li>2 verified exam halls — MPHA (200 seats) and BCLH (80); an optional script, <code>prisma/seed-halls.sql</code>, adds 11 more buildings with 2,520 seats.</li>
+        <li>A small campus map graph.</li>
+        <li>50 demonstration students in Computer Technology (15 ND 1, 15 ND 2, 10 HND 1, 10 HND 2) enrolled for "2024/2025 First Semester"; sessions "2024/2025 First Semester" and "2024/2025 Second Semester".</li>
+      </ul>
+    </div>
+  </div>
+
+
+</section>
+
+<!-- ============================ 13 AHEAD ============================ -->
+<section class="section" id="s-ahead">
+  <header class="opener"><div class="num">13</div><div><h1>Looking ahead</h1><p class="intro">Opportunities to build on a successful pilot.</p></div></header>
+
+  <div class="cards">
+    <div class="card"><div class="ct"><span class="icon"><svg><use href="#i-school"/></svg></span>More departments and schools</div><p>The structure for all 8 schools and 47 departments is already loaded; rolling out is a matter of halls, sessions and student registration.</p></div>
+    <div class="card"><div class="ct"><span class="icon"><svg><use href="#i-bell"/></svg></span>SMS and e-mail reminders</div><p>Reminders the day before each paper, with the hall and seat number.</p></div>
+    <div class="card"><div class="ct"><span class="icon"><svg><use href="#i-printer"/></svg></span>Printable seat plans</div><p>Seat plans and attendance lists for invigilators, generated from the seat assignments.</p></div>
+    <div class="card"><div class="ct"><span class="icon"><svg><use href="#i-link"/></svg></span>Student records integration</div><p>Connecting to the college's student records to pre-fill registrations and course lists.</p></div>
+    <div class="card"><div class="ct"><span class="icon"><svg><use href="#i-route"/></svg></span>Richer campus routing</div><p>Using the campus map graph for routes along internal campus paths.</p></div>
+    <div class="card"><div class="ct"><span class="icon"><svg><use href="#i-chart"/></svg></span>Hall-usage analytics</div><p>Insight into hall occupancy and exam-period load to plan capacity.</p></div>
+  </div>
+
+  <div class="callout tip" style="margin-top:18px">
+    <span class="c-title">In summary</span>
+    <p>YCT Exam Portal replaces days of manual timetabling with a reliable, repeatable process: clash-free schedules, hall capacity respected, a seat for every student, and live directions to the hall. It is running today for the Department of Computer Science and is ready to grow with the college.</p>
+  </div>
+  <div class="endmark"><img src="assets/yabatech-crest.png" alt="">Yaba College of Technology · YCT Exam Portal</div>
+</section>
+
+<!-- ============================ APPENDIX A ============================ -->
+<section class="section" id="s-appA">
+  <header class="opener"><div class="num alpha">A</div><div><h1>Appendix A — Codebase guide</h1><p class="intro">Where everything lives in the repository, with one line per file.</p></div></header>
+
+  <p class="small">Repository: <code>github.com/m1r4g3-code/yct-exam-nav-system</code> · package name <code>smart-exam-timetable</code>. Folders in brackets, such as <code>(admin)</code>, are Next.js route groups: they organise files without adding anything to the web address.</p>
+
+  <figure class="fig">
+    <div class="frame tint">
+<div class="tree">
+<div class="tr"><span class="tp"><span class="d">yct-exam-nav-system/</span></span><span class="tc"></span></div>
+<div class="tr"><span class="tp">├─ <span class="d">app/</span></span><span class="tc">pages, layouts and the REST API (Next.js App Router)</span></div>
+<div class="tr"><span class="tp">│  ├─ <span class="d">(auth)/</span></span><span class="tc">sign-in, sign-up and course selection</span></div>
+<div class="tr"><span class="tp">│  ├─ <span class="d">(student)/</span></span><span class="tc">Student portal: Timetable, Navigate, Courses, Profile</span></div>
+<div class="tr"><span class="tp">│  ├─ <span class="d">(admin)/</span></span><span class="tc">Exams Office portal under /admin</span></div>
+<div class="tr"><span class="tp">│  └─ <span class="d">api/</span></span><span class="tc">REST endpoints — one route.ts per path (Appendix B)</span></div>
+<div class="tr"><span class="tp">├─ <span class="d">components/</span></span><span class="tc">admin building blocks, map, theme and the UI kit</span></div>
+<div class="tr"><span class="tp">├─ <span class="d">hooks/</span></span><span class="tc">small React hooks</span></div>
+<div class="tr"><span class="tp">├─ <span class="d">lib/</span></span><span class="tc">auth, database and Supabase clients, shared helpers</span></div>
+<div class="tr"><span class="tp">│  └─ <span class="d">services/</span></span><span class="tc">the scheduling engine and campus routing</span></div>
+<div class="tr"><span class="tp">├─ <span class="d">prisma/</span></span><span class="tc">schema, migrations and seed data</span></div>
+<div class="tr"><span class="tp">├─ <span class="d">tests/</span></span><span class="tc">automated unit tests (npm test)</span></div>
+<div class="tr"><span class="tp">├─ <span class="d">scripts/</span></span><span class="tc">database maintenance helpers</span></div>
+<div class="tr"><span class="tp">├─ <span class="d">public/</span></span><span class="tc">crest and logo</span></div>
+<div class="tr"><span class="tp">├─ <span class="d">docs/</span></span><span class="tc">screenshots and these presentation documents</span></div>
+<div class="tr"><span class="tp">├─ proxy.ts</span><span class="tc">access gateway — runs before every request</span></div>
+<div class="tr"><span class="tp">└─ package.json</span><span class="tc">npm scripts and dependencies</span></div>
+</div>
+    </div>
+    <figcaption>Repository map.</figcaption>
+  </figure>
+
+  <h3>Where to find things</h3>
+  <table class="data compact">
+    <thead><tr><th style="width:40%">To change…</th><th>Look in</th></tr></thead>
+    <tbody>
+      <tr><td>A Student portal screen</td><td class="path">app/(student)/…</td></tr>
+      <tr><td>An Exams Office screen</td><td class="path">app/(admin)/admin/…</td></tr>
+      <tr><td>Sign-in, sign-up or course selection</td><td class="path">app/(auth)/…</td></tr>
+      <tr><td>An API endpoint</td><td class="path">app/api/&lt;path&gt;/route.ts</td></tr>
+      <tr><td>How the timetable is generated</td><td class="path">lib/services/ (timetable-generator, graph-builder, exam-slots, hall-packing, hall-assigner)</td></tr>
+      <tr><td>Who may access what</td><td class="path">proxy.ts, lib/auth.ts, app/(admin)/layout.tsx, app/(student)/layout.tsx</td></tr>
+      <tr><td>The database structure</td><td class="path">prisma/schema.prisma + a new folder in prisma/migrations/</td></tr>
+      <tr><td>Reference and demonstration data</td><td class="path">prisma/seed.ts</td></tr>
+      <tr><td>Colours, fonts and themes</td><td class="path">app/globals.css</td></tr>
+      <tr><td>Shared building blocks</td><td class="path">components/ui/, components/admin/</td></tr>
+      <tr><td>The map</td><td class="path">components/map/</td></tr>
+      <tr><td>Tests and continuous integration</td><td class="path">tests/, .github/workflows/ci.yml</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Root and configuration</h3>
+  <table class="data compact">
+    <thead><tr><th style="width:41%">File</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td class="path">proxy.ts</td><td>The access gateway: runs before every page and API request, refreshes the sign-in session and admits, redirects or refuses by role.</td></tr>
+      <tr><td class="path">package.json</td><td>App name, npm scripts (dev, build, test, lint, database commands) and dependencies.</td></tr>
+      <tr><td class="path">next.config.ts</td><td>Next.js configuration.</td></tr>
+      <tr><td class="path">tsconfig.json</td><td>TypeScript compiler settings (strict mode).</td></tr>
+      <tr><td class="path">eslint.config.mjs</td><td>Linting rules (ESLint 9 flat configuration).</td></tr>
+      <tr><td class="path">postcss.config.mjs</td><td>Connects Tailwind CSS 4 to the CSS build.</td></tr>
+      <tr><td class="path">components.json</td><td>Settings for the shadcn/ui component generator.</td></tr>
+      <tr><td class="path">prisma.config.ts</td><td>Prisma 7 configuration: schema and migrations location and the connection used by migrations.</td></tr>
+      <tr><td class="path">next-env.d.ts</td><td>Generated TypeScript declarations for Next.js.</td></tr>
+      <tr><td class="path">.github/workflows/ci.yml</td><td>Continuous integration: lint, type-check, unit tests and production build on every push and pull request.</td></tr>
+      <tr><td class="path">.gitignore · .gitattributes</td><td>Keep secrets and build output out of version control; normalise line endings.</td></tr>
+      <tr><td class="path">README.md</td><td>Project front page: purpose, screenshots, architecture, setup and deployment.</td></tr>
+      <tr><td class="path">AGENTS.md · CLAUDE.md</td><td>Guidance for AI coding assistants working on the repository.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>app/ — application shell and authentication pages</h3>
+  <table class="data compact">
+    <thead><tr><th style="width:41%">File</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td class="path">app/layout.tsx</td><td>Root layout: fonts, global styles, page title and the shared providers (data cache, theme, notifications).</td></tr>
+      <tr><td class="path">app/page.tsx</td><td>The site address <code>/</code>; sends visitors to sign-in.</td></tr>
+      <tr><td class="path">app/globals.css</td><td>Site-wide theme: Tailwind CSS 4, light and dark colour tokens and the Yabatech brand green.</td></tr>
+      <tr><td class="path">app/favicon.ico</td><td>Browser tab icon.</td></tr>
+      <tr><td class="path">app/(auth)/layout.tsx</td><td>Centred card layout shared by sign-in, sign-up and course selection.</td></tr>
+      <tr><td class="path">app/(auth)/login/page.tsx</td><td>Single sign-in page for everyone; sends each user to their portal (or the page they asked for).</td></tr>
+      <tr><td class="path">app/(auth)/register/page.tsx</td><td>Student sign-up: identity, matric number and Department → Programme → Level; signs the student in.</td></tr>
+      <tr><td class="path">app/(auth)/register/courses/page.tsx</td><td>Select Your Courses: the level's courses pre-ticked; Complete Enrollment or Skip for now.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>app/(student)/ — Student portal</h3>
+  <table class="data compact">
+    <thead><tr><th style="width:41%">File</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td class="path">app/(student)/layout.tsx</td><td>Server-side check that the visitor is a signed-in student; wraps pages in the student shell.</td></tr>
+      <tr><td class="path">app/(student)/student-shell.tsx</td><td>Top bar on computers and bottom tab bar on phones, with theme switch and sign-out.</td></tr>
+      <tr><td class="path">app/(student)/dashboard/page.tsx</td><td>Exam Timetable: session selector, progress, Up Next with countdown, Upcoming and Completed.</td></tr>
+      <tr><td class="path">app/(student)/courses/page.tsx</td><td>My Courses: enrol, drop or see Locked; enrolled count and total credit units.</td></tr>
+      <tr><td class="path">app/(student)/navigate/page.tsx</td><td>Directory of active exam halls with map previews and coordinates.</td></tr>
+      <tr><td class="path">app/(student)/navigate/[hallId]/page.tsx</td><td>Full-screen map to one hall: live position, walking route, distance and time, Google Maps hand-off.</td></tr>
+      <tr><td class="path">app/(student)/profile/page.tsx</td><td>Student details, emoji avatar, theme switch and sign-out.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>app/(admin)/ — Exams Office portal</h3>
+  <table class="data compact">
+    <thead><tr><th style="width:41%">File</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td class="path">app/(admin)/layout.tsx</td><td>Server-side check for the admin or super-admin role; wraps pages in the admin shell.</td></tr>
+      <tr><td class="path">app/(admin)/admin-shell.tsx</td><td>Sidebar with crest and menu, header with page name and theme switch, footer with account and Sign out.</td></tr>
+      <tr><td class="path">app/(admin)/admin/dashboard/page.tsx</td><td>Greeting, date, four headline figures and quick actions.</td></tr>
+      <tr><td class="path">app/(admin)/admin/schools/page.tsx</td><td>Add, edit and delete schools.</td></tr>
+      <tr><td class="path">app/(admin)/admin/departments/page.tsx</td><td>Departments by school; add (with ND/HND and four levels), edit, delete and CSV import with report.</td></tr>
+      <tr><td class="path">app/(admin)/admin/programmes/page.tsx</td><td>Advanced page for viewing and editing programmes.</td></tr>
+      <tr><td class="path">app/(admin)/admin/levels/page.tsx</td><td>Advanced page for viewing and editing levels.</td></tr>
+      <tr><td class="path">app/(admin)/admin/courses/page.tsx</td><td>Course catalogue with cascading filters, pages of 50, add/edit/delete and CSV import.</td></tr>
+      <tr><td class="path">app/(admin)/admin/halls/page.tsx</td><td>Exam halls: capacity, coordinates, description and Active status.</td></tr>
+      <tr><td class="path">app/(admin)/admin/slots/page.tsx</td><td>Advanced page for viewing and adjusting exam time slots.</td></tr>
+      <tr><td class="path">app/(admin)/admin/timetable/page.tsx</td><td>The command centre: sessions, Generate, report, department tabs, Edit Slot, Publish All, Seat Assignments, Reset All.</td></tr>
+      <tr><td class="path">app/(admin)/admin/students/page.tsx</td><td>Student directory: search, filters, paging, Edit, Reset password and Delete.</td></tr>
+      <tr><td class="path">app/(admin)/admin/students/[id]/page.tsx</td><td>One student's profile and enrolments, with Edit, Reset password and Delete.</td></tr>
+      <tr><td class="path">app/(admin)/admin/students/student-dialogs.tsx</td><td>The Edit, Reset password and Delete dialogs shared by the student list and profile.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>app/api/ — REST API</h3>
+  <p class="small">Each endpoint is a <code>route.ts</code> file whose folder matches the web address — for example <code>/api/timetable/generate</code> lives in <code>app/api/timetable/generate/route.ts</code>. Appendix B lists every endpoint with its methods, who may call it and its purpose.</p>
+
+  <h3>components/</h3>
+  <table class="data compact">
+    <thead><tr><th style="width:41%">File</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td class="path">components/providers.tsx</td><td>App-wide services: data cache (TanStack Query), light/dark theme and toast notifications.</td></tr>
+      <tr><td class="path">components/theme-toggle.tsx</td><td>The sun/moon button that switches between light and dark mode.</td></tr>
+      <tr><td class="path">components/map/DynamicMap.tsx</td><td>Loads the map only in the browser, keeping other pages light.</td></tr>
+      <tr><td class="path">components/map/MapView.tsx</td><td>The interactive Leaflet map: hall pin, student position and route line, zoomed to fit.</td></tr>
+      <tr><td class="path">components/admin/confirm-dialog.tsx</td><td>Standard "Are you sure?" dialog before important actions.</td></tr>
+      <tr><td class="path">components/admin/data-table.tsx</td><td>Reusable sortable table used by the admin lists.</td></tr>
+      <tr><td class="path">components/admin/mobile-card-list.tsx</td><td>Phone-friendly card version of the admin tables.</td></tr>
+      <tr><td class="path">components/admin/empty-state.tsx</td><td>Friendly placeholder for empty lists, with an optional next-step button.</td></tr>
+      <tr><td class="path">components/admin/error-state.tsx</td><td>The "Couldn't load this list" panel with a <i>Try again</i> button, used on admin lists.</td></tr>
+      <tr><td class="path">components/admin/import-report-dialog.tsx</td><td>Shows the result of a CSV import: imported, updated and skipped counts, and every rejected row with its reason.</td></tr>
+      <tr><td class="path">components/admin/page-header.tsx</td><td>Title, subtitle and main action at the top of admin list pages.</td></tr>
+      <tr><td class="path">components/admin/status-badge.tsx</td><td>The Draft / Published label on timetable rows.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>components/ui/ — UI kit (shadcn/ui on Base UI)</h3>
+  <table class="data compact">
+    <thead><tr><th style="width:41%">File</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td class="path">badge.tsx</td><td>Small status chips (Draft, Published, Active).</td></tr>
+      <tr><td class="path">button.tsx</td><td>The standard button in all its variants.</td></tr>
+      <tr><td class="path">card.tsx</td><td>Bordered content cards with header, content and footer areas.</td></tr>
+      <tr><td class="path">dialog.tsx</td><td>Modal windows for forms, confirmations and reports.</td></tr>
+      <tr><td class="path">dropdown-menu.tsx</td><td>Row action menus (Edit, Delete, Reset password).</td></tr>
+      <tr><td class="path">input.tsx · label.tsx</td><td>Text fields and their labels.</td></tr>
+      <tr><td class="path">select.tsx</td><td>Drop-down pickers for sessions, schools, departments, levels and slots.</td></tr>
+      <tr><td class="path">separator.tsx</td><td>Thin divider lines.</td></tr>
+      <tr><td class="path">sheet.tsx</td><td>Slide-in panel used for the admin menu on phones.</td></tr>
+      <tr><td class="path">sidebar.tsx</td><td>The collapsible admin sidebar (icon rail on computers, drawer on phones).</td></tr>
+      <tr><td class="path">skeleton.tsx</td><td>Placeholder blocks shown while data loads.</td></tr>
+      <tr><td class="path">sonner.tsx</td><td>Toast notifications matched to the app's theme.</td></tr>
+      <tr><td class="path">table.tsx</td><td>Styled table elements used by every list.</td></tr>
+      <tr><td class="path">tabs.tsx</td><td>Tab strips, such as the department tabs on the Timetable screen.</td></tr>
+      <tr><td class="path">tooltip.tsx</td><td>Hover labels, such as page names on the collapsed sidebar.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>hooks/</h3>
+  <table class="data compact">
+    <thead><tr><th style="width:41%">File</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td class="path">hooks/use-selected-session.ts</td><td>Remembers the student's chosen session across the Timetable and Courses tabs.</td></tr>
+      <tr><td class="path">hooks/use-user.ts</td><td>The signed-in user and role in the browser, and sign-out.</td></tr>
+      <tr><td class="path">hooks/use-mobile.ts</td><td>Tells components when the screen is phone-sized.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>lib/ — shared server and client helpers</h3>
+  <table class="data compact">
+    <thead><tr><th style="width:41%">File</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td class="path">lib/auth.ts</td><td>Identifies the caller of an API request and checks their role (admin, super admin or student).</td></tr>
+      <tr><td class="path">lib/api-response.ts</td><td>One consistent response shape for every API answer: success, data, message and errors.</td></tr>
+      <tr><td class="path">lib/with-handler.ts</td><td>Wraps API handlers so unexpected errors become clear, consistent JSON responses.</td></tr>
+      <tr><td class="path">lib/fetcher.ts</td><td>Shared helper pages use to call the API: clear error messages, and a return to sign-in when a session has expired.</td></tr>
+      <tr><td class="path">lib/matric.ts</td><td>Matric-number normalisation and validation.</td></tr>
+      <tr><td class="path">lib/sessions.ts</td><td>Helpers for session names, such as which semester a session is.</td></tr>
+      <tr><td class="path">lib/csv.ts</td><td>Reads CSV files for the import screens (quoted fields, commas, line breaks).</td></tr>
+      <tr><td class="path">lib/departments.ts</td><td>Creates a department together with its ND and HND programmes and four levels; used by the form and the CSV import.</td></tr>
+      <tr><td class="path">lib/prisma.ts</td><td>The single shared database client.</td></tr>
+      <tr><td class="path">lib/env.ts</td><td>Checks that the required environment settings are present.</td></tr>
+      <tr><td class="path">lib/query-keys.ts</td><td>Central names for cached data, so screens share and refresh it consistently.</td></tr>
+      <tr><td class="path">lib/route-types.ts</td><td>Type helper for API routes with parameters such as <code>[id]</code>.</td></tr>
+      <tr><td class="path">lib/utils.ts</td><td>Small shared utilities, such as combining CSS class names.</td></tr>
+      <tr><td class="path">lib/supabase/client.ts</td><td>Supabase client for the browser (sign-in and sign-out).</td></tr>
+      <tr><td class="path">lib/supabase/server.ts</td><td>Supabase client for server code: reads the signed-in user from the request.</td></tr>
+      <tr><td class="path">lib/supabase/admin.ts</td><td>Server-only administrative client for creating and managing sign-in accounts.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>lib/services/ — the scheduling engine</h3>
+  <table class="data compact">
+    <thead><tr><th style="width:41%">File</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td class="path">lib/services/exam-slots.ts</td><td>Plans the exam slots for an exam period: weekdays, morning and afternoon.</td></tr>
+      <tr><td class="path">lib/services/slot-manager.ts</td><td>Saves the planned slots for an exam period, reusing existing slots and keeping any added by hand.</td></tr>
+      <tr><td class="path">lib/services/graph-builder.ts</td><td>Builds the conflict graph: courses of the same level cannot share a slot.</td></tr>
+      <tr><td class="path">lib/services/timetable-generator.ts</td><td>The DSatur scheduler: places each course in the earliest clash-free slot with enough hall space.</td></tr>
+      <tr><td class="path">lib/services/hall-packing.ts</td><td>Chooses halls for a class: best fit, one course per hall per slot.</td></tr>
+      <tr><td class="path">lib/services/hall-assigner.ts</td><td>Books halls for every scheduled exam and numbers each student's seat, ready to save in one transaction.</td></tr>
+      <tr><td class="path">lib/services/dijkstra.ts</td><td>Shortest walking path over the campus map graph (Dijkstra's algorithm).</td></tr>
+    </tbody>
+  </table>
+
+  <h3>prisma/ — database</h3>
+  <table class="data compact">
+    <thead><tr><th style="width:47%">File or folder</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td class="path">prisma/schema.prisma</td><td>The database blueprint: all 17 tables, their columns, links and enums.</td></tr>
+      <tr><td class="path">prisma/seed.ts</td><td>Loads schools, departments, programmes, levels, courses, halls, the campus map graph, sessions and demonstration students (<code>npm run db:seed</code>).</td></tr>
+      <tr><td class="path">prisma/seed-halls.sql</td><td>Optional SQL that adds 11 further campus buildings as exam halls (2,520 seats) with GPS coordinates.</td></tr>
+      <tr><td class="path">prisma/remove-stale-halls.ts</td><td>Maintenance script that keeps the hall list to verified campus buildings.</td></tr>
+      <tr><td class="path">migrations/20260509232203_<wbr>init</td><td>Creates the original tables, enum types, unique indexes and foreign keys.</td></tr>
+      <tr><td class="path">migrations/20260510000000_<wbr>add_<wbr>indexes_<wbr>and_<wbr>constraints</td><td>Indexes on busy columns and uniqueness rules used by the seed.</td></tr>
+      <tr><td class="path">migrations/20260515000000_<wbr>add_<wbr>session_<wbr>check_<wbr>constraints</td><td>Database rule: session names must read "YYYY/YYYY First Semester" or "… Second Semester".</td></tr>
+      <tr><td class="path">migrations/20260515100000_<wbr>add_<wbr>sessions_<wbr>generation_<wbr>lock_<wbr>drop_<wbr>seatstart</td><td>Adds the sessions and generation-lock tables and simplifies seat storage.</td></tr>
+      <tr><td class="path">migrations/20260515200000_<wbr>add_<wbr>indexes_<wbr>and_<wbr>generation_<wbr>lock_<wbr>fk</td><td>Indexes for frequent queries; links each lock to a real session.</td></tr>
+      <tr><td class="path">migrations/20261014110000_<wbr>add_<wbr>student_<wbr>id_<wbr>indexes</td><td>Speeds up look-ups of a student's enrolments and seats.</td></tr>
+      <tr><td class="path">migrations/20261014120000_<wbr>enable_<wbr>row_<wbr>level_<wbr>security</td><td>Enables row-level security on every table.</td></tr>
+      <tr><td class="path">migrations/migration_lock.toml</td><td>Records the database provider (PostgreSQL) for Prisma Migrate.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>tests/, scripts/, public/ and docs/</h3>
+  <table class="data compact">
+    <thead><tr><th style="width:41%">File</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td class="path">tests/exam-slots.test.ts</td><td>Exam-slot planning: weekdays, two slots a day, period length.</td></tr>
+      <tr><td class="path">tests/scheduler.test.ts</td><td>Conflict graph and DSatur scheduler: no level clashes, hall space respected, repeatable results.</td></tr>
+      <tr><td class="path">tests/hall-packing.test.ts</td><td>Hall choice: best fit, splitting large classes, one course per hall.</td></tr>
+      <tr><td class="path">tests/matric-and-sessions.test.ts</td><td>Matric-number normalisation and session-name rules.</td></tr>
+      <tr><td class="path">tests/csv.test.ts</td><td>The CSV reader used by the import screens.</td></tr>
+      <tr><td class="path">scripts/apply-migration.ts</td><td>Maintenance helper that applies the sessions and generation-lock migration and records it in Prisma's history.</td></tr>
+      <tr><td class="path">scripts/apply-migration-indexes.ts</td><td>Maintenance helper that applies the 20260515200000 indexes migration and records it in Prisma's history.</td></tr>
+      <tr><td class="path">public/yabatech-crest.png</td><td>The Yabatech crest, used in the portals.</td></tr>
+      <tr><td class="path">public/yabatech-logo.png</td><td>The Yabatech logo.</td></tr>
+      <tr><td class="path">docs/screenshots/</td><td>Screenshots used by the README.</td></tr>
+      <tr><td class="path">docs/presentation/</td><td>These documents: HTML sources, diagrams and the build script (<code>python docs/presentation/build.py</code>).</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================ APPENDIX B ============================ -->
+<section class="section" id="s-appB">
+  <header class="opener"><div class="num alpha">B</div><div><h1>Appendix B — API reference</h1><p class="intro">Every endpoint under <code style="font-size:.95em">/api</code>, grouped by area.</p></div></header>
+
+  <p class="small">All responses share one JSON shape: <code>{ success, data, message, errors? }</code>. Who can call it: <span class="who public">Public</span> no sign-in needed · <span class="who signed">Signed in</span> any role · <span class="who student">Student</span> · <span class="who admin">Admin</span> exams officer or super admin · <span class="who secret">Setup secret</span>. API calls made without signing in receive a clear "please sign in again" response, and calls with the wrong role are refused.</p>
+
+  <h3 class="api-grp">Accounts and setup</h3>
+  <table class="data compact api">
+    <thead><tr><th style="width:19.2%">Method</th><th style="width:30.6%">Path</th><th style="width:13.2%">Who</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><span class="method m-post">POST</span></td><td class="path">/api/admin/setup</td><td><span class="who secret">Setup secret</span></td><td>Creates the first super admin; works only until the first admin exists.</td></tr>
+      <tr><td><span class="method m-post">POST</span></td><td class="path">/api/auth/register</td><td><span class="who public">Public</span></td><td>Student sign-up: creates the sign-in account and student record together.</td></tr>
+      <tr><td><span class="method m-get">GET</span> <span class="method m-delete">DELETE</span></td><td class="path">/api/auth</td><td><span class="who signed">Signed in</span></td><td>Current user and role; sign out.</td></tr>
+      <tr><td><span class="method m-get">GET</span></td><td class="path">/api/stats</td><td><span class="who admin">Admin</span></td><td>Dashboard counts: students, courses, active halls, active sessions.</td></tr>
+    </tbody>
+  </table>
+  <h3 class="api-grp">Academic structure</h3>
+  <table class="data compact api">
+    <thead><tr><th style="width:19.2%">Method</th><th style="width:30.6%">Path</th><th style="width:13.2%">Who</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><span class="method m-get">GET</span> <span class="method m-post">POST</span></td><td class="path">/api/schools</td><td><span class="who admin">Admin</span></td><td>List schools; add a school.</td></tr>
+      <tr><td><span class="method m-get">GET</span> <span class="method m-put">PUT</span> <span class="method m-delete">DELETE</span></td><td class="path">/api/schools/[id]</td><td><span class="who admin">Admin</span></td><td>Read, edit or delete one school.</td></tr>
+      <tr><td><span class="method m-get">GET</span> <span class="method m-post">POST</span></td><td class="path">/api/departments</td><td><span class="who public">Public read</span><br><span class="who admin">Admin</span></td><td>List departments (used by sign-up); add a department with its ND/HND programmes and four levels.</td></tr>
+      <tr><td><span class="method m-get">GET</span> <span class="method m-put">PUT</span> <span class="method m-delete">DELETE</span></td><td class="path">/api/departments/[id]</td><td><span class="who admin">Admin</span></td><td>Read, edit or delete one department.</td></tr>
+      <tr><td><span class="method m-post">POST</span></td><td class="path">/api/departments/upload-csv</td><td><span class="who admin">Admin</span></td><td>Import departments from CSV (<code>school_name,name,code</code>) with a row-by-row report.</td></tr>
+      <tr><td><span class="method m-get">GET</span> <span class="method m-post">POST</span></td><td class="path">/api/programmes</td><td><span class="who public">Public read</span><br><span class="who admin">Admin</span></td><td>List programmes (used by sign-up); add a programme.</td></tr>
+      <tr><td><span class="method m-get">GET</span> <span class="method m-put">PUT</span> <span class="method m-delete">DELETE</span></td><td class="path">/api/programmes/[id]</td><td><span class="who admin">Admin</span></td><td>Read, edit or delete one programme.</td></tr>
+      <tr><td><span class="method m-get">GET</span> <span class="method m-post">POST</span></td><td class="path">/api/levels</td><td><span class="who public">Public read</span><br><span class="who admin">Admin</span></td><td>List levels (used by sign-up and filters); add a level.</td></tr>
+      <tr><td><span class="method m-get">GET</span> <span class="method m-put">PUT</span> <span class="method m-delete">DELETE</span></td><td class="path">/api/levels/[id]</td><td><span class="who admin">Admin</span></td><td>Read, edit or delete one level.</td></tr>
+      <tr><td><span class="method m-get">GET</span> <span class="method m-post">POST</span></td><td class="path">/api/courses</td><td><span class="who public">Public read</span><br><span class="who admin">Admin</span></td><td>The course catalogue, with filters and paging; add a course.</td></tr>
+      <tr><td><span class="method m-get">GET</span> <span class="method m-put">PUT</span> <span class="method m-delete">DELETE</span></td><td class="path">/api/courses/[id]</td><td><span class="who admin">Admin</span></td><td>Read, edit or delete one course.</td></tr>
+      <tr><td><span class="method m-post">POST</span></td><td class="path">/api/courses/upload-csv</td><td><span class="who admin">Admin</span></td><td>Import or update courses from CSV with a row-by-row report.</td></tr>
+    </tbody>
+  </table>
+  <h3 class="api-grp">Halls, slots and sessions</h3>
+  <table class="data compact api">
+    <thead><tr><th style="width:19.2%">Method</th><th style="width:30.6%">Path</th><th style="width:13.2%">Who</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><span class="method m-get">GET</span> <span class="method m-post">POST</span></td><td class="path">/api/halls</td><td><span class="who public">Public read</span><br><span class="who admin">Admin</span></td><td>List exam halls; add a hall.</td></tr>
+      <tr><td><span class="method m-get">GET</span> <span class="method m-put">PUT</span> <span class="method m-delete">DELETE</span></td><td class="path">/api/halls/[id]</td><td><span class="who admin">Admin</span></td><td>Read, edit or delete one hall.</td></tr>
+      <tr><td><span class="method m-get">GET</span> <span class="method m-post">POST</span></td><td class="path">/api/slots</td><td><span class="who admin">Admin</span></td><td>List exam time slots; add one by hand.</td></tr>
+      <tr><td><span class="method m-get">GET</span> <span class="method m-put">PUT</span> <span class="method m-delete">DELETE</span></td><td class="path">/api/slots/[id]</td><td><span class="who admin">Admin</span></td><td>Read, edit or delete one time slot.</td></tr>
+      <tr><td><span class="method m-get">GET</span> <span class="method m-post">POST</span></td><td class="path">/api/sessions</td><td><span class="who public">Public read</span><br><span class="who admin">Admin</span></td><td>List academic sessions (every session selector); create a session.</td></tr>
+      <tr><td><span class="method m-patch">PATCH</span> <span class="method m-delete">DELETE</span></td><td class="path">/api/sessions/[id]</td><td><span class="who admin">Admin</span></td><td>Make a session Active or Inactive; delete a session and its timetable.</td></tr>
+    </tbody>
+  </table>
+  <h3 class="api-grp">Timetable</h3>
+  <table class="data compact api">
+    <thead><tr><th style="width:19.2%">Method</th><th style="width:30.6%">Path</th><th style="width:13.2%">Who</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><span class="method m-post">POST</span></td><td class="path">/api/timetable/generate</td><td><span class="who admin">Admin</span></td><td>Generate the draft timetable: slots, clash-free schedule, halls and seats, plus the report.</td></tr>
+      <tr><td><span class="method m-get">GET</span></td><td class="path">/api/timetable</td><td><span class="who admin">Admin</span></td><td>A session's full timetable for review.</td></tr>
+      <tr><td><span class="method m-patch">PATCH</span></td><td class="path">/api/timetable/entry/[id]/move</td><td><span class="who admin">Admin</span></td><td>Edit Slot: move one draft exam to another slot, with clash check and new halls and seats.</td></tr>
+      <tr><td><span class="method m-put">PUT</span></td><td class="path">/api/timetable/[id]/publish</td><td><span class="who admin">Admin</span></td><td>Publish All for a session (<code>[id]</code> is the session name), after completeness checks.</td></tr>
+      <tr><td><span class="method m-delete">DELETE</span></td><td class="path">/api/timetable/[id]/reset</td><td><span class="who admin">Admin</span></td><td>Reset All: clear a session's timetable (<code>[id]</code> is the session name) so it can be generated again.</td></tr>
+      <tr><td><span class="method m-get">GET</span></td><td class="path">/api/timetable/me</td><td><span class="who student">Student</span></td><td>The signed-in student's published exams with hall and seat.</td></tr>
+      <tr><td><span class="method m-get">GET</span></td><td class="path">/api/assignments</td><td><span class="who signed">Signed in</span></td><td>Seat assignments: every student's for admins, the caller's own for students.</td></tr>
+    </tbody>
+  </table>
+  <h3 class="api-grp">Students and enrolments</h3>
+  <table class="data compact api">
+    <thead><tr><th style="width:19.2%">Method</th><th style="width:30.6%">Path</th><th style="width:13.2%">Who</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><span class="method m-get">GET</span></td><td class="path">/api/students</td><td><span class="who admin">Admin</span></td><td>Student directory with search, filters and paging.</td></tr>
+      <tr><td><span class="method m-get">GET</span> <span class="method m-put">PUT</span> <span class="method m-delete">DELETE</span></td><td class="path">/api/students/[id]</td><td><span class="who admin">Admin</span></td><td>One student with enrolments; correct their record; remove the account.</td></tr>
+      <tr><td><span class="method m-post">POST</span></td><td class="path">/api/students/[id]/reset-password</td><td><span class="who admin">Admin</span></td><td>Set a new password for a student.</td></tr>
+      <tr><td><span class="method m-get">GET</span></td><td class="path">/api/students/me</td><td><span class="who student">Student</span></td><td>The signed-in student's own profile.</td></tr>
+      <tr><td><span class="method m-get">GET</span> <span class="method m-post">POST</span></td><td class="path">/api/enrollments</td><td><span class="who student">Student</span></td><td>The student's enrolments for a session (with Locked status); enrol in a course — late enrolments get a free seat when possible.</td></tr>
+      <tr><td><span class="method m-delete">DELETE</span></td><td class="path">/api/enrollments/[courseId]</td><td><span class="who student">Student</span></td><td>Drop a course for a session (before publication).</td></tr>
+    </tbody>
+  </table>
+  <h3 class="api-grp">Navigation</h3>
+  <table class="data compact api">
+    <thead><tr><th style="width:19.2%">Method</th><th style="width:30.6%">Path</th><th style="width:13.2%">Who</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><span class="method m-get">GET</span></td><td class="path">/api/navigation/halls</td><td><span class="who public">Public</span></td><td>Active halls with coordinates for the Navigate directory.</td></tr>
+      <tr><td><span class="method m-get">GET</span></td><td class="path">/api/navigation/halls/[id]</td><td><span class="who public">Public</span></td><td>Details of one hall for the map.</td></tr>
+      <tr><td><span class="method m-get">GET</span></td><td class="path">/api/navigation/nodes</td><td><span class="who public">Public</span></td><td>Points of the campus map graph.</td></tr>
+      <tr><td><span class="method m-get">GET</span></td><td class="path">/api/navigation/path</td><td><span class="who public">Public</span></td><td>Shortest path between two campus map points (Dijkstra).</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================ APPENDIX C ============================ -->
+<section class="section" id="s-appC">
+  <header class="opener"><div class="num alpha">C</div><div><h1>Appendix C — Glossary</h1><p class="intro">Terms used in this document and in the app.</p></div></header>
+
+  <div class="gl-grid">
+    <div class="gl-item"><b>Session</b><span>An academic session and semester, named like "2025/2026 First Semester". Each can be Active (visible to students) or Inactive.</span></div>
+    <div class="gl-item"><b>Semester</b><span>First or Second. Every course belongs to one; the session name decides which courses are timetabled.</span></div>
+    <div class="gl-item"><b>Level</b><span>A year group within a programme: ND 1, ND 2, HND 1 or HND 2. Courses and students belong to a level.</span></div>
+    <div class="gl-item"><b>Programme</b><span>A diploma track within a department: National Diploma (ND) or Higher National Diploma (HND).</span></div>
+    <div class="gl-item"><b>Time slot</b><span>A date with a start and end time. The engine uses Morning 08:00–10:00 and Afternoon 12:00–14:00, Monday to Friday.</span></div>
+    <div class="gl-item"><b>Timetable entry</b><span>One course's exam placed in a time slot for a session, with its halls; Draft or Published.</span></div>
+    <div class="gl-item"><b>Draft / Published</b><span>A Draft is visible to the exams office only; Published timetables are visible to students.</span></div>
+    <div class="gl-item"><b>Headcount</b><span>The class size used for seating: students enrolled in the course, or students registered at the level if nobody has enrolled yet.</span></div>
+    <div class="gl-item"><b>Conflict graph</b><span>A network in which each course is a point and courses of the same level are joined, meaning they cannot share a slot.</span></div>
+    <div class="gl-item"><b>DSatur</b><span>"Degree of saturation" — a well-known graph-colouring algorithm that always places the most constrained course next. Each time slot is a colour.</span></div>
+    <div class="gl-item"><b>Best fit</b><span>Giving a class the smallest free hall that can seat all of it, keeping larger halls free for larger classes.</span></div>
+    <div class="gl-item"><b>Hall Overflow</b><span>A report list of courses for which there was not enough hall space; the remedy is to add halls or capacity and generate again.</span></div>
+    <div class="gl-item"><b>Unresolved</b><span>A report list of courses for which no clash-free slot was left; the remedy is a longer exam period.</span></div>
+    <div class="gl-item"><b>Matric number</b><span>A student's college registration number, e.g. F/ND/24/3210001, stored in capitals and unique regardless of letter case.</span></div>
+    <div class="gl-item"><b>RLS (row-level security)</b><span>A database feature that controls access to every table; here it keeps all tables closed to browsers, so only the server can read or write data.</span></div>
+    <div class="gl-item"><b>API</b><span>Application Programming Interface: the set of web addresses under /api that the screens use to read and change data.</span></div>
+  </div>
+  <div class="endmark"><img src="assets/yabatech-crest.png" alt="">YCT Exam Portal · Project Documentation · October 2026</div>
+</section>
+
+</body>
+</html>
