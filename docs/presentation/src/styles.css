@@ -1,5 +1,5 @@
 /* ==========================================================================
-   YCT Exam Portal — shared print stylesheet for the presentation PDFs
+   YCT Exam Portal: shared print stylesheet for the presentation PDFs
    Rendered by build.py with Chrome (Playwright). A4 portrait.
    ========================================================================== */
 
@@ -285,7 +285,7 @@ figure.fig .frame.flat { border: 0; padding: 0; }
 figure.fig .frame.tint { background: var(--tint2); }
 figure.fig svg { display: block; width: 100%; height: auto; max-width: 100%; }
 figure.fig figcaption { margin-top: 7px; font-size: 8.6pt; color: var(--muted); line-height: 1.4; }
-figure.fig figcaption::before { content: "Figure " counter(figure) " — "; font-weight: 800; color: var(--green); }
+figure.fig figcaption::before { content: "Figure " counter(figure) ". "; font-weight: 800; color: var(--green); }
 body { counter-reset: figure; }
 
 /* SVG diagram defaults */
@@ -316,7 +316,7 @@ svg.dg .ln-d { fill: none; stroke: #9aaca2; stroke-width: 1.3; stroke-dasharray:
 .mock .mock-col .sub-cap { font-size: 8.2pt; color: var(--muted); margin-top: 6px; text-align: center; max-width: 290px; line-height: 1.35; }
 .mock .mock-col .sub-cap b { color: var(--ink); }
 .mock figcaption { margin-top: 8px; font-size: 8.6pt; color: var(--muted); line-height: 1.4; display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
-.mock figcaption .cap::before { content: "Figure " counter(figure) " — "; font-weight: 800; color: var(--green); }
+.mock figcaption .cap::before { content: "Figure " counter(figure) ". "; font-weight: 800; color: var(--green); }
 .sample-tag { flex: none; font-size: 7.2pt; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #8a6500; background: var(--gold-tint); border: 1px solid #f1e2ae; border-radius: 999px; padding: 1px 8px; white-space: nowrap; }
 
 /* Browser frame */

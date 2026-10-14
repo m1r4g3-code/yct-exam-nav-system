@@ -1,4 +1,4 @@
-# YCT Exam Portal — presentation documents
+# YCT Exam Portal: presentation documents
 
 | File | What it is |
 |---|---|

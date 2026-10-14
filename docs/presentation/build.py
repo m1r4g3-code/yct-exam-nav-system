@@ -33,20 +33,20 @@ DOCS = {
     "overview": {
         "src": "overview.html",
         "out": "YCT-Exam-Portal-Project-Overview.pdf",
-        "title": "YCT Exam Portal — Project Overview",
-        "subject": "Smart Examination Timetable Generator & Real-Time Hall Navigation — "
+        "title": "YCT Exam Portal: Project Overview",
+        "subject": "Smart Examination Timetable Generator & Real-Time Hall Navigation: "
                    "project documentation for Yaba College of Technology",
     },
     "admin": {
         "src": "admin-guide.html",
         "out": "YCT-Exam-Portal-Exams-Office-Guide.pdf",
-        "title": "YCT Exam Portal — Exams Office Guide",
+        "title": "YCT Exam Portal: Exams Office Guide",
         "subject": "How exams officers set up, generate, review and publish the examination timetable",
     },
     "student": {
         "src": "student-guide.html",
         "out": "YCT-Exam-Portal-Student-Guide.pdf",
-        "title": "YCT Exam Portal — Student Guide",
+        "title": "YCT Exam Portal: Student Guide",
         "subject": "How students register, choose courses, read their timetable and find their exam hall",
     },
 }
