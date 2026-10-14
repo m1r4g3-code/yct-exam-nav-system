@@ -8,7 +8,7 @@ on:
 
 jobs:
   quality:
-    name: Lint, Type-check & Build
+    name: Lint, Type-check, Test & Build
     runs-on: ubuntu-latest
 
     steps:
@@ -24,14 +24,15 @@ jobs:
 
       - name: Generate Prisma client
         run: npm run db:generate
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
       - name: Lint
         run: npm run lint
 
       - name: Type-check
         run: npx tsc --noEmit
+
+      - name: Unit tests
+        run: npm test
 
       - name: Build
         run: npm run build

@@ -4,6 +4,7 @@ config();
 
 import { PrismaClient, Semester, NodeType } from "../lib/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
@@ -621,12 +622,11 @@ async function main() {
   await createDept("Educational Foundation", "EDF", schoolIds.STE!, makeCourses("EDF"));
   console.log("✓ School of Technical & Vocational Education: 4 departments");
 
-  console.log("\n✓ Total: 8 schools, 40 departments seeded\n");
+  console.log(`\n✓ Total: ${schoolDefs.length} schools, ${await prisma.department.count()} departments seeded\n`);
 
   // ── Exam Halls ─────────────────────────────────────────────────────────────
   // Purge stale halls (CBT1, CBT2, MPHB, BDLH, SOTA — not on map).
   const staleHallCodes = ["CBT1", "CBT2", "MPHB", "BDLH", "SOTA"];
-  const staleHallIds   = ["hall-cbt1", "hall-cbt2", "hall-mphb", "hall-bdlh", "hall-sota"];
   const staleNodeIds   = ["node-hall-cbt1", "node-hall-cbt2", "node-hall-mphb", "node-hall-bdlh", "node-hall-sota"];
   const stalePathIds   = ["path-sot-cbt1", "path-sot-cbt2", "path-sot-mphb", "path-sot-sota", "path-jcta-bdlh"];
   await prisma.navigationPath.deleteMany({ where: { id: { in: stalePathIds } } });
@@ -704,12 +704,19 @@ async function main() {
   console.log(`✓ ${nodeDefs.length} navigation nodes + ${pathDefs.length} paths created`);
 
   // ── Superadmin ─────────────────────────────────────────────────────────────
-  await prisma.admin.upsert({
-    where: { email: "admin@yabatech-examportal.com" },
+  const adminEmail = (process.env.SEED_ADMIN_EMAIL ?? "admin@yabatech-examportal.com").trim().toLowerCase();
+  const adminRecord = await prisma.admin.upsert({
+    where: { email: adminEmail },
     update: {},
-    create: { email: "admin@yabatech-examportal.com", fullName: "Super Admin", role: "SUPERADMIN" },
+    create: { email: adminEmail, fullName: "Super Admin", role: "SUPERADMIN" },
   });
-  console.log("✓ Superadmin record created");
+  console.log(`✓ Superadmin record: ${adminEmail}`);
+  await ensureSuperadminLogin(adminEmail, adminRecord.authUserId);
+
+  // ── Academic sessions (normally created by a migration — make sure they exist) ─
+  for (const name of ["2024/2025 First Semester", "2024/2025 Second Semester"]) {
+    await prisma.session.upsert({ where: { name }, update: {}, create: { name, isActive: true } });
+  }
 
   // ── Demo Students (50 Computer Technology students) ────────────────────────
   const levelConfigs = [
@@ -759,9 +766,73 @@ async function main() {
   }
   console.log(`✓ 50 demo students created (Computer Technology, session: ${SESSION})`);
 
+  const [schools, departments, programmes, levels, courses] = await Promise.all([
+    prisma.school.count(),
+    prisma.department.count(),
+    prisma.programme.count(),
+    prisma.level.count(),
+    prisma.course.count(),
+  ]);
   console.log("\n🎉 Seed complete!");
-  console.log("   8 schools · 40 departments · 40×ND+HND programmes · 160 levels · 700+ courses");
+  console.log(`   ${schools} schools · ${departments} departments · ${programmes} programmes · ${levels} levels · ${courses} courses`);
   console.log("   50 demo students enrolled in Computer Technology");
+}
+
+/**
+ * Creates the super-admin's sign-in (Supabase Auth user with role "superadmin")
+ * when SEED_ADMIN_PASSWORD is set, and links it to the admins record. Skipped
+ * when the record already has a sign-in or the Supabase keys are not configured.
+ */
+async function ensureSuperadminLogin(email: string, existingAuthUserId: string | null) {
+  if (existingAuthUserId) {
+    console.log("✓ Superadmin sign-in already exists");
+    return;
+  }
+  const password = process.env.SEED_ADMIN_PASSWORD;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!password || !url || !serviceKey) {
+    console.log(
+      "ℹ Superadmin sign-in not created — set SEED_ADMIN_PASSWORD (and the Supabase keys) in .env.local and run the seed again,\n" +
+        "  or use the one-time POST /api/admin/setup endpoint."
+    );
+    return;
+  }
+  if (password.length < 8) throw new Error("SEED_ADMIN_PASSWORD must be at least 8 characters");
+
+  const supabase = createSupabaseClient(url, serviceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  let userId: string | null = null;
+  const { data, error } = await supabase.auth.admin.createUser({
+    email,
+    password,
+    app_metadata: { role: "superadmin" },
+    email_confirm: true,
+  });
+  if (data?.user) {
+    userId = data.user.id;
+  } else if (error && /already (been )?registered|already exists/i.test(error.message)) {
+    // The sign-in exists (e.g. created in the Supabase dashboard): find it and make it a super-admin.
+    for (let page = 1; !userId; page++) {
+      const { data: list, error: listError } = await supabase.auth.admin.listUsers({ page, perPage: 1000 });
+      if (listError) throw listError;
+      const match = list.users.find((u) => u.email?.toLowerCase() === email);
+      if (match) userId = match.id;
+      if (list.users.length < 1000) break;
+    }
+    if (!userId) throw new Error(`Supabase says ${email} exists, but it could not be found`);
+    const { error: updateError } = await supabase.auth.admin.updateUserById(userId, {
+      app_metadata: { role: "superadmin" },
+    });
+    if (updateError) throw updateError;
+  } else {
+    throw error ?? new Error("Could not create the superadmin sign-in");
+  }
+
+  await prisma.admin.update({ where: { email }, data: { authUserId: userId } });
+  console.log(`✓ Superadmin sign-in ready: ${email}`);
 }
 
 main()

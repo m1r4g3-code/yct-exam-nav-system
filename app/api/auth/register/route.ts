@@ -1,32 +1,42 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { prisma } from "@/lib/prisma";
-import { created, badRequest, conflict, serverError } from "@/lib/api-response";
+import { created, badRequest, conflict, serverError, zodErrors } from "@/lib/api-response";
+import { withHandler } from "@/lib/with-handler";
+import { MATRIC_FORMAT_HINT, MATRIC_PATTERN, normaliseMatric } from "@/lib/matric";
 import { z } from "zod";
 
 const registerSchema = z.object({
-  matricNumber: z.string().min(4, "Enter your matric number"),
-  fullName: z.string().min(2).max(255),
-  email: z.string().email(),
+  matricNumber: z
+    .string()
+    .transform(normaliseMatric)
+    .pipe(z.string().min(4, "Enter your matric number").regex(MATRIC_PATTERN, MATRIC_FORMAT_HINT)),
+  fullName: z.string().trim().min(2).max(255),
+  email: z.string().trim().toLowerCase().email(),
   password: z.string().min(8, "Password must be at least 8 characters"),
   levelId: z.string().min(1),
   programmeId: z.string().min(1),
 });
 
-export async function POST(request: Request) {
+export const POST = withHandler(async (request: Request) => {
   const body = await request.json().catch(() => null);
   const parsed = registerSchema.safeParse(body);
-  if (!parsed.success) {
-    return badRequest("Validation failed", parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })));
-  }
+  if (!parsed.success) return badRequest("Validation failed", zodErrors(parsed.error.issues));
 
   const { matricNumber, fullName, email, password, levelId, programmeId } = parsed.data;
 
-  // Check matric + email uniqueness before creating auth user
-  const existing = await prisma.student.findFirst({
-    where: { OR: [{ matricNumber }, { email }] },
-  });
-  if (existing?.matricNumber === matricNumber) return conflict("Matric number already registered");
-  if (existing?.email === email) return conflict("Email already registered");
+  // Check matric + email uniqueness (ignoring letter case) before creating the sign-in account
+  const [matricTaken, emailTaken] = await Promise.all([
+    prisma.student.findFirst({
+      where: { matricNumber: { equals: matricNumber, mode: "insensitive" } },
+      select: { id: true },
+    }),
+    prisma.student.findFirst({
+      where: { email: { equals: email, mode: "insensitive" } },
+      select: { id: true },
+    }),
+  ]);
+  if (matricTaken) return conflict("Matric number already registered");
+  if (emailTaken) return conflict("Email already registered");
 
   // Validate level belongs to programme; derive departmentId from programme
   const level = await prisma.level.findUnique({
@@ -48,7 +58,10 @@ export async function POST(request: Request) {
   });
 
   if (authError || !authData.user) {
-    return serverError(authError?.message ?? "Failed to create auth account");
+    const message = authError?.message ?? "Failed to create the sign-in account";
+    if (/already (been )?registered|already exists/i.test(message))
+      return conflict("Email already registered");
+    return serverError(message);
   }
 
   try {
@@ -70,4 +83,4 @@ export async function POST(request: Request) {
     await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
     return serverError("Registration failed — please try again");
   }
-}
+});

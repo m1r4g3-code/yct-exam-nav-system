@@ -11,11 +11,13 @@ import { MoreHorizontal, BookOpen } from "lucide-react"
 import type { ColumnDef } from "@tanstack/react-table"
 
 import { QUERY_KEYS } from "@/lib/query-keys"
+import { apiGet, apiSend, errorMessage } from "@/lib/fetcher"
 import { PageHeader } from "@/components/admin/page-header"
 import { DataTable } from "@/components/admin/data-table"
 import { MobileCardList } from "@/components/admin/mobile-card-list"
 import { ConfirmDialog } from "@/components/admin/confirm-dialog"
 import { EmptyState } from "@/components/admin/empty-state"
+import { ErrorState } from "@/components/admin/error-state"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -48,6 +50,7 @@ interface School {
 interface Department {
   id: string
   name: string
+  code: string
   schoolId: string
 }
 
@@ -56,16 +59,29 @@ interface Programme {
   name: string
   code: string
   departmentId: string
-  department?: { name: string }
+  department?: { name: string; code: string }
 }
 
 const programmeSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  code: z.string().min(1, "Code is required"),
+  name: z
+    .string()
+    .trim()
+    .min(2, "Name must be at least 2 characters")
+    .max(100, "Name must be at most 100 characters"),
+  code: z
+    .string()
+    .trim()
+    .min(2, "Code must be at least 2 characters")
+    .max(20, "Code must be at most 20 characters")
+    .transform((v) => v.toUpperCase()),
   departmentId: z.string().min(1, "Department is required"),
 })
 
-type ProgrammeFormValues = z.infer<typeof programmeSchema>
+type ProgrammeFormInput = z.input<typeof programmeSchema>
+type ProgrammeFormValues = z.output<typeof programmeSchema>
+
+const departmentsUrl = (schoolId?: string) =>
+  schoolId ? `/api/departments?school_id=${encodeURIComponent(schoolId)}` : "/api/departments"
 
 export default function ProgrammesPage() {
   const queryClient = useQueryClient()
@@ -78,55 +94,55 @@ export default function ProgrammesPage() {
 
   const { data: schools = [] } = useQuery<School[]>({
     queryKey: QUERY_KEYS.SCHOOLS,
-    queryFn: async () => {
-      const res = await fetch("/api/schools")
-      const json = await res.json()
-      return json.data ?? []
-    },
+    queryFn: () => apiGet<School[]>("/api/schools"),
   })
 
   const filterSchoolIdParam = filterSchoolId !== "all" ? filterSchoolId : undefined
 
+  // Every department (used to find a programme's school when editing).
+  const { data: allDepts = [] } = useQuery<Department[]>({
+    queryKey: QUERY_KEYS.DEPARTMENTS(undefined),
+    queryFn: () => apiGet<Department[]>(departmentsUrl()),
+  })
+
   const { data: filterDepts = [] } = useQuery<Department[]>({
     queryKey: QUERY_KEYS.DEPARTMENTS(filterSchoolIdParam),
-    queryFn: async () => {
-      const url = filterSchoolIdParam
-        ? `/api/departments?school_id=${filterSchoolIdParam}`
-        : "/api/departments"
-      const res = await fetch(url)
-      const json = await res.json()
-      return json.data ?? []
-    },
+    queryFn: () => apiGet<Department[]>(departmentsUrl(filterSchoolIdParam)),
   })
 
   const { data: formDepts = [] } = useQuery<Department[]>({
     queryKey: QUERY_KEYS.DEPARTMENTS(formSchoolId || undefined),
-    queryFn: async () => {
-      const url = formSchoolId
-        ? `/api/departments?school_id=${formSchoolId}`
-        : "/api/departments"
-      const res = await fetch(url)
-      const json = await res.json()
-      return json.data ?? []
-    },
-    enabled: true,
+    queryFn: () => apiGet<Department[]>(departmentsUrl(formSchoolId || undefined)),
+    enabled: !!formSchoolId,
   })
 
   const deptIdParam = filterDeptId !== "all" ? filterDeptId : undefined
 
-  const { data: programmes = [], isLoading } = useQuery<Programme[]>({
-    queryKey: QUERY_KEYS.PROGRAMMES(deptIdParam),
-    queryFn: async () => {
-      const url = deptIdParam
-        ? `/api/programmes?department_id=${deptIdParam}`
-        : "/api/programmes"
-      const res = await fetch(url)
-      const json = await res.json()
-      return json.data ?? []
+  const {
+    data: programmes = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery<Programme[]>({
+    queryKey: ["programmes", "list", filterSchoolIdParam, deptIdParam],
+    queryFn: () => {
+      const params = new URLSearchParams()
+      if (filterSchoolIdParam) params.set("school_id", filterSchoolIdParam)
+      if (deptIdParam) params.set("department_id", deptIdParam)
+      const qs = params.toString()
+      return apiGet<Programme[]>(qs ? `/api/programmes?${qs}` : "/api/programmes")
     },
   })
 
-  const form = useForm<ProgrammeFormValues>({
+  const invalidateAll = () => {
+    queryClient.invalidateQueries({ queryKey: ["programmes"] })
+    queryClient.invalidateQueries({ queryKey: ["levels"] })
+    queryClient.invalidateQueries({ queryKey: ["courses"] })
+    queryClient.invalidateQueries({ queryKey: QUERY_KEYS.STATS })
+  }
+
+  const form = useForm<ProgrammeFormInput, unknown, ProgrammeFormValues>({
     resolver: zodResolver(programmeSchema),
     defaultValues: { name: "", code: "", departmentId: "" },
   })
@@ -140,7 +156,7 @@ export default function ProgrammesPage() {
 
   const openEdit = (programme: Programme) => {
     setEditTarget(programme)
-    const dept = filterDepts.find((d) => d.id === programme.departmentId)
+    const dept = allDepts.find((d) => d.id === programme.departmentId)
     const schoolId = dept?.schoolId ?? ""
     setFormSchoolId(schoolId)
     form.reset({ name: programme.name, code: programme.code, departmentId: programme.departmentId })
@@ -148,70 +164,56 @@ export default function ProgrammesPage() {
   }
 
   const createMutation = useMutation({
-    mutationFn: async (body: ProgrammeFormValues) => {
-      const res = await fetch("/api/programmes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      })
-      const json = await res.json()
-      if (!json.success) throw new Error(json.message)
-      return json.data
-    },
+    mutationFn: (body: ProgrammeFormValues) => apiSend<Programme>("/api/programmes", "POST", body),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["programmes"] })
+      invalidateAll()
       toast.success("Programme created")
       setDialogOpen(false)
       form.reset()
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e) => toast.error(errorMessage(e)),
   })
 
   const updateMutation = useMutation({
-    mutationFn: async (body: ProgrammeFormValues) => {
-      const res = await fetch(`/api/programmes/${editTarget!.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      })
-      const json = await res.json()
-      if (!json.success) throw new Error(json.message)
-      return json.data
-    },
+    mutationFn: ({ id, body }: { id: string; body: ProgrammeFormValues }) =>
+      apiSend<Programme>(`/api/programmes/${id}`, "PUT", body),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["programmes"] })
+      invalidateAll()
       toast.success("Programme updated")
       setDialogOpen(false)
       setEditTarget(null)
       form.reset()
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e) => toast.error(errorMessage(e)),
   })
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await fetch(`/api/programmes/${id}`, { method: "DELETE" })
-      const json = await res.json()
-      if (!json.success) throw new Error(json.message)
-    },
+    mutationFn: (id: string) => apiSend(`/api/programmes/${id}`, "DELETE"),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["programmes"] })
+      invalidateAll()
       toast.success("Programme deleted")
       setDeleteTarget(null)
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e) => toast.error(errorMessage(e)),
   })
 
   const onSubmit = (values: ProgrammeFormValues) => {
-    if (editTarget) updateMutation.mutate(values)
+    if (editTarget) updateMutation.mutate({ id: editTarget.id, body: values })
     else createMutation.mutate(values)
   }
 
   const isSaving = createMutation.isPending || updateMutation.isPending
 
-  const getDeptName = (departmentId: string) => {
-    const dept = filterDepts.find((d) => d.id === departmentId)
-    return dept?.name ?? "—"
+  /** "Computer Science (CSC)" — from the API include, falling back to the department list. */
+  const getDeptLabel = (programme: Programme) => {
+    const dept = programme.department ?? allDepts.find((d) => d.id === programme.departmentId)
+    return dept ? `${dept.name} (${dept.code})` : "—"
+  }
+
+  const schoolLabel = (id: string) => schools.find((s) => s.id === id)?.name
+  const deptLabel = (list: Department[], id: string) => {
+    const d = list.find((x) => x.id === id)
+    return d ? `${d.name} (${d.code})` : undefined
   }
 
   const columns: ColumnDef<Programme>[] = [
@@ -233,9 +235,7 @@ export default function ProgrammesPage() {
       id: "department",
       header: "Department",
       cell: ({ row }) => (
-        <span className="text-muted-foreground">
-          {row.original.department?.name ?? getDeptName(row.original.departmentId)}
-        </span>
+        <span className="text-muted-foreground">{getDeptLabel(row.original)}</span>
       ),
     },
     {
@@ -285,8 +285,10 @@ export default function ProgrammesPage() {
             setFilterDeptId("all")
           }}
         >
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Filter by school" />
+          <SelectTrigger className="w-full sm:w-48">
+            <SelectValue placeholder="Filter by school">
+              {filterSchoolId === "all" ? "All Schools" : (schoolLabel(filterSchoolId) ?? "School")}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Schools</SelectItem>
@@ -299,25 +301,35 @@ export default function ProgrammesPage() {
         </Select>
 
         <Select value={filterDeptId} onValueChange={(v) => v != null && setFilterDeptId(v)}>
-          <SelectTrigger className="w-56">
-            <SelectValue placeholder="Filter by department" />
+          <SelectTrigger className="w-full sm:w-64">
+            <SelectValue placeholder="Filter by department">
+              {filterDeptId === "all"
+                ? "All Departments"
+                : (deptLabel(filterDepts, filterDeptId) ?? "Department")}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Departments</SelectItem>
             {filterDepts.map((d) => (
               <SelectItem key={d.id} value={d.id}>
-                {d.name}
+                {d.name} ({d.code})
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
 
-      {!isLoading && programmes.length === 0 ? (
+      {isError ? (
+        <ErrorState error={error} onRetry={() => refetch()} />
+      ) : !isLoading && programmes.length === 0 ? (
         <EmptyState
           icon={BookOpen}
           title="No programmes found"
-          description="Add your first programme to get started"
+          description={
+            filterSchoolId !== "all" || filterDeptId !== "all"
+              ? "No programmes match these filters"
+              : "Add your first programme to get started"
+          }
           action={{ label: "Add Programme", onClick: openCreate }}
         />
       ) : (
@@ -334,9 +346,7 @@ export default function ProgrammesPage() {
                   <div>
                     <p className="font-medium text-foreground">{prog.name}</p>
                     <p className="text-sm text-muted-foreground">{prog.code}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {prog.department?.name ?? getDeptName(prog.departmentId)}
-                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">{getDeptLabel(prog)}</p>
                   </div>
                   <DropdownMenu>
                     <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" className="text-muted-foreground" />}>
@@ -382,8 +392,10 @@ export default function ProgrammesPage() {
                   form.setValue("departmentId", "", { shouldValidate: false })
                 }}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select school first" />
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select school first">
+                    {schoolLabel(formSchoolId) ?? "Select school first"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {schools.map((s) => (
@@ -402,13 +414,16 @@ export default function ProgrammesPage() {
                 onValueChange={(v) => v != null && form.setValue("departmentId", v, { shouldValidate: true })}
                 disabled={!formSchoolId}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder={formSchoolId ? "Select department" : "Select school first"} />
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder={formSchoolId ? "Select department" : "Select school first"}>
+                    {deptLabel(formDepts, form.watch("departmentId")) ??
+                      (formSchoolId ? "Select department" : "Select school first")}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {formDepts.map((d) => (
                     <SelectItem key={d.id} value={d.id}>
-                      {d.name}
+                      {d.name} ({d.code})
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -420,7 +435,7 @@ export default function ProgrammesPage() {
 
             <div className="space-y-1.5">
               <Label className="text-foreground/70">Name</Label>
-              <Input placeholder="e.g. Computer Science" {...form.register("name")} />
+              <Input placeholder="e.g. National Diploma (ND)" {...form.register("name")} />
               {form.formState.errors.name && (
                 <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>
               )}
@@ -428,7 +443,7 @@ export default function ProgrammesPage() {
 
             <div className="space-y-1.5">
               <Label className="text-foreground/70">Code</Label>
-              <Input placeholder="e.g. CSC" {...form.register("code")} />
+              <Input placeholder="e.g. ND" className="uppercase" {...form.register("code")} />
               {form.formState.errors.code && (
                 <p className="text-sm text-destructive">{form.formState.errors.code.message}</p>
               )}
@@ -455,7 +470,7 @@ export default function ProgrammesPage() {
         open={!!deleteTarget}
         onOpenChange={(v) => !v && setDeleteTarget(null)}
         title="Delete Programme"
-        description={`Are you sure you want to delete "${deleteTarget?.name}"? This action cannot be undone.`}
+        description={`Delete "${deleteTarget?.name}"? Its levels and courses are deleted with it. A programme with registered students cannot be deleted. This action cannot be undone.`}
         onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
         loading={deleteMutation.isPending}
       />

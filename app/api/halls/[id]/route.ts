@@ -1,80 +1,76 @@
 import { prisma } from "@/lib/prisma";
 import { requireAdminUser, isErrorResponse } from "@/lib/auth";
-import { ok, badRequest, notFound, conflict, serverError } from "@/lib/api-response";
+import { ok, badRequest, notFound, conflict, zodErrors } from "@/lib/api-response";
+import { withHandler } from "@/lib/with-handler";
 import { z } from "zod";
 import type { RouteContext } from "@/lib/route-types";
 
 const updateSchema = z.object({
-  name: z.string().min(1).optional(),
-  code: z.string().min(1).optional(),
+  name: z.string().trim().min(2).max(255).optional(),
+  code: z.string().trim().min(2).max(50).toUpperCase().optional(),
   capacity: z.number().int().min(1).optional(),
-  latitude: z.number().optional(),
-  longitude: z.number().optional(),
-  description: z.string().optional(),
+  latitude: z.number().min(-90).max(90).optional(),
+  longitude: z.number().min(-180).max(180).optional(),
+  description: z.string().trim().max(1000).optional(),
   isActive: z.boolean().optional(),
 });
 
-export async function GET(_req: Request, ctx: RouteContext<"/api/halls/[id]">) {
-  try {
-    const auth = await requireAdminUser();
-    if (isErrorResponse(auth)) return auth;
+const withNumbers = <T extends { latitude: unknown; longitude: unknown }>(h: T) => ({
+  ...h,
+  latitude: Number(h.latitude),
+  longitude: Number(h.longitude),
+});
 
-    const { id } = await ctx.params;
-    const hall = await prisma.examHall.findUnique({ where: { id } });
-    if (!hall) return notFound("Hall not found");
-    return ok(hall);
-  } catch (err) {
-    console.error("[route-error]", err);
-    return serverError();
-  }
-}
-
-export async function PUT(request: Request, ctx: RouteContext<"/api/halls/[id]">) {
-  try {
-    const auth = await requireAdminUser();
-    if (isErrorResponse(auth)) return auth;
-
-    const { id } = await ctx.params;
-    const body = await request.json().catch(() => null);
-    const parsed = updateSchema.safeParse(body);
-    if (!parsed.success)
-      return badRequest("Validation failed", parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })));
-
-    const existing = await prisma.examHall.findUnique({ where: { id } });
-    if (!existing) return notFound("Hall not found");
-
-    const updated = await prisma.examHall.update({ where: { id }, data: parsed.data });
-    return ok(updated, "Hall updated");
-  } catch (err) {
-    console.error("[route-error]", err);
-    return serverError();
-  }
-}
-
-export async function DELETE(_req: Request, ctx: RouteContext<"/api/halls/[id]">) {
+export const GET = withHandler(async (_req: Request, ctx: RouteContext<"/api/halls/[id]">) => {
   const auth = await requireAdminUser();
   if (isErrorResponse(auth)) return auth;
 
   const { id } = await ctx.params;
+  const hall = await prisma.examHall.findUnique({ where: { id } });
+  if (!hall) return notFound("Hall not found");
+  return ok(withNumbers(hall));
+});
 
-  // RED-2: Guard against FK violations. HallAssignment, StudentHallAssignment, and
-  // NavigationNode all reference ExamHall with no CASCADE — an unguarded delete throws
-  // an unhandled P2003 and returns a raw 500.
+export const PUT = withHandler(async (request: Request, ctx: RouteContext<"/api/halls/[id]">) => {
+  const auth = await requireAdminUser();
+  if (isErrorResponse(auth)) return auth;
+
+  const { id } = await ctx.params;
+  const body = await request.json().catch(() => null);
+  const parsed = updateSchema.safeParse(body);
+  if (!parsed.success) return badRequest("Validation failed", zodErrors(parsed.error.issues));
+
+  const existing = await prisma.examHall.findUnique({ where: { id } });
+  if (!existing) return notFound("Hall not found");
+
+  try {
+    const updated = await prisma.examHall.update({ where: { id }, data: parsed.data });
+    return ok(withNumbers(updated), "Hall updated");
+  } catch (e: unknown) {
+    if ((e as { code?: string }).code === "P2002") return conflict("Hall code already exists");
+    throw e;
+  }
+});
+
+export const DELETE = withHandler(async (_req: Request, ctx: RouteContext<"/api/halls/[id]">) => {
+  const auth = await requireAdminUser();
+  if (isErrorResponse(auth)) return auth;
+
+  const { id } = await ctx.params;
+  const existing = await prisma.examHall.findUnique({ where: { id } });
+  if (!existing) return notFound("Hall not found");
+
+  // A hall used by any timetable keeps its bookings — deactivate it instead.
+  // (A linked campus-map node is simply unlinked when the hall is deleted.)
   const activeAssignment = await prisma.hallAssignment.findFirst({
     where: { examHallId: id },
     select: { id: true },
   });
   if (activeAssignment)
-    return conflict("Hall has active exam assignments. Deactivate it (isActive: false) instead of deleting, or reset the timetable first.");
+    return conflict(
+      "This hall is used by a timetable. Deactivate it instead of deleting, or reset the timetable first."
+    );
 
-  try {
-    await prisma.examHall.delete({ where: { id } });
-    return ok(null, "Hall deleted");
-  } catch (e: unknown) {
-    const err = e as { code?: string };
-    if (err.code === "P2025") return notFound("Hall not found");
-    if (err.code === "P2003")
-      return conflict("Hall is still referenced by navigation or student assignment records and cannot be deleted.");
-    throw e;
-  }
-}
+  await prisma.examHall.delete({ where: { id } });
+  return ok(null, "Hall deleted");
+});

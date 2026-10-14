@@ -1,10 +1,21 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
-import { CheckCircle2, Clock, MapPin, Navigation, ChevronDown, ChevronUp } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  AlertTriangle,
+  CalendarX2,
+  CheckCircle2,
+  Clock,
+  MapPin,
+  Navigation,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 import { QUERY_KEYS } from "@/lib/query-keys";
+import { apiGet, errorMessage } from "@/lib/fetcher";
+import { useSelectedSession } from "@/hooks/use-selected-session";
 import {
   Select,
   SelectContent,
@@ -35,6 +46,49 @@ interface TimetableEntry {
   studentAssignments: StudentAssignment[];
 }
 
+// ── Time ─────────────────────────────────────────────────────────────────────
+// Slot dates arrive as "YYYY-MM-DDT00:00:00.000Z" and times as "1970-01-01THH:MM:00.000Z";
+// both carry Lagos wall-clock values in their UTC fields. Lagos (West Africa Time) is
+// UTC+1 all year, with no daylight saving.
+
+const LAGOS_OFFSET_MS = 60 * 60 * 1000;
+const DAY_MS = 86_400_000;
+
+/** The real instant a slot time is reached on the exam date. */
+function slotInstant(dateStr: string, timeStr: string): number {
+  const date = new Date(dateStr);
+  const time = new Date(timeStr);
+  return (
+    Date.UTC(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      date.getUTCDate(),
+      time.getUTCHours(),
+      time.getUTCMinutes()
+    ) - LAGOS_OFFSET_MS
+  );
+}
+
+const examStartsAt = (e: TimetableEntry) => slotInstant(e.timeSlot.date, e.timeSlot.startTime);
+const examEndsAt = (e: TimetableEntry) => slotInstant(e.timeSlot.date, e.timeSlot.endTime);
+
+/** Calendar days from today in Lagos to the exam date (0 = today). */
+function daysUntil(dateStr: string, now: number): number {
+  const examDay = Math.floor(Date.parse(dateStr) / DAY_MS);
+  const lagosToday = Math.floor((now + LAGOS_OFFSET_MS) / DAY_MS);
+  return examDay - lagosToday;
+}
+
+// A clock that ticks every 30 seconds, so finished exams move to "Completed" and the
+// countdown rolls over at midnight without a reload.
+const CLOCK_STEP_MS = 30_000;
+function subscribeClock(onTick: () => void) {
+  const id = window.setInterval(onTick, CLOCK_STEP_MS);
+  return () => window.clearInterval(id);
+}
+const readClock = () => Math.floor(Date.now() / CLOCK_STEP_MS) * CLOCK_STEP_MS;
+const readServerClock = () => 0;
+
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString("en-NG", {
     weekday: "short",
@@ -56,25 +110,11 @@ function formatTime(start: string, end: string): string {
   return `${fmt(start)} – ${fmt(end)}`;
 }
 
-function isExamDone(dateStr: string): boolean {
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
-  const examDate = new Date(dateStr);
-  examDate.setUTCHours(0, 0, 0, 0);
-  return examDate < today;
-}
-
-function daysUntil(dateStr: string): number {
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
-  const examDate = new Date(dateStr);
-  examDate.setUTCHours(0, 0, 0, 0);
-  return Math.round((examDate.getTime() - today.getTime()) / 86_400_000);
-}
+// ── States ───────────────────────────────────────────────────────────────────
 
 function SkeletonRows() {
   return (
-    <div className="space-y-px">
+    <div className="space-y-px" aria-busy="true">
       {[1, 2, 3].map((i) => (
         <div key={i} className="flex items-center gap-4 py-4">
           <div className="flex-1 space-y-2">
@@ -88,16 +128,42 @@ function SkeletonRows() {
   );
 }
 
+function ErrorState({ title, message, onRetry }: { title: string; message: string; onRetry: () => void }) {
+  return (
+    <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-6 text-center">
+      <p className="text-sm font-medium text-destructive">{title}</p>
+      <p className="text-xs text-muted-foreground mt-1">{message}</p>
+      <Button variant="outline" size="sm" className="mt-3" onClick={onRetry}>
+        Try again
+      </Button>
+    </div>
+  );
+}
+
+function NoSessionState() {
+  return (
+    <div className="flex flex-col items-center justify-center gap-3 py-24 text-center">
+      <CalendarX2 className="size-8 text-muted-foreground/40" />
+      <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
+        No exam session is open yet.
+      </p>
+      <p className="text-xs text-muted-foreground/70 max-w-xs leading-relaxed">
+        Your exam timetable will appear here once the exams office publishes it.
+      </p>
+    </div>
+  );
+}
+
 function EmptyState() {
   return (
     <div className="flex flex-col items-center justify-center gap-3 py-24 text-center">
-      <Clock className="size-8 text-muted-foreground/30" />
-      <p className="text-sm text-muted-foreground/60 max-w-xs leading-relaxed">
+      <Clock className="size-8 text-muted-foreground/40" />
+      <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
         No exam entries found for this session.
       </p>
-      <p className="text-xs text-muted-foreground/40 max-w-xs leading-relaxed">
+      <p className="text-xs text-muted-foreground/70 max-w-xs leading-relaxed">
         Make sure you have{" "}
-        <Link href="/courses" className="underline underline-offset-2 hover:text-muted-foreground">
+        <Link href="/courses" className="underline underline-offset-2 hover:text-foreground">
           enrolled in courses
         </Link>{" "}
         for this session, or check back once the timetable is published.
@@ -106,11 +172,13 @@ function EmptyState() {
   );
 }
 
-function NextExamCard({ entry }: { entry: TimetableEntry }) {
+// ── Rows ─────────────────────────────────────────────────────────────────────
+
+function NextExamCard({ entry, now }: { entry: TimetableEntry; now: number }) {
   const assignment = entry.studentAssignments[0];
-  const days = daysUntil(entry.timeSlot.date);
+  const days = daysUntil(entry.timeSlot.date, now);
   const countdownLabel =
-    days === 0 ? "Today" : days === 1 ? "Tomorrow" : days <= 7 ? `In ${days} days` : null;
+    days <= 0 ? "Today" : days === 1 ? "Tomorrow" : `In ${days} days`;
 
   return (
     <div className="relative rounded-xl border border-border bg-card overflow-hidden">
@@ -121,14 +189,12 @@ function NextExamCard({ entry }: { entry: TimetableEntry }) {
         {/* Label row */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <span className="text-[10px] tracking-[0.12em] uppercase font-medium text-muted-foreground/60">
+            <span className="text-[10px] tracking-[0.12em] uppercase font-medium text-muted-foreground">
               Up Next
             </span>
-            {countdownLabel && (
-              <span className="text-[10px] font-mono font-medium text-brand">
-                {countdownLabel}
-              </span>
-            )}
+            <span className="text-[10px] font-mono font-medium text-brand">
+              {countdownLabel}
+            </span>
           </div>
           {assignment?.seatNumber != null && (
             <span className="font-mono text-xs text-muted-foreground tabular-nums">
@@ -149,7 +215,7 @@ function NextExamCard({ entry }: { entry: TimetableEntry }) {
 
         {/* Date + hall */}
         <div className="space-y-1.5 text-sm">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
             <span className="font-medium text-foreground">
               {formatDate(entry.timeSlot.date)}
             </span>
@@ -159,14 +225,14 @@ function NextExamCard({ entry }: { entry: TimetableEntry }) {
           </div>
           {assignment?.examHall ? (
             <div className="flex items-center gap-2">
-              <MapPin className="size-3.5 text-muted-foreground/50 shrink-0" />
+              <MapPin className="size-3.5 text-muted-foreground/70 shrink-0" />
               <span className="text-foreground">{assignment.examHall.name}</span>
-              <span className="font-mono text-xs text-muted-foreground/60">
+              <span className="font-mono text-xs text-muted-foreground">
                 ({assignment.examHall.code})
               </span>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground/60">Hall not assigned yet</p>
+            <p className="text-sm text-muted-foreground">Hall not assigned yet</p>
           )}
         </div>
 
@@ -181,7 +247,7 @@ function NextExamCard({ entry }: { entry: TimetableEntry }) {
             Navigate to Hall
           </Button>
         ) : (
-          <div className="h-9 flex items-center justify-center rounded-lg border border-dashed border-border text-xs text-muted-foreground/60">
+          <div className="h-9 flex items-center justify-center rounded-lg border border-dashed border-border text-xs text-muted-foreground">
             Hall assignment pending
           </div>
         )}
@@ -199,18 +265,18 @@ function UpcomingRow({ entry }: { entry: TimetableEntry }) {
           <span className="font-mono text-sm font-semibold text-foreground">
             {entry.course.code}
           </span>
-          <span className="text-xs text-muted-foreground/80 truncate hidden sm:block">
+          <span className="text-xs text-muted-foreground truncate hidden sm:block">
             {entry.course.title}
           </span>
         </div>
-        <p className="text-xs text-muted-foreground/70 sm:hidden mt-0.5 truncate">
+        <p className="text-xs text-muted-foreground sm:hidden mt-0.5 truncate">
           {entry.course.title}
         </p>
         <div className="flex items-center gap-2.5 mt-0.5">
-          <span className="text-xs text-muted-foreground/70">
+          <span className="text-xs text-muted-foreground">
             {formatDate(entry.timeSlot.date)}
           </span>
-          <span className="text-[10px] font-mono text-muted-foreground/50">
+          <span className="text-[10px] font-mono text-muted-foreground/80">
             {formatTime(entry.timeSlot.startTime, entry.timeSlot.endTime)}
           </span>
         </div>
@@ -219,26 +285,28 @@ function UpcomingRow({ entry }: { entry: TimetableEntry }) {
       <div className="shrink-0 flex items-center gap-2">
         {assignment?.examHall ? (
           <>
-            <span className="font-mono text-xs text-muted-foreground/60 hidden sm:block">
-              {assignment.examHall.code}
-            </span>
-            {assignment.seatNumber != null && (
-              <span className="font-mono text-xs text-muted-foreground/80 tabular-nums w-4 text-center">
-                {assignment.seatNumber}
-              </span>
-            )}
+            {/* Hall and seat belong together: seat numbers start at 1 in every hall */}
+            <div className="text-right leading-tight">
+              <p className="font-mono text-xs text-foreground/80">{assignment.examHall.code}</p>
+              {assignment.seatNumber != null && (
+                <p className="font-mono text-[10px] text-muted-foreground tabular-nums">
+                  Seat {assignment.seatNumber}
+                </p>
+              )}
+            </div>
             <Button
               render={<Link href={`/navigate/${assignment.examHall.id}`} />}
               nativeButton={false}
               size="icon-sm"
               variant="ghost"
               title="Navigate to hall"
+              aria-label={`Navigate to ${assignment.examHall.name}`}
             >
               <Navigation className="size-3.5" />
             </Button>
           </>
         ) : (
-          <span className="text-xs text-muted-foreground/40">TBD</span>
+          <span className="text-xs text-muted-foreground/70">Hall TBD</span>
         )}
       </div>
     </div>
@@ -248,7 +316,7 @@ function UpcomingRow({ entry }: { entry: TimetableEntry }) {
 function CompletedRow({ entry }: { entry: TimetableEntry }) {
   const assignment = entry.studentAssignments[0];
   return (
-    <div className="flex items-center gap-4 py-3 border-b border-border/40 last:border-0 opacity-45">
+    <div className="flex items-center gap-4 py-3 border-b border-border/40 last:border-0 opacity-60">
       <CheckCircle2 className="size-3.5 text-muted-foreground shrink-0" />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
@@ -259,7 +327,7 @@ function CompletedRow({ entry }: { entry: TimetableEntry }) {
             {entry.course.title}
           </span>
         </div>
-        <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground/70">
+        <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground">
           <span>{formatDate(entry.timeSlot.date)}</span>
           {assignment?.examHall && <span>· {assignment.examHall.code}</span>}
         </div>
@@ -268,68 +336,166 @@ function CompletedRow({ entry }: { entry: TimetableEntry }) {
   );
 }
 
-interface SessionOption { id: string; name: string; isActive: boolean }
+// ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const [session, setSession] = useState<string>("");
+  const queryClient = useQueryClient();
+  const {
+    session,
+    setSession,
+    sessions,
+    isLoading: sessionsLoading,
+    isError: sessionsError,
+  } = useSelectedSession();
   const [showCompleted, setShowCompleted] = useState(false);
+  const now = useSyncExternalStore(subscribeClock, readClock, readServerClock);
 
-  const { data: sessions = [] } = useQuery<SessionOption[]>({
-    queryKey: QUERY_KEYS.SESSIONS,
-    queryFn: async () => {
-      const res = await fetch("/api/sessions");
-      const json = await res.json();
-      return json.data ?? [];
-    },
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const activeSessions = sessions.filter((s) => s.isActive);
-
-  // Default to the most recent active session once loaded
-  const effectiveSession = session || activeSessions[0]?.name || "";
-
-  const { data: entries = [], isLoading, isError } = useQuery<TimetableEntry[]>({
-    queryKey: QUERY_KEYS.MY_TIMETABLE(effectiveSession),
-    queryFn: async () => {
-      const res = await fetch(`/api/timetable/me?session=${encodeURIComponent(effectiveSession)}`);
-      if (!res.ok) throw new Error(`${res.status}`);
-      const json = await res.json();
-      return json.data ?? [];
-    },
-    enabled: !!effectiveSession,
+  const timetable = useQuery({
+    queryKey: QUERY_KEYS.MY_TIMETABLE(session),
+    queryFn: () =>
+      apiGet<TimetableEntry[]>(`/api/timetable/me?session=${encodeURIComponent(session)}`),
+    enabled: !!session,
   });
 
   const sorted = useMemo(
-    () =>
-      [...entries].sort((a, b) => {
-        const dateDiff =
-          new Date(a.timeSlot.date).getTime() - new Date(b.timeSlot.date).getTime();
-        if (dateDiff !== 0) return dateDiff;
-        return (
-          new Date(a.timeSlot.startTime).getTime() -
-          new Date(b.timeSlot.startTime).getTime()
-        );
-      }),
-    [entries]
+    () => [...(timetable.data ?? [])].sort((a, b) => examStartsAt(a) - examStartsAt(b)),
+    [timetable.data]
   );
 
+  // An exam counts as completed once it has finished (not merely once its day has started).
   const { upcoming, past } = useMemo(() => {
     const upcoming: TimetableEntry[] = [];
     const past: TimetableEntry[] = [];
     for (const e of sorted) {
-      if (isExamDone(e.timeSlot.date)) past.push(e);
+      if (examEndsAt(e) <= now) past.push(e);
       else upcoming.push(e);
     }
     return { upcoming, past };
-  }, [sorted]);
+  }, [sorted, now]);
 
   const nextExam = upcoming[0] ?? null;
   const remainingUpcoming = upcoming.slice(1);
 
-  const missingSeat = entries.some(
+  const missingSeat = upcoming.some(
     (e) => e.studentAssignments[0]?.examHall != null && e.studentAssignments[0]?.seatNumber == null
   );
+
+  let content: React.ReactNode;
+  if (sessionsLoading) {
+    content = <SkeletonRows />;
+  } else if (sessionsError) {
+    content = (
+      <ErrorState
+        title="Failed to load sessions"
+        message="Check your connection and try again."
+        onRetry={() => queryClient.refetchQueries({ queryKey: QUERY_KEYS.SESSIONS })}
+      />
+    );
+  } else if (!session) {
+    content = <NoSessionState />;
+  } else if (timetable.isPending) {
+    // Skeleton until the timetable has data — never a flash of the empty state.
+    content = <SkeletonRows />;
+  } else if (timetable.isError) {
+    content = (
+      <ErrorState
+        title="Failed to load timetable"
+        message={errorMessage(timetable.error)}
+        onRetry={() => timetable.refetch()}
+      />
+    );
+  } else if (sorted.length === 0) {
+    content = <EmptyState />;
+  } else {
+    content = (
+      <div className="space-y-7">
+        {/* Seat-number pending notice */}
+        {missingSeat && (
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 flex items-start gap-2.5">
+            <AlertTriangle className="size-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-xs font-medium text-amber-700 dark:text-amber-400">
+                Seat number not yet assigned
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                Your hall is shown, but a seat number hasn&apos;t been assigned yet. Please contact the exams office.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Progress bar */}
+        <div className="flex items-center gap-3">
+          <div className="flex-1 h-[2px] rounded-full bg-border overflow-hidden">
+            <div
+              className="h-full bg-brand transition-all duration-500"
+              style={{ width: `${(past.length / sorted.length) * 100}%` }}
+            />
+          </div>
+          <span className="text-[10px] font-mono text-muted-foreground tabular-nums shrink-0">
+            {past.length} / {sorted.length}
+          </span>
+          {upcoming.length > 0 && (
+            <span className="text-[10px] text-muted-foreground/80 shrink-0">
+              {upcoming.length} remaining
+            </span>
+          )}
+        </div>
+
+        {/* Next exam */}
+        {nextExam && <NextExamCard entry={nextExam} now={now} />}
+
+        {/* Upcoming */}
+        {remainingUpcoming.length > 0 && (
+          <div>
+            <p className="text-[10px] tracking-[0.12em] uppercase font-medium text-muted-foreground mb-3">
+              Upcoming ({remainingUpcoming.length})
+            </p>
+            <div>
+              {remainingUpcoming.map((e) => (
+                <UpcomingRow key={e.id} entry={e} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Completed */}
+        {past.length > 0 && (
+          <div>
+            <button
+              type="button"
+              className="flex items-center gap-1.5 text-[10px] tracking-[0.12em] uppercase font-medium text-muted-foreground mb-3 hover:text-foreground transition-colors"
+              onClick={() => setShowCompleted((v) => !v)}
+              aria-expanded={showCompleted}
+            >
+              Completed ({past.length})
+              {showCompleted ? (
+                <ChevronUp className="size-3" />
+              ) : (
+                <ChevronDown className="size-3" />
+              )}
+            </button>
+            {showCompleted && (
+              <div>
+                {past.map((e) => (
+                  <CompletedRow key={e.id} entry={e} />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* All done */}
+        {upcoming.length === 0 && (
+          <div className="flex flex-col items-center gap-2 py-10 text-center">
+            <CheckCircle2 className="size-8 text-brand/70" />
+            <p className="text-sm font-medium text-foreground">All exams completed</p>
+            <p className="text-xs text-muted-foreground">Great work this semester.</p>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background px-4 pt-6 pb-28 md:pb-8 md:px-8 max-w-xl mx-auto">
@@ -339,119 +505,27 @@ export default function DashboardPage() {
           <h1 className="text-base font-semibold text-foreground tracking-tight">
             Exam Timetable
           </h1>
-          <p className="text-xs text-muted-foreground/70 mt-0.5">
+          <p className="text-xs text-muted-foreground mt-0.5">
             Your scheduled examinations
           </p>
         </div>
-        <Select value={effectiveSession} onValueChange={(v) => v != null && setSession(v)}>
-          <SelectTrigger className="w-auto h-7 text-xs px-2.5 shrink-0">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {activeSessions.map((s) => (
-              <SelectItem key={s.id} value={s.name} className="text-xs">
-                {s.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {sessions.length > 0 && (
+          <Select value={session || null} onValueChange={(v) => v != null && setSession(v)}>
+            <SelectTrigger className="w-auto h-7 text-xs px-2.5 shrink-0" aria-label="Session">
+              <SelectValue>{session}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {sessions.map((s) => (
+                <SelectItem key={s.id} value={s.name} className="text-xs">
+                  {s.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
-      {isLoading ? (
-        <SkeletonRows />
-      ) : isError ? (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-6 text-center">
-          <p className="text-sm font-medium text-destructive">Failed to load timetable</p>
-          <p className="text-xs text-muted-foreground mt-1">Check your connection and refresh the page.</p>
-        </div>
-      ) : entries.length === 0 ? (
-        <EmptyState />
-      ) : (
-        <div className="space-y-7">
-          {/* Seat-number pending banner */}
-          {missingSeat && (
-            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 flex items-start gap-2.5">
-              <span className="text-amber-500 mt-0.5 shrink-0 text-sm">⚠</span>
-              <div>
-                <p className="text-xs font-medium text-amber-500">Seat numbers not yet assigned</p>
-                <p className="text-xs text-muted-foreground/80 mt-0.5 leading-relaxed">
-                  Your hall has been allocated but individual seat numbers are pending. The exam admin needs to regenerate and republish the timetable.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Progress bar */}
-          {sorted.length > 0 && (
-            <div className="flex items-center gap-3">
-              <div className="flex-1 h-[2px] rounded-full bg-border overflow-hidden">
-                <div
-                  className="h-full bg-brand transition-all duration-500"
-                  style={{ width: `${(past.length / sorted.length) * 100}%` }}
-                />
-              </div>
-              <span className="text-[10px] font-mono text-muted-foreground/60 tabular-nums shrink-0">
-                {past.length} / {sorted.length}
-              </span>
-              {upcoming.length > 0 && (
-                <span className="text-[10px] text-muted-foreground/50 shrink-0">
-                  {upcoming.length} remaining
-                </span>
-              )}
-            </div>
-          )}
-
-          {/* Next exam */}
-          {nextExam && <NextExamCard entry={nextExam} />}
-
-          {/* Upcoming */}
-          {remainingUpcoming.length > 0 && (
-            <div>
-              <p className="text-[10px] tracking-[0.12em] uppercase font-medium text-muted-foreground/50 mb-3">
-                Upcoming ({remainingUpcoming.length})
-              </p>
-              <div>
-                {remainingUpcoming.map((e) => (
-                  <UpcomingRow key={e.id} entry={e} />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Completed */}
-          {past.length > 0 && (
-            <div>
-              <button
-                className="flex items-center gap-1.5 text-[10px] tracking-[0.12em] uppercase font-medium text-muted-foreground/50 mb-3 hover:text-muted-foreground transition-colors"
-                onClick={() => setShowCompleted((v) => !v)}
-              >
-                Completed ({past.length})
-                {showCompleted ? (
-                  <ChevronUp className="size-3" />
-                ) : (
-                  <ChevronDown className="size-3" />
-                )}
-              </button>
-              {showCompleted && (
-                <div>
-                  {past.map((e) => (
-                    <CompletedRow key={e.id} entry={e} />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* All done */}
-          {upcoming.length === 0 && past.length > 0 && (
-            <div className="flex flex-col items-center gap-2 py-10 text-center">
-              <CheckCircle2 className="size-8 text-brand/70" />
-              <p className="text-sm font-medium text-foreground">All exams completed</p>
-              <p className="text-xs text-muted-foreground/60">Great work this semester.</p>
-            </div>
-          )}
-        </div>
-      )}
+      {content}
     </div>
   );
 }

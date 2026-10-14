@@ -1,149 +1,189 @@
 import { prisma } from "@/lib/prisma";
 import { requireAdminUser, isErrorResponse } from "@/lib/auth";
-import { ok, badRequest } from "@/lib/api-response";
+import { ok, badRequest, serverError } from "@/lib/api-response";
+import { withHandler } from "@/lib/with-handler";
+import { parseCsv, readCsvUpload, stripFormulaPrefix } from "@/lib/csv";
 
-type CsvRow = {
-  course_code?: string;
-  course_title?: string;
-  level_name?: string;
-  credit_units?: string;
-  semester?: string;
+type ValidRow = {
+  code: string;
+  title: string;
+  creditUnits: number;
+  semester: "FIRST" | "SECOND";
+  levelId: string;
 };
 
-/**
- * Strips leading formula-injection characters (= + - @) so that exported CSVs
- * cannot execute spreadsheet formulas when opened in Excel / Google Sheets.
- */
-function sanitizeCsvField(value: string): string {
-  return /^[=+\-@]/.test(value) ? `'${value}` : value;
-}
+const REQUIRED = ["course_code", "course_title", "level_name", "credit_units", "semester"] as const;
+
+// A large file over a slow connection can take a while to save.
+export const maxDuration = 60;
 
 /**
- * RFC 4180-compliant CSV field splitter.
- * Handles quoted fields containing commas and escaped quotes ("").
- * Does not handle multi-line field values (newlines inside quotes) since
- * course data split by line first; newlines in course titles are unrealistic.
+ * POST /api/courses/upload-csv
+ *
+ * CSV format (header row required; department_code is optional but needed when
+ * several departments have a level with the same name, e.g. "ND 1"):
+ *   course_code,course_title,department_code,level_name,credit_units,semester
+ *   COM111,Introduction to Computing,CSC,ND 1,3,first
+ *
+ * Every row is validated first; all valid rows are then saved in one transaction
+ * (new codes are created, existing codes updated). Rejected rows are reported
+ * with their line number and the reason.
  */
-function splitCSVLine(line: string): string[] {
-  const fields: string[] = [];
-  let current = "";
-  let inQuotes = false;
-
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-    if (ch === '"') {
-      if (inQuotes && line[i + 1] === '"') {
-        current += '"';
-        i++;
-      } else {
-        inQuotes = !inQuotes;
-      }
-    } else if (ch === "," && !inQuotes) {
-      fields.push(current.trim());
-      current = "";
-    } else {
-      current += ch;
-    }
-  }
-  fields.push(current.trim());
-  return fields;
-}
-
-export async function POST(request: Request) {
+export const POST = withHandler(async (request: Request) => {
   const auth = await requireAdminUser();
   if (isErrorResponse(auth)) return auth;
 
-  const formData = await request.formData();
-  const file = formData.get("file") as File | null;
-  if (!file) return badRequest("No file provided");
-  if (!file.name.endsWith(".csv")) return badRequest("File must be a .csv file");
-  if (!["text/csv", "application/csv", "application/vnd.ms-excel", "text/plain"].includes(file.type))
-    return badRequest("File MIME type must be text/csv");
-  if (file.size > 5 * 1024 * 1024) return badRequest("File exceeds 5 MB limit");
+  const upload = await readCsvUpload(await request.formData().catch(() => null));
+  if ("error" in upload) return badRequest(upload.error);
 
-  const text = await file.text();
-  const lines = text.split(/\r?\n/).filter(Boolean);
-  if (lines.length < 2) return badRequest("CSV is empty or missing header row");
+  const { headers, rows } = parseCsv(upload.text);
+  if (rows.length === 0) return badRequest("CSV is empty or missing header row");
 
-  const headers = splitCSVLine(lines[0]).map((h) => h.toLowerCase());
-  const requiredHeaders = ["course_code", "course_title", "level_name", "credit_units", "semester"];
-  const missing = requiredHeaders.filter((h) => !headers.includes(h));
+  const missing = REQUIRED.filter((h) => !headers.includes(h));
   if (missing.length) return badRequest(`Missing CSV columns: ${missing.join(", ")}`);
+  const col = (name: string) => headers.indexOf(name);
+  const deptCol = col("department_code");
 
-  // Pre-load all levels for lookup
-  const levels = await prisma.level.findMany({ select: { id: true, name: true } });
-  const levelMap = new Map(levels.map((l) => [l.name.toLowerCase(), l.id]));
-
-  let imported = 0;
-  let skipped = 0;
-  const errors: { row: number; reason: string }[] = [];
-
-  // Validate ALL rows first, then commit in a single atomic transaction so a
-  // mid-batch failure never leaves the DB in a partial state.
-  type ValidRow = { code: string; title: string; creditUnits: number; semester: "FIRST" | "SECOND"; levelId: string };
-  const validRows: ValidRow[] = [];
-
-  for (let i = 1; i < lines.length; i++) {
-    const values = splitCSVLine(lines[i]);
-    const row: CsvRow = {};
-    headers.forEach((h, idx) => { (row as Record<string, string>)[h] = values[idx] ?? ""; });
-
-    const rowNum = i + 1;
-    const { course_code, course_title, level_name, credit_units, semester } = row;
-
-    if (!course_code || !course_title || !level_name) {
-      errors.push({ row: rowNum, reason: "Missing required fields" });
-      skipped++;
-      continue;
-    }
-
-    const levelId = levelMap.get(level_name.toLowerCase());
-    if (!levelId) {
-      errors.push({ row: rowNum, reason: `Unknown level: "${level_name}"` });
-      skipped++;
-      continue;
-    }
-
-    const credits = parseInt(credit_units ?? "0", 10);
-    if (!credits || credits < 1) {
-      errors.push({ row: rowNum, reason: "Invalid credit_units" });
-      skipped++;
-      continue;
-    }
-
-    const sem = (semester ?? "").toLowerCase();
-    if (sem !== "first" && sem !== "second") {
-      errors.push({ row: rowNum, reason: `Invalid semester: "${semester}" (must be "first" or "second")` });
-      skipped++;
-      continue;
-    }
-
-    validRows.push({
-      code: course_code.toUpperCase(),
-      title: sanitizeCsvField(course_title),
-      creditUnits: credits,
-      semester: sem === "first" ? "FIRST" : "SECOND",
-      levelId,
-    });
+  // Levels keyed by "DEPT|level name" and by level name alone
+  const levels = await prisma.level.findMany({
+    select: { id: true, name: true, programme: { select: { department: { select: { code: true } } } } },
+  });
+  const byDeptAndName = new Map<string, string[]>();
+  const byName = new Map<string, string[]>();
+  for (const l of levels) {
+    const name = l.name.trim().toLowerCase();
+    const key = `${l.programme.department.code.toUpperCase()}|${name}`;
+    byDeptAndName.set(key, [...(byDeptAndName.get(key) ?? []), l.id]);
+    byName.set(name, [...(byName.get(name) ?? []), l.id]);
   }
 
-  if (validRows.length > 0) {
+  const errors: { row: number; reason: string }[] = [];
+  const validRows: ValidRow[] = [];
+  const firstLineForCode = new Map<string, number>();
+
+  for (const { line, cells } of rows) {
+    const get = (name: string) => (col(name) === -1 ? "" : (cells[col(name)] ?? "").trim());
+    const code = get("course_code").toUpperCase();
+    const title = stripFormulaPrefix(get("course_title"));
+    const levelName = get("level_name");
+    const deptCode = deptCol === -1 ? "" : get("department_code").toUpperCase();
+
+    if (!code || !title || !levelName) {
+      errors.push({ row: line, reason: "Missing required fields (course_code, course_title, level_name)" });
+      continue;
+    }
+    if (code.length < 2 || code.length > 20 || title.length < 2 || title.length > 255) {
+      errors.push({ row: line, reason: "course_code must be 2–20 characters and course_title 2–255" });
+      continue;
+    }
+    if (firstLineForCode.has(code)) {
+      errors.push({ row: line, reason: `Duplicate course_code ${code} (first seen on line ${firstLineForCode.get(code)})` });
+      continue;
+    }
+
+    let levelId: string | undefined;
+    if (deptCode) {
+      const matches = byDeptAndName.get(`${deptCode}|${levelName.toLowerCase()}`) ?? [];
+      if (matches.length === 0) {
+        errors.push({ row: line, reason: `No level "${levelName}" in department ${deptCode}` });
+        continue;
+      }
+      if (matches.length > 1) {
+        errors.push({ row: line, reason: `Level "${levelName}" exists in more than one programme of ${deptCode}` });
+        continue;
+      }
+      levelId = matches[0];
+    } else {
+      const matches = byName.get(levelName.toLowerCase()) ?? [];
+      if (matches.length === 0) {
+        errors.push({ row: line, reason: `Unknown level: "${levelName}"` });
+        continue;
+      }
+      if (matches.length > 1) {
+        errors.push({
+          row: line,
+          reason: `Level "${levelName}" exists in several departments — add a department_code column`,
+        });
+        continue;
+      }
+      levelId = matches[0];
+    }
+
+    const creditText = get("credit_units");
+    const credits = Number(creditText);
+    if (!/^\d+$/.test(creditText) || credits < 1 || credits > 6) {
+      errors.push({ row: line, reason: "credit_units must be a whole number from 1 to 6" });
+      continue;
+    }
+
+    const sem = get("semester").toLowerCase();
+    if (sem !== "first" && sem !== "second") {
+      errors.push({ row: line, reason: `Invalid semester: "${get("semester")}" (must be "first" or "second")` });
+      continue;
+    }
+
+    firstLineForCode.set(code, line);
+    validRows.push({ code, title, creditUnits: credits, semester: sem === "first" ? "FIRST" : "SECOND", levelId });
+  }
+
+  // Existing courses on a published timetable keep their semester and level.
+  const existing = validRows.length
+    ? await prisma.course.findMany({
+        where: { code: { in: validRows.map((r) => r.code) } },
+        select: {
+          code: true,
+          semester: true,
+          levelId: true,
+          timetableEntries: { where: { status: "PUBLISHED" }, select: { id: true }, take: 1 },
+        },
+      })
+    : [];
+  const existingByCode = new Map(existing.map((c) => [c.code, c]));
+  const toSave = validRows.filter((r) => {
+    const current = existingByCode.get(r.code);
+    if (
+      current &&
+      current.timetableEntries.length > 0 &&
+      (current.semester !== r.semester || current.levelId !== r.levelId)
+    ) {
+      errors.push({
+        row: firstLineForCode.get(r.code) ?? 0,
+        reason: `${r.code} is on a published timetable — its semester and level can't change`,
+      });
+      return false;
+    }
+    return true;
+  });
+
+  if (toSave.length > 0) {
+    // New courses go in with one insert; only existing codes need one update each.
+    const newRows = toSave.filter((r) => !existingByCode.has(r.code));
+    const changedRows = toSave.filter((r) => existingByCode.has(r.code));
     try {
       await prisma.$transaction(
-        validRows.map((r) =>
-          prisma.course.upsert({
-            where: { code: r.code },
-            update: { title: r.title, creditUnits: r.creditUnits, semester: r.semester, levelId: r.levelId },
-            create: r,
-          })
-        )
+        async (tx) => {
+          if (newRows.length > 0) await tx.course.createMany({ data: newRows });
+          for (const r of changedRows) {
+            await tx.course.update({
+              where: { code: r.code },
+              data: { title: r.title, creditUnits: r.creditUnits, semester: r.semester, levelId: r.levelId },
+            });
+          }
+        },
+        { maxWait: 10_000, timeout: 55_000 }
       );
-      imported = validRows.length;
-    } catch {
-      errors.push({ row: 0, reason: "Database transaction failed — no courses were imported. Correct the errors above and re-upload the full CSV." });
-      skipped += validRows.length;
+    } catch (e) {
+      console.error("[courses/upload-csv]", e);
+      return serverError("The import could not be saved — no courses were changed. Please try again.");
     }
   }
 
-  return ok({ imported, skipped, errors });
-}
+  const updated = toSave.filter((r) => existingByCode.has(r.code)).length;
+  const imported = toSave.length - updated;
+  errors.sort((a, b) => a.row - b.row);
+
+  return ok(
+    { imported, updated, skipped: errors.length, errors },
+    `Import complete: ${imported} new, ${updated} updated, ${errors.length} rejected`
+  );
+});

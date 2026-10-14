@@ -11,11 +11,13 @@ import { MoreHorizontal, Layers } from "lucide-react"
 import type { ColumnDef } from "@tanstack/react-table"
 
 import { QUERY_KEYS } from "@/lib/query-keys"
+import { apiGet, apiSend, errorMessage } from "@/lib/fetcher"
 import { PageHeader } from "@/components/admin/page-header"
 import { DataTable } from "@/components/admin/data-table"
 import { MobileCardList } from "@/components/admin/mobile-card-list"
 import { ConfirmDialog } from "@/components/admin/confirm-dialog"
 import { EmptyState } from "@/components/admin/empty-state"
+import { ErrorState } from "@/components/admin/error-state"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -43,6 +45,8 @@ import {
 interface Programme {
   id: string
   name: string
+  code: string
+  department?: { name: string; code: string }
 }
 
 interface Level {
@@ -50,16 +54,29 @@ interface Level {
   name: string
   year: number
   programmeId: string
-  programme?: { name: string }
+  programme?: { name: string; code: string; department?: { code: string } }
 }
 
 const levelSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  year: z.number().int().min(1).max(4),
+  name: z
+    .string()
+    .trim()
+    .min(2, "Name must be at least 2 characters")
+    .max(50, "Name must be at most 50 characters"),
+  year: z
+    .number({ error: "Year must be a whole number from 1 to 4" })
+    .int("Year must be a whole number from 1 to 4")
+    .min(1, "Year must be from 1 to 4")
+    .max(4, "Year must be from 1 to 4"),
   programmeId: z.string().min(1, "Programme is required"),
 })
 
 type LevelFormValues = z.infer<typeof levelSchema>
+
+/** "National Diploma (ND) — CSC": programme names repeat in every department. */
+function programmeLabel(p: { name: string; department?: { code: string } }): string {
+  return p.department?.code ? `${p.name} — ${p.department.code}` : p.name
+}
 
 export default function LevelsPage() {
   const queryClient = useQueryClient()
@@ -69,27 +86,31 @@ export default function LevelsPage() {
   const [deleteTarget, setDeleteTarget] = useState<Level | null>(null)
 
   const { data: programmes = [] } = useQuery<Programme[]>({
-    queryKey: QUERY_KEYS.PROGRAMMES(undefined),
-    queryFn: async () => {
-      const res = await fetch("/api/programmes")
-      const json = await res.json()
-      return json.data ?? []
-    },
+    queryKey: ["programmes", "list", undefined, undefined],
+    queryFn: () => apiGet<Programme[]>("/api/programmes"),
   })
 
   const progIdParam = filterProgId !== "all" ? filterProgId : undefined
 
-  const { data: levels = [], isLoading } = useQuery<Level[]>({
+  const {
+    data: levels = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery<Level[]>({
     queryKey: QUERY_KEYS.LEVELS(progIdParam),
-    queryFn: async () => {
-      const url = progIdParam
-        ? `/api/levels?programme_id=${progIdParam}`
-        : "/api/levels"
-      const res = await fetch(url)
-      const json = await res.json()
-      return json.data ?? []
-    },
+    queryFn: () =>
+      apiGet<Level[]>(
+        progIdParam ? `/api/levels?programme_id=${encodeURIComponent(progIdParam)}` : "/api/levels"
+      ),
   })
+
+  const invalidateAll = () => {
+    queryClient.invalidateQueries({ queryKey: ["levels"] })
+    queryClient.invalidateQueries({ queryKey: ["courses"] })
+    queryClient.invalidateQueries({ queryKey: QUERY_KEYS.STATS })
+  }
 
   const form = useForm<LevelFormValues>({
     resolver: zodResolver(levelSchema),
@@ -109,69 +130,55 @@ export default function LevelsPage() {
   }
 
   const createMutation = useMutation({
-    mutationFn: async (body: LevelFormValues) => {
-      const res = await fetch("/api/levels", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      })
-      const json = await res.json()
-      if (!json.success) throw new Error(json.message)
-      return json.data
-    },
+    mutationFn: (body: LevelFormValues) => apiSend<Level>("/api/levels", "POST", body),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["levels"] })
+      invalidateAll()
       toast.success("Level created")
       setDialogOpen(false)
       form.reset()
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e) => toast.error(errorMessage(e)),
   })
 
   const updateMutation = useMutation({
-    mutationFn: async (body: LevelFormValues) => {
-      const res = await fetch(`/api/levels/${editTarget!.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      })
-      const json = await res.json()
-      if (!json.success) throw new Error(json.message)
-      return json.data
-    },
+    mutationFn: ({ id, body }: { id: string; body: LevelFormValues }) =>
+      apiSend<Level>(`/api/levels/${id}`, "PUT", body),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["levels"] })
+      invalidateAll()
       toast.success("Level updated")
       setDialogOpen(false)
       setEditTarget(null)
       form.reset()
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e) => toast.error(errorMessage(e)),
   })
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await fetch(`/api/levels/${id}`, { method: "DELETE" })
-      const json = await res.json()
-      if (!json.success) throw new Error(json.message)
-    },
+    mutationFn: (id: string) => apiSend(`/api/levels/${id}`, "DELETE"),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["levels"] })
+      invalidateAll()
       toast.success("Level deleted")
       setDeleteTarget(null)
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e) => toast.error(errorMessage(e)),
   })
 
   const onSubmit = (values: LevelFormValues) => {
-    if (editTarget) updateMutation.mutate(values)
+    if (editTarget) updateMutation.mutate({ id: editTarget.id, body: values })
     else createMutation.mutate(values)
   }
 
   const isSaving = createMutation.isPending || updateMutation.isPending
 
-  const getProgName = (programmeId: string) =>
-    programmes.find((p) => p.id === programmeId)?.name ?? "—"
+  const getProgLabel = (level: Level) => {
+    const prog = level.programme ?? programmes.find((p) => p.id === level.programmeId)
+    return prog ? programmeLabel(prog) : "—"
+  }
+
+  const progLabelById = (id: string) => {
+    const prog = programmes.find((p) => p.id === id)
+    return prog ? programmeLabel(prog) : undefined
+  }
 
   const columns: ColumnDef<Level>[] = [
     {
@@ -192,9 +199,7 @@ export default function LevelsPage() {
       id: "programme",
       header: "Programme",
       cell: ({ row }) => (
-        <span className="text-muted-foreground">
-          {row.original.programme?.name ?? getProgName(row.original.programmeId)}
-        </span>
+        <span className="text-muted-foreground">{getProgLabel(row.original)}</span>
       ),
     },
     {
@@ -235,23 +240,27 @@ export default function LevelsPage() {
         action={{ label: "Add Level", onClick: openCreate }}
       />
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Select value={filterProgId} onValueChange={(v) => v != null && setFilterProgId(v)}>
-          <SelectTrigger className="w-56">
-            <SelectValue placeholder="Filter by programme" />
+          <SelectTrigger className="w-full sm:w-80">
+            <SelectValue placeholder="Filter by programme">
+              {filterProgId === "all" ? "All Programmes" : (progLabelById(filterProgId) ?? "Programme")}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Programmes</SelectItem>
             {programmes.map((p) => (
               <SelectItem key={p.id} value={p.id}>
-                {p.name}
+                {programmeLabel(p)}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
 
-      {!isLoading && levels.length === 0 ? (
+      {isError ? (
+        <ErrorState error={error} onRetry={() => refetch()} />
+      ) : !isLoading && levels.length === 0 ? (
         <EmptyState
           icon={Layers}
           title="No levels found"
@@ -272,9 +281,7 @@ export default function LevelsPage() {
                   <div>
                     <p className="font-medium text-foreground">{level.name}</p>
                     <p className="text-sm text-muted-foreground">Year {level.year}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {level.programme?.name ?? getProgName(level.programmeId)}
-                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">{getProgLabel(level)}</p>
                   </div>
                   <DropdownMenu>
                     <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" className="text-muted-foreground" />}>
@@ -316,13 +323,15 @@ export default function LevelsPage() {
                 value={form.watch("programmeId")}
                 onValueChange={(v) => v != null && form.setValue("programmeId", v, { shouldValidate: true })}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select programme" />
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select programme">
+                    {progLabelById(form.watch("programmeId")) ?? "Select programme"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {programmes.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
-                      {p.name}
+                      {programmeLabel(p)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -334,7 +343,7 @@ export default function LevelsPage() {
 
             <div className="space-y-1.5">
               <Label className="text-foreground/70">Name</Label>
-              <Input placeholder="e.g. 100 Level" {...form.register("name")} />
+              <Input placeholder="e.g. ND 1" {...form.register("name")} />
               {form.formState.errors.name && (
                 <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>
               )}
@@ -369,7 +378,7 @@ export default function LevelsPage() {
         open={!!deleteTarget}
         onOpenChange={(v) => !v && setDeleteTarget(null)}
         title="Delete Level"
-        description={`Are you sure you want to delete "${deleteTarget?.name}"? This action cannot be undone.`}
+        description={`Delete "${deleteTarget?.name}"? Its courses are deleted with it. A level with registered students cannot be deleted. This action cannot be undone.`}
         onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
         loading={deleteMutation.isPending}
       />

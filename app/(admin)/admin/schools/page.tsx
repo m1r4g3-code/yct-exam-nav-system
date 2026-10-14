@@ -10,11 +10,13 @@ import { MoreHorizontal, Building2 } from "lucide-react"
 import type { ColumnDef } from "@tanstack/react-table"
 
 import { QUERY_KEYS } from "@/lib/query-keys"
+import { apiGet, apiSend, errorMessage } from "@/lib/fetcher"
 import { PageHeader } from "@/components/admin/page-header"
 import { DataTable } from "@/components/admin/data-table"
 import { MobileCardList } from "@/components/admin/mobile-card-list"
 import { ConfirmDialog } from "@/components/admin/confirm-dialog"
 import { EmptyState } from "@/components/admin/empty-state"
+import { ErrorState } from "@/components/admin/error-state"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -39,11 +41,21 @@ interface School {
 }
 
 const schoolSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  code: z.string().min(1, "Code is required"),
+  name: z
+    .string()
+    .trim()
+    .min(2, "Name must be at least 2 characters")
+    .max(255, "Name must be at most 255 characters"),
+  code: z
+    .string()
+    .trim()
+    .min(2, "Code must be at least 2 characters")
+    .max(50, "Code must be at most 50 characters")
+    .transform((v) => v.toUpperCase()),
 })
 
-type SchoolFormValues = z.infer<typeof schoolSchema>
+type SchoolFormInput = z.input<typeof schoolSchema>
+type SchoolFormValues = z.output<typeof schoolSchema>
 
 export default function SchoolsPage() {
   const queryClient = useQueryClient()
@@ -51,16 +63,27 @@ export default function SchoolsPage() {
   const [editTarget, setEditTarget] = useState<School | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<School | null>(null)
 
-  const { data: schools = [], isLoading } = useQuery<School[]>({
+  const {
+    data: schools = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery<School[]>({
     queryKey: QUERY_KEYS.SCHOOLS,
-    queryFn: async () => {
-      const res = await fetch("/api/schools")
-      const json = await res.json()
-      return json.data ?? []
-    },
+    queryFn: () => apiGet<School[]>("/api/schools"),
   })
 
-  const form = useForm<SchoolFormValues>({
+  const invalidateAll = () => {
+    queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SCHOOLS })
+    queryClient.invalidateQueries({ queryKey: ["departments"] })
+    queryClient.invalidateQueries({ queryKey: ["programmes"] })
+    queryClient.invalidateQueries({ queryKey: ["levels"] })
+    queryClient.invalidateQueries({ queryKey: ["courses"] })
+    queryClient.invalidateQueries({ queryKey: QUERY_KEYS.STATS })
+  }
+
+  const form = useForm<SchoolFormInput, unknown, SchoolFormValues>({
     resolver: zodResolver(schoolSchema),
     defaultValues: { name: "", code: "" },
   })
@@ -78,63 +101,42 @@ export default function SchoolsPage() {
   }
 
   const createMutation = useMutation({
-    mutationFn: async (body: SchoolFormValues) => {
-      const res = await fetch("/api/schools", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      })
-      const json = await res.json()
-      if (!json.success) throw new Error(json.message)
-      return json.data
-    },
+    mutationFn: (body: SchoolFormValues) => apiSend<School>("/api/schools", "POST", body),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SCHOOLS })
+      invalidateAll()
       toast.success("School created")
       setDialogOpen(false)
       form.reset()
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e) => toast.error(errorMessage(e)),
   })
 
   const updateMutation = useMutation({
-    mutationFn: async (body: SchoolFormValues) => {
-      const res = await fetch(`/api/schools/${editTarget!.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      })
-      const json = await res.json()
-      if (!json.success) throw new Error(json.message)
-      return json.data
-    },
+    mutationFn: ({ id, body }: { id: string; body: SchoolFormValues }) =>
+      apiSend<School>(`/api/schools/${id}`, "PUT", body),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SCHOOLS })
+      invalidateAll()
       toast.success("School updated")
       setDialogOpen(false)
       setEditTarget(null)
       form.reset()
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e) => toast.error(errorMessage(e)),
   })
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await fetch(`/api/schools/${id}`, { method: "DELETE" })
-      const json = await res.json()
-      if (!json.success) throw new Error(json.message)
-    },
+    mutationFn: (id: string) => apiSend(`/api/schools/${id}`, "DELETE"),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SCHOOLS })
+      invalidateAll()
       toast.success("School deleted")
       setDeleteTarget(null)
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e) => toast.error(errorMessage(e)),
   })
 
   const onSubmit = (values: SchoolFormValues) => {
     if (editTarget) {
-      updateMutation.mutate(values)
+      updateMutation.mutate({ id: editTarget.id, body: values })
     } else {
       createMutation.mutate(values)
     }
@@ -192,7 +194,9 @@ export default function SchoolsPage() {
         action={{ label: "Add School", onClick: openCreate }}
       />
 
-      {!isLoading && schools.length === 0 ? (
+      {isError ? (
+        <ErrorState error={error} onRetry={() => refetch()} />
+      ) : !isLoading && schools.length === 0 ? (
         <EmptyState
           icon={Building2}
           title="No schools yet"
@@ -250,7 +254,7 @@ export default function SchoolsPage() {
             </div>
             <div className="space-y-1.5">
               <Label>Code</Label>
-              <Input placeholder="e.g. SOE" {...form.register("code")} />
+              <Input placeholder="e.g. SOE" className="uppercase" {...form.register("code")} />
               {form.formState.errors.code && (
                 <p className="text-sm text-destructive">{form.formState.errors.code.message}</p>
               )}
@@ -271,7 +275,7 @@ export default function SchoolsPage() {
         open={!!deleteTarget}
         onOpenChange={(v) => !v && setDeleteTarget(null)}
         title="Delete School"
-        description={`Are you sure you want to delete "${deleteTarget?.name}"? This action cannot be undone.`}
+        description={`Delete "${deleteTarget?.name}"? This also deletes all of its departments, programmes, levels and courses. A school whose departments still have registered students cannot be deleted. This action cannot be undone.`}
         onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
         loading={deleteMutation.isPending}
       />

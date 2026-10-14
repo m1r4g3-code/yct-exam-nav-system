@@ -1,8 +1,9 @@
 "use client"
 
-import { useEffect, useState, startTransition } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { useQuery } from "@tanstack/react-query"
 import { createClient } from "@/lib/supabase/client"
 import { useForm, useWatch, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -20,18 +21,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { QUERY_KEYS } from "@/lib/query-keys"
+import { ApiError, apiGet, apiSend, errorMessage } from "@/lib/fetcher"
+import { MATRIC_FORMAT_HINT, isValidMatric, normaliseMatric } from "@/lib/matric"
+import { useActiveSessions } from "@/hooks/use-selected-session"
 
 const registerSchema = z
   .object({
-    fullName: z.string().min(2, "Full name must be at least 2 characters"),
+    fullName: z
+      .string()
+      .trim()
+      .min(2, "Full name must be at least 2 characters")
+      .max(255, "Full name is too long"),
     matricNumber: z
       .string()
-      .min(4, "Matric number must be at least 4 characters"),
-    email: z.string().email("Enter a valid email address"),
-    password: z.string().min(8, "Password must be at least 8 characters"),
-    confirmPassword: z.string(),
+      .trim()
+      .min(1, "Enter your matric number")
+      .refine(isValidMatric, MATRIC_FORMAT_HINT),
+    email: z.string().trim().email("Enter a valid email address"),
+    departmentId: z.string().min(1, "Select your department"),
     programmeId: z.string().min(1, "Select a programme"),
     levelId: z.string().min(1, "Select a level"),
+    password: z.string().min(8, "Password must be at least 8 characters"),
+    confirmPassword: z.string(),
   })
   .refine((d) => d.password === d.confirmPassword, {
     message: "Passwords do not match",
@@ -40,37 +52,77 @@ const registerSchema = z
 
 type RegisterFormValues = z.infer<typeof registerSchema>
 
-type Department = { id: string; name: string; code: string }
+/** Form fields the sign-up API can report errors for. */
+const SERVER_FIELDS = [
+  "fullName",
+  "matricNumber",
+  "email",
+  "departmentId",
+  "programmeId",
+  "levelId",
+  "password",
+] as const satisfies readonly (keyof RegisterFormValues)[]
+type ServerField = (typeof SERVER_FIELDS)[number]
+const isServerField = (field: string): field is ServerField =>
+  (SERVER_FIELDS as readonly string[]).includes(field)
+
+type Department = {
+  id: string
+  name: string
+  code: string
+  school?: { name: string; code?: string } | null
+}
 type Programme = { id: string; name: string }
 type Level = { id: string; name: string }
-type ApiResponse<T> = {
-  success: boolean
-  data: T | null
-  message: string
-  errors?: { field: string; message: string }[]
+
+/** "Computer Technology (SOT)" — the school code tells apart departments with similar names. */
+function departmentLabel(d: Department): string {
+  const school = d.school?.code || d.school?.name
+  return school ? `${d.name} (${school})` : d.name
+}
+
+/** Read and shown once by the student portal shell after the next page load. */
+const FLASH_TOAST_KEY = "yct_flash_toast"
+
+function saveFlashToast(toastData: { kind: "success" | "info"; title: string; description: string }) {
+  try {
+    window.sessionStorage.setItem(FLASH_TOAST_KEY, JSON.stringify(toastData))
+  } catch {
+    // Storage unavailable — the student simply doesn't see the message.
+  }
+}
+
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null
+  return <p className="text-sm text-destructive mt-1">{message}</p>
+}
+
+function LoadError({ what, onRetry }: { what: string; onRetry: () => void }) {
+  return (
+    <p className="text-sm text-destructive mt-1">
+      Couldn&apos;t load {what}.{" "}
+      <button type="button" onClick={onRetry} className="underline underline-offset-2 hover:no-underline">
+        Try again
+      </button>
+    </p>
+  )
 }
 
 export default function RegisterPage() {
   const router = useRouter()
-
-  const [departments, setDepartments] = useState<Department[]>([])
-  const [programmes, setProgrammes] = useState<Programme[]>([])
-  const [levels, setLevels] = useState<Level[]>([])
-
-  const [selectedDeptId, setSelectedDeptId] = useState<string>("")
-  const [loadingDepts, setLoadingDepts] = useState(true)
-  const [loadingProgrammes, setLoadingProgrammes] = useState(false)
-  const [loadingLevels, setLoadingLevels] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [activeSessionName, setActiveSessionName] = useState<string>("")
+
+  // Newest active session first — new students are enrolled into it on the next step.
+  const activeSessions = useActiveSessions()
 
   const {
     register,
     handleSubmit,
     control,
     setValue,
+    setError,
     formState: { errors },
   } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -78,156 +130,133 @@ export default function RegisterPage() {
       fullName: "",
       matricNumber: "",
       email: "",
-      password: "",
-      confirmPassword: "",
+      departmentId: "",
       programmeId: "",
       levelId: "",
+      password: "",
+      confirmPassword: "",
     },
   })
 
+  const departmentId = useWatch({ control, name: "departmentId" })
   const programmeId = useWatch({ control, name: "programmeId" })
 
-  // Fetch active sessions on mount so the enrollment redirect uses the real current session
-  useEffect(() => {
-    fetch("/api/sessions")
-      .then((r) => r.json())
-      .then((json) => {
-        const active = (json.data ?? []).filter(
-          (s: { isActive: boolean }) => s.isActive
-        )
-        if (active[0]) setActiveSessionName(active[0].name)
-      })
-      .catch(() => {})
-  }, [])
+  const departmentsQuery = useQuery({
+    queryKey: QUERY_KEYS.DEPARTMENTS(),
+    queryFn: () => apiGet<Department[]>("/api/departments"),
+    staleTime: 5 * 60 * 1000,
+  })
+  const programmesQuery = useQuery({
+    queryKey: QUERY_KEYS.PROGRAMMES(departmentId),
+    queryFn: () =>
+      apiGet<Programme[]>(`/api/programmes?department_id=${encodeURIComponent(departmentId)}`),
+    enabled: !!departmentId,
+    staleTime: 5 * 60 * 1000,
+  })
+  const levelsQuery = useQuery({
+    queryKey: QUERY_KEYS.LEVELS(programmeId),
+    queryFn: () => apiGet<Level[]>(`/api/levels?programme_id=${encodeURIComponent(programmeId)}`),
+    enabled: !!programmeId,
+    staleTime: 5 * 60 * 1000,
+  })
 
-  // Fetch all departments on mount
-  useEffect(() => {
-    async function fetchDepartments() {
-      try {
-        const res = await fetch("/api/departments")
-        const json: ApiResponse<Department[]> = await res.json()
-        if (json.success && json.data) setDepartments(json.data)
-      } catch {
-        toast.error("Failed to load departments.")
-      } finally {
-        setLoadingDepts(false)
-      }
-    }
-    fetchDepartments()
-  }, [])
+  const departments = departmentsQuery.data ?? []
+  const programmes = programmesQuery.data ?? []
+  const levels = levelsQuery.data ?? []
 
-  // Fetch programmes when department changes
-  useEffect(() => {
-    if (!selectedDeptId) {
-      startTransition(() => {
-        setProgrammes([])
-        setValue("programmeId", "")
-        setValue("levelId", "")
-        setLevels([])
-      })
+  /** Puts the server's field errors under the matching fields; everything else becomes a toast. */
+  function showServerError(err: unknown) {
+    if (!(err instanceof ApiError)) {
+      toast.error(errorMessage(err))
       return
     }
-
-    async function fetchProgrammes() {
-      setLoadingProgrammes(true)
-      try {
-        const res = await fetch(
-          `/api/programmes?department_id=${encodeURIComponent(selectedDeptId)}`
-        )
-        const json: ApiResponse<Programme[]> = await res.json()
-        if (json.success && json.data) setProgrammes(json.data)
-      } catch {
-        toast.error("Failed to load programmes.")
-      } finally {
-        setLoadingProgrammes(false)
+    let marked = false
+    for (const fieldError of err.errors ?? []) {
+      if (isServerField(fieldError.field)) {
+        setError(fieldError.field, { type: "server", message: fieldError.message })
+        marked = true
       }
     }
-    fetchProgrammes()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDeptId])
-
-  // Fetch levels when programmeId changes
-  useEffect(() => {
-    if (!programmeId) {
-      startTransition(() => {
-        setLevels([])
-        setValue("levelId", "")
-      })
+    if (err.status === 409) {
+      const field = /matric/i.test(err.message) ? "matricNumber" : /email/i.test(err.message) ? "email" : null
+      if (field) setError(field, { type: "server", message: err.message })
+      toast.error(err.message)
       return
     }
-
-    async function fetchLevels() {
-      setLoadingLevels(true)
-      try {
-        const res = await fetch(
-          `/api/levels?programme_id=${encodeURIComponent(programmeId)}`
-        )
-        const json: ApiResponse<Level[]> = await res.json()
-        if (json.success && json.data) setLevels(json.data)
-      } catch {
-        toast.error("Failed to load levels.")
-      } finally {
-        setLoadingLevels(false)
-      }
-    }
-    fetchLevels()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [programmeId])
+    toast.error(marked ? "Please check the highlighted fields." : errorMessage(err))
+  }
 
   async function onSubmit(values: RegisterFormValues) {
     setIsSubmitting(true)
+    let navigating = false
     try {
-      const res = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      try {
+        await apiSend("/api/auth/register", "POST", {
           email: values.email,
           password: values.password,
           fullName: values.fullName,
-          matricNumber: values.matricNumber,
+          matricNumber: normaliseMatric(values.matricNumber),
           programmeId: values.programmeId,
           levelId: values.levelId,
-        }),
-      })
-
-      const json: ApiResponse<null> = await res.json()
-
-      if (!json.success) {
-        toast.error(json.message)
+        })
+      } catch (err) {
+        showServerError(err)
         return
       }
 
-      // Sign in immediately so /api/students/me works on the next page
+      // Sign in immediately so the next page can load the student's profile and enrol them.
       const supabase = createClient()
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: values.email,
         password: values.password,
       })
       if (signInError) {
-        toast.error("Account created but sign-in failed — please log in manually.")
-        router.push("/login")
+        toast.error("Account created, but signing in failed — please sign in.")
+        navigating = true
+        router.replace("/login")
         return
       }
 
-      router.refresh()
-      router.push(
-        `/register/courses?session=${encodeURIComponent(activeSessionName)}&level_id=${encodeURIComponent(values.levelId)}`
-      )
+      // A full page load (not router.refresh/replace): the proxy sends signed-in users away
+      // from /register, and a fresh load guarantees the new session cookie is sent.
+      // Toasts don't survive a page load, so the next page shows them (see StudentShell).
+      const sessions = activeSessions.data ?? (await activeSessions.refetch()).data
+      navigating = true
+      if (sessions === undefined) {
+        // Sessions couldn't be loaded — the Courses tab lets the student enrol later.
+        saveFlashToast({
+          kind: "success",
+          title: "Account created",
+          description: "Choose your courses from the Courses tab.",
+        })
+        window.location.assign("/courses")
+      } else if (sessions.length === 0) {
+        saveFlashToast({
+          kind: "info",
+          title: "Course registration isn't open yet",
+          description: "Your account is ready. Choose your courses once registration opens.",
+        })
+        window.location.assign("/dashboard")
+      } else {
+        window.location.assign(
+          `/register/courses?session=${encodeURIComponent(sessions[0].name)}&level_id=${encodeURIComponent(values.levelId)}`
+        )
+      }
     } catch {
       toast.error("Something went wrong. Please try again.")
     } finally {
-      setIsSubmitting(false)
+      if (!navigating) setIsSubmitting(false)
     }
   }
 
   return (
-    <div className="bg-card border border-border rounded-xl p-8 w-full max-w-md shadow-sm">
+    <div className="bg-card border border-border rounded-xl p-8 w-full max-w-md shadow-sm my-8">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-foreground">YCT Exam Portal</h1>
         <p className="text-sm text-muted-foreground mt-1">Create your student account</p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
         {/* Full Name */}
         <div className="space-y-1.5">
           <Label htmlFor="fullName">Full Name</Label>
@@ -239,9 +268,7 @@ export default function RegisterPage() {
             aria-invalid={!!errors.fullName}
             {...register("fullName")}
           />
-          {errors.fullName && (
-            <p className="text-sm text-destructive mt-1">{errors.fullName.message}</p>
-          )}
+          <FieldError message={errors.fullName?.message} />
         </div>
 
         {/* Matric Number */}
@@ -250,14 +277,20 @@ export default function RegisterPage() {
           <Input
             id="matricNumber"
             type="text"
-            placeholder="F/HD/21/3210001"
+            placeholder="F/ND/24/3210001"
             autoComplete="off"
+            autoCapitalize="characters"
+            spellCheck={false}
             aria-invalid={!!errors.matricNumber}
+            aria-describedby="matricNumber-hint"
             {...register("matricNumber")}
           />
-          {errors.matricNumber && (
-            <p className="text-sm text-destructive mt-1">{errors.matricNumber.message}</p>
-          )}
+          <p
+            id="matricNumber-hint"
+            className={errors.matricNumber ? "text-sm text-destructive mt-1" : "text-xs text-muted-foreground mt-1"}
+          >
+            {errors.matricNumber?.message ?? MATRIC_FORMAT_HINT}
+          </p>
         </div>
 
         {/* Email */}
@@ -271,42 +304,55 @@ export default function RegisterPage() {
             aria-invalid={!!errors.email}
             {...register("email")}
           />
-          {errors.email && (
-            <p className="text-sm text-destructive mt-1">{errors.email.message}</p>
-          )}
+          <FieldError message={errors.email?.message} />
         </div>
 
         {/* Department */}
         <div className="space-y-1.5">
-          <Label>Department</Label>
-          <Select
-            value={selectedDeptId}
-            onValueChange={(v) => {
-              if (v == null) return
-              setSelectedDeptId(v)
-              setValue("programmeId", "")
-              setValue("levelId", "")
+          <Label htmlFor="departmentId">Department</Label>
+          <Controller
+            name="departmentId"
+            control={control}
+            render={({ field }) => {
+              const selected = departments.find((d) => d.id === field.value)
+              return (
+                <Select
+                  value={field.value || null}
+                  onValueChange={(v) => {
+                    if (v == null) return
+                    field.onChange(v)
+                    setValue("programmeId", "")
+                    setValue("levelId", "")
+                  }}
+                  disabled={departmentsQuery.isPending}
+                >
+                  <SelectTrigger
+                    id="departmentId"
+                    className="w-full h-9"
+                    aria-invalid={!!errors.departmentId}
+                  >
+                    <SelectValue
+                      placeholder={departmentsQuery.isPending ? "Loading…" : "Select your department"}
+                    >
+                      {selected ? departmentLabel(selected) : undefined}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {departments.map((d) => (
+                      <SelectItem key={d.id} value={d.id}>
+                        {departmentLabel(d)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )
             }}
-          >
-            <SelectTrigger className="w-full h-9">
-              <SelectValue
-                placeholder={loadingDepts ? "Loading…" : "Select your department"}
-              >
-                {departments.find((d) => d.id === selectedDeptId)?.name}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {loadingDepts ? (
-                <SelectItem value="__loading__" disabled>Loading…</SelectItem>
-              ) : (
-                departments.map((d) => (
-                  <SelectItem key={d.id} value={d.id}>
-                    {d.name}
-                  </SelectItem>
-                ))
-              )}
-            </SelectContent>
-          </Select>
+          />
+          {departmentsQuery.isError ? (
+            <LoadError what="departments" onRetry={() => departmentsQuery.refetch()} />
+          ) : (
+            <FieldError message={errors.departmentId?.message} />
+          )}
         </div>
 
         {/* Programme */}
@@ -317,13 +363,13 @@ export default function RegisterPage() {
             control={control}
             render={({ field }) => (
               <Select
-                value={field.value}
+                value={field.value || null}
                 onValueChange={(v) => {
                   if (v == null) return
                   field.onChange(v)
                   setValue("levelId", "")
                 }}
-                disabled={!selectedDeptId || loadingProgrammes}
+                disabled={!departmentId || programmesQuery.isPending}
               >
                 <SelectTrigger
                   id="programmeId"
@@ -332,9 +378,9 @@ export default function RegisterPage() {
                 >
                   <SelectValue
                     placeholder={
-                      !selectedDeptId
+                      !departmentId
                         ? "Select a department first"
-                        : loadingProgrammes
+                        : programmesQuery.isPending
                         ? "Loading…"
                         : "Select a programme"
                     }
@@ -343,21 +389,19 @@ export default function RegisterPage() {
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {loadingProgrammes ? (
-                    <SelectItem value="__loading__" disabled>Loading…</SelectItem>
-                  ) : (
-                    programmes.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.name}
-                      </SelectItem>
-                    ))
-                  )}
+                  {programmes.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             )}
           />
-          {errors.programmeId && (
-            <p className="text-sm text-destructive mt-1">{errors.programmeId.message}</p>
+          {programmesQuery.isError ? (
+            <LoadError what="programmes" onRetry={() => programmesQuery.refetch()} />
+          ) : (
+            <FieldError message={errors.programmeId?.message} />
           )}
         </div>
 
@@ -369,9 +413,11 @@ export default function RegisterPage() {
             control={control}
             render={({ field }) => (
               <Select
-                value={field.value}
-                onValueChange={field.onChange}
-                disabled={!programmeId || loadingLevels}
+                value={field.value || null}
+                onValueChange={(v) => {
+                  if (v != null) field.onChange(v)
+                }}
+                disabled={!programmeId || levelsQuery.isPending}
               >
                 <SelectTrigger
                   id="levelId"
@@ -382,7 +428,7 @@ export default function RegisterPage() {
                     placeholder={
                       !programmeId
                         ? "Select a programme first"
-                        : loadingLevels
+                        : levelsQuery.isPending
                         ? "Loading…"
                         : "Select a level"
                     }
@@ -391,21 +437,19 @@ export default function RegisterPage() {
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {loadingLevels ? (
-                    <SelectItem value="__loading__" disabled>Loading…</SelectItem>
-                  ) : (
-                    levels.map((l) => (
-                      <SelectItem key={l.id} value={l.id}>
-                        {l.name}
-                      </SelectItem>
-                    ))
-                  )}
+                  {levels.map((l) => (
+                    <SelectItem key={l.id} value={l.id}>
+                      {l.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             )}
           />
-          {errors.levelId && (
-            <p className="text-sm text-destructive mt-1">{errors.levelId.message}</p>
+          {levelsQuery.isError ? (
+            <LoadError what="levels" onRetry={() => levelsQuery.refetch()} />
+          ) : (
+            <FieldError message={errors.levelId?.message} />
           )}
         </div>
 
@@ -432,9 +476,7 @@ export default function RegisterPage() {
               {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
             </button>
           </div>
-          {errors.password && (
-            <p className="text-sm text-destructive mt-1">{errors.password.message}</p>
-          )}
+          <FieldError message={errors.password?.message} />
         </div>
 
         {/* Confirm Password */}
@@ -460,9 +502,7 @@ export default function RegisterPage() {
               {showConfirmPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
             </button>
           </div>
-          {errors.confirmPassword && (
-            <p className="text-sm text-destructive mt-1">{errors.confirmPassword.message}</p>
-          )}
+          <FieldError message={errors.confirmPassword?.message} />
         </div>
 
         <Button type="submit" className="w-full mt-2" disabled={isSubmitting}>

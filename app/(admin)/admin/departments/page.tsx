@@ -11,10 +11,13 @@ import { MoreHorizontal, Building, Upload } from "lucide-react"
 import type { ColumnDef } from "@tanstack/react-table"
 
 import { QUERY_KEYS } from "@/lib/query-keys"
+import { apiGet, apiSend, apiUpload, errorMessage } from "@/lib/fetcher"
 import { DataTable } from "@/components/admin/data-table"
 import { MobileCardList } from "@/components/admin/mobile-card-list"
 import { ConfirmDialog } from "@/components/admin/confirm-dialog"
 import { EmptyState } from "@/components/admin/empty-state"
+import { ErrorState } from "@/components/admin/error-state"
+import { ImportReportDialog, type ImportReport } from "@/components/admin/import-report-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -50,16 +53,26 @@ interface Department {
   name: string
   code: string
   schoolId: string
-  school?: { name: string }
+  school?: { name: string; code: string }
 }
 
 const deptSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  code: z.string().min(1, "Code is required"),
+  name: z
+    .string()
+    .trim()
+    .min(2, "Name must be at least 2 characters")
+    .max(255, "Name must be at most 255 characters"),
+  code: z
+    .string()
+    .trim()
+    .min(2, "Code must be at least 2 characters")
+    .max(50, "Code must be at most 50 characters")
+    .transform((v) => v.toUpperCase()),
   schoolId: z.string().min(1, "School is required"),
 })
 
-type DeptFormValues = z.infer<typeof deptSchema>
+type DeptFormInput = z.input<typeof deptSchema>
+type DeptFormValues = z.output<typeof deptSchema>
 
 export default function DepartmentsPage() {
   const queryClient = useQueryClient()
@@ -68,31 +81,41 @@ export default function DepartmentsPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<Department | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Department | null>(null)
+  const [importReport, setImportReport] = useState<ImportReport | null>(null)
 
   const { data: schools = [] } = useQuery<School[]>({
     queryKey: QUERY_KEYS.SCHOOLS,
-    queryFn: async () => {
-      const res = await fetch("/api/schools")
-      const json = await res.json()
-      return json.data ?? []
-    },
+    queryFn: () => apiGet<School[]>("/api/schools"),
   })
 
   const schoolIdParam = filterSchoolId !== "all" ? filterSchoolId : undefined
 
-  const { data: departments = [], isLoading } = useQuery<Department[]>({
+  const {
+    data: departments = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery<Department[]>({
     queryKey: QUERY_KEYS.DEPARTMENTS(schoolIdParam),
-    queryFn: async () => {
-      const url = schoolIdParam
-        ? `/api/departments?school_id=${schoolIdParam}`
-        : "/api/departments"
-      const res = await fetch(url)
-      const json = await res.json()
-      return json.data ?? []
-    },
+    queryFn: () =>
+      apiGet<Department[]>(
+        schoolIdParam
+          ? `/api/departments?school_id=${encodeURIComponent(schoolIdParam)}`
+          : "/api/departments"
+      ),
   })
 
-  const form = useForm<DeptFormValues>({
+  /** Departments create programmes and levels, so refresh everything that lists them. */
+  const invalidateAll = () => {
+    queryClient.invalidateQueries({ queryKey: ["departments"] })
+    queryClient.invalidateQueries({ queryKey: ["programmes"] })
+    queryClient.invalidateQueries({ queryKey: ["levels"] })
+    queryClient.invalidateQueries({ queryKey: ["courses"] })
+    queryClient.invalidateQueries({ queryKey: QUERY_KEYS.STATS })
+  }
+
+  const form = useForm<DeptFormInput, unknown, DeptFormValues>({
     resolver: zodResolver(deptSchema),
     defaultValues: { name: "", code: "", schoolId: "" },
   })
@@ -110,78 +133,58 @@ export default function DepartmentsPage() {
   }
 
   const createMutation = useMutation({
-    mutationFn: async (body: DeptFormValues) => {
-      const res = await fetch("/api/departments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      })
-      const json = await res.json()
-      if (!json.success) throw new Error(json.message)
-      return json.data
-    },
+    mutationFn: (body: DeptFormValues) => apiSend<Department>("/api/departments", "POST", body),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["departments"] })
-      toast.success("Department created")
+      invalidateAll()
+      toast.success("Department created with its ND and HND programmes and levels")
       setDialogOpen(false)
       form.reset()
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e) => toast.error(errorMessage(e)),
   })
 
   const updateMutation = useMutation({
-    mutationFn: async (body: DeptFormValues) => {
-      const res = await fetch(`/api/departments/${editTarget!.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      })
-      const json = await res.json()
-      if (!json.success) throw new Error(json.message)
-      return json.data
-    },
+    mutationFn: ({ id, body }: { id: string; body: DeptFormValues }) =>
+      apiSend<Department>(`/api/departments/${id}`, "PUT", body),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["departments"] })
+      invalidateAll()
       toast.success("Department updated")
       setDialogOpen(false)
       setEditTarget(null)
       form.reset()
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e) => toast.error(errorMessage(e)),
   })
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await fetch(`/api/departments/${id}`, { method: "DELETE" })
-      const json = await res.json()
-      if (!json.success) throw new Error(json.message)
-    },
+    mutationFn: (id: string) => apiSend(`/api/departments/${id}`, "DELETE"),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["departments"] })
+      invalidateAll()
       toast.success("Department deleted")
       setDeleteTarget(null)
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e) => toast.error(errorMessage(e)),
   })
 
   const uploadMutation = useMutation({
-    mutationFn: async (file: File) => {
+    mutationFn: (file: File) => {
       const formData = new FormData()
       formData.append("file", file)
-      const res = await fetch("/api/departments/upload-csv", { method: "POST", body: formData })
-      const json = await res.json()
-      if (!json.success) throw new Error(json.message)
-      return json.data
+      return apiUpload<ImportReport>("/api/departments/upload-csv", formData)
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["departments"] })
-      toast.success(`Imported: ${data?.imported ?? 0}, Skipped: ${data?.skipped ?? 0}`)
+    onSuccess: ({ data }) => {
+      invalidateAll()
+      setImportReport({
+        imported: data?.imported ?? 0,
+        skipped: data?.skipped ?? 0,
+        errors: data?.errors ?? [],
+      })
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e) => toast.error(errorMessage(e)),
   })
 
   const onSubmit = (values: DeptFormValues) => {
-    if (editTarget) updateMutation.mutate(values)
+    if (editTarget) updateMutation.mutate({ id: editTarget.id, body: values })
     else createMutation.mutate(values)
   }
 
@@ -246,10 +249,13 @@ export default function DepartmentsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-row items-start justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold text-foreground">Departments</h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">Manage departments within schools</p>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            Manage departments within schools. CSV columns:{" "}
+            <code className="font-mono text-xs">school_name,name,code</code>
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} disabled={uploadMutation.isPending}>
@@ -259,7 +265,7 @@ export default function DepartmentsPage() {
           <input
             ref={fileRef}
             type="file"
-            accept=".csv"
+            accept=".csv,text/csv"
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0]
@@ -293,7 +299,9 @@ export default function DepartmentsPage() {
         </Select>
       </div>
 
-      {!isLoading && departments.length === 0 ? (
+      {isError ? (
+        <ErrorState error={error} onRetry={() => refetch()} />
+      ) : !isLoading && departments.length === 0 ? (
         <EmptyState
           icon={Building}
           title="No departments found"
@@ -358,8 +366,10 @@ export default function DepartmentsPage() {
                 value={form.watch("schoolId")}
                 onValueChange={(v) => v != null && form.setValue("schoolId", v, { shouldValidate: true })}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select school" />
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select school">
+                    {schools.find((sc) => sc.id === form.watch("schoolId"))?.name ?? "Select school"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {schools.map((s) => (
@@ -382,11 +392,17 @@ export default function DepartmentsPage() {
             </div>
             <div className="space-y-1.5">
               <Label className="text-foreground/70">Code</Label>
-              <Input placeholder="e.g. CSC" {...form.register("code")} />
+              <Input placeholder="e.g. CSC" className="uppercase" {...form.register("code")} />
               {form.formState.errors.code && (
                 <p className="text-sm text-destructive">{form.formState.errors.code.message}</p>
               )}
             </div>
+            {!editTarget && (
+              <p className="text-xs text-muted-foreground">
+                Adding a department automatically creates its two programmes — National Diploma (ND)
+                and Higher National Diploma (HND) — and its four levels ND 1, ND 2, HND 1 and HND 2.
+              </p>
+            )}
             <DialogFooter>
               <Button
                 type="button"
@@ -408,9 +424,15 @@ export default function DepartmentsPage() {
         open={!!deleteTarget}
         onOpenChange={(v) => !v && setDeleteTarget(null)}
         title="Delete Department"
-        description={`Are you sure you want to delete "${deleteTarget?.name}"? This action cannot be undone.`}
+        description={`Delete "${deleteTarget?.name}"? Its programmes, levels and courses are deleted with it. A department with registered students cannot be deleted. This action cannot be undone.`}
         onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
         loading={deleteMutation.isPending}
+      />
+
+      <ImportReportDialog
+        report={importReport}
+        onOpenChange={(open) => !open && setImportReport(null)}
+        title="Department import report"
       />
     </div>
   )

@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { Suspense, useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -21,8 +21,35 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>
 
-export default function LoginPage() {
-  const router = useRouter()
+/** Pages a student may be sent back to after signing in. */
+const STUDENT_PAGES = ["/dashboard", "/courses", "/navigate", "/profile", "/register/courses"]
+
+/**
+ * Where to go after signing in. `redirectTo` is honoured only when it is a page on
+ * this site that the user's role may open; anything else goes to the role's home page.
+ */
+function destinationFor(isAdmin: boolean, redirectTo: string | null): string {
+  const home = isAdmin ? "/admin/dashboard" : "/dashboard"
+  // Relative paths only — "//host" and "/\host" would leave the site.
+  if (!redirectTo || !redirectTo.startsWith("/") || redirectTo.startsWith("//") || redirectTo.includes("\\")) {
+    return home
+  }
+
+  let url: URL
+  try {
+    url = new URL(redirectTo, window.location.origin)
+  } catch {
+    return home
+  }
+  if (url.origin !== window.location.origin) return home
+
+  const within = (base: string) => url.pathname === base || url.pathname.startsWith(`${base}/`)
+  const allowed = isAdmin ? within("/admin") : STUDENT_PAGES.some(within)
+  return allowed ? `${url.pathname}${url.search}${url.hash}` : home
+}
+
+function LoginForm() {
+  const searchParams = useSearchParams()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
@@ -36,6 +63,7 @@ export default function LoginPage() {
 
   async function onSubmit(values: LoginFormValues) {
     setIsSubmitting(true)
+    let navigating = false
     try {
       const supabase = createClient()
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -49,22 +77,102 @@ export default function LoginPage() {
       }
 
       const role = data.user.app_metadata?.role as string | undefined
-
-      router.refresh()
-      if (role === "admin" || role === "superadmin") {
-        router.push("/admin/dashboard")
-      } else if (role === "student") {
-        router.push("/dashboard")
-      } else {
-        toast.error("Account has no role assigned. Contact support.")
+      if (role !== "admin" && role !== "superadmin" && role !== "student") {
+        toast.error("Account has no role assigned. Please contact the exams office.")
+        await supabase.auth.signOut()
+        return
       }
+
+      // A full page load (not router.refresh/replace): the proxy sends signed-in users
+      // away from /login, so a refresh here would race with this navigation. Loading the
+      // page afresh guarantees the new session cookie is sent and the portal renders fresh.
+      navigating = true
+      window.location.assign(destinationFor(role !== "student", searchParams.get("redirectTo")))
     } catch {
       toast.error("Something went wrong. Please try again.")
     } finally {
-      setIsSubmitting(false)
+      if (!navigating) setIsSubmitting(false)
     }
   }
 
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <div className="space-y-1.5">
+        <Label htmlFor="email">Email</Label>
+        <Input
+          id="email"
+          type="email"
+          placeholder="you@example.com"
+          autoComplete="email"
+          aria-invalid={!!errors.email}
+          {...register("email")}
+        />
+        {errors.email && (
+          <p className="text-sm text-destructive mt-1">{errors.email.message}</p>
+        )}
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="password">Password</Label>
+        <div className="relative">
+          <Input
+            id="password"
+            type={showPassword ? "text" : "password"}
+            placeholder="••••••••"
+            autoComplete="current-password"
+            aria-invalid={!!errors.password}
+            className="pr-10"
+            {...register("password")}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((v) => !v)}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            tabIndex={-1}
+            aria-label={showPassword ? "Hide password" : "Show password"}
+          >
+            {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+          </button>
+        </div>
+        {errors.password && (
+          <p className="text-sm text-destructive mt-1">{errors.password.message}</p>
+        )}
+      </div>
+
+      <Button type="submit" className="w-full mt-2" disabled={isSubmitting}>
+        {isSubmitting ? (
+          <>
+            <Loader2 className="size-4 animate-spin" />
+            Signing in…
+          </>
+        ) : (
+          "Sign in"
+        )}
+      </Button>
+    </form>
+  )
+}
+
+/** Same layout as the form, shown for the moment before the page's search params are available. */
+function LoginFormFallback() {
+  return (
+    <div className="space-y-4" aria-busy="true">
+      <div className="space-y-1.5">
+        <Label htmlFor="email-placeholder">Email</Label>
+        <Input id="email-placeholder" type="email" placeholder="you@example.com" disabled />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="password-placeholder">Password</Label>
+        <Input id="password-placeholder" type="password" placeholder="••••••••" disabled />
+      </div>
+      <Button type="button" className="w-full mt-2" disabled>
+        Sign in
+      </Button>
+    </div>
+  )
+}
+
+export default function LoginPage() {
   return (
     <div className="bg-card border border-border rounded-xl p-8 w-full max-w-md shadow-sm">
       <div className="mb-6">
@@ -83,60 +191,10 @@ export default function LoginPage() {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <div className="space-y-1.5">
-          <Label htmlFor="email">Email</Label>
-          <Input
-            id="email"
-            type="email"
-            placeholder="you@example.com"
-            autoComplete="email"
-            aria-invalid={!!errors.email}
-            {...register("email")}
-          />
-          {errors.email && (
-            <p className="text-sm text-destructive mt-1">{errors.email.message}</p>
-          )}
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="password">Password</Label>
-          <div className="relative">
-            <Input
-              id="password"
-              type={showPassword ? "text" : "password"}
-              placeholder="••••••••"
-              autoComplete="current-password"
-              aria-invalid={!!errors.password}
-              className="pr-10"
-              {...register("password")}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword((v) => !v)}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-              tabIndex={-1}
-              aria-label={showPassword ? "Hide password" : "Show password"}
-            >
-              {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-            </button>
-          </div>
-          {errors.password && (
-            <p className="text-sm text-destructive mt-1">{errors.password.message}</p>
-          )}
-        </div>
-
-        <Button type="submit" className="w-full mt-2" disabled={isSubmitting}>
-          {isSubmitting ? (
-            <>
-              <Loader2 className="size-4 animate-spin" />
-              Signing in…
-            </>
-          ) : (
-            "Sign in"
-          )}
-        </Button>
-      </form>
+      {/* useSearchParams (for ?redirectTo=) needs a Suspense boundary on a prerendered page */}
+      <Suspense fallback={<LoginFormFallback />}>
+        <LoginForm />
+      </Suspense>
 
       <p className="text-sm text-muted-foreground mt-6 text-center">
         Don&apos;t have an account?{" "}

@@ -39,3 +39,9 @@ Thumbs.db
 # Turbopack / Next.js cache
 .turbo/
 .vercel
+
+# TypeScript incremental build cache
+*.tsbuildinfo
+
+# Python bytecode (docs/presentation/build.py)
+__pycache__/

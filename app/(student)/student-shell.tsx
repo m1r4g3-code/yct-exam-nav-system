@@ -1,13 +1,14 @@
 "use client"
 
+import { useEffect } from "react"
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
+import { toast } from "sonner"
 import { ClipboardList, Navigation, BookMarked, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { cn } from "@/lib/utils"
-import { createClient } from "@/lib/supabase/client"
-import { useQueryClient } from "@tanstack/react-query"
+import { useLogout } from "@/hooks/use-user"
 
 const NAV_ITEMS = [
   { label: "Timetable", href: "/dashboard", icon: ClipboardList },
@@ -16,6 +17,28 @@ const NAV_ITEMS = [
   { label: "Profile", href: "/profile", icon: User },
 ] as const
 
+/** Set by the sign-up page just before it loads the portal (toasts don't survive a page load). */
+const FLASH_TOAST_KEY = "yct_flash_toast"
+
+function showFlashToast() {
+  let raw: string | null = null
+  try {
+    raw = window.sessionStorage.getItem(FLASH_TOAST_KEY)
+    window.sessionStorage.removeItem(FLASH_TOAST_KEY)
+  } catch {
+    return
+  }
+  if (!raw) return
+  try {
+    const flash = JSON.parse(raw) as { kind?: string; title?: string; description?: string }
+    if (!flash.title) return
+    const show = flash.kind === "success" ? toast.success : toast.info
+    show(flash.title, { description: flash.description })
+  } catch {
+    // Ignore a malformed message.
+  }
+}
+
 interface StudentShellProps {
   user: { email: string }
   children: React.ReactNode
@@ -23,15 +46,13 @@ interface StudentShellProps {
 
 export function StudentShell({ user, children }: StudentShellProps) {
   const pathname = usePathname()
-  const router = useRouter()
-  const queryClient = useQueryClient()
+  const handleLogout = useLogout()
 
-  async function handleLogout() {
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    queryClient.clear()
-    router.push("/login")
-  }
+  useEffect(() => {
+    // Deferred so the app's toast container (mounted alongside this page) is listening.
+    const timer = window.setTimeout(showFlashToast, 0)
+    return () => window.clearTimeout(timer)
+  }, [])
 
   return (
     <div className="min-h-screen bg-background text-foreground">

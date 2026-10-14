@@ -1,13 +1,14 @@
 "use client"
 
-import { useState, useMemo, useCallback } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useMemo } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
-import { CalendarRange, RefreshCw, Send, Trash2, Plus, Users } from "lucide-react"
+import { CalendarRange, Eye, EyeOff, RefreshCw, Send, Trash2, Plus, Users } from "lucide-react"
 import type { ColumnDef } from "@tanstack/react-table"
 
 import { QUERY_KEYS } from "@/lib/query-keys"
+import { apiGet, apiSend, errorMessage } from "@/lib/fetcher"
+import { DEFAULT_EXAM_WEEKS, MAX_EXAM_WEEKS } from "@/lib/services/exam-slots"
 import { DataTable } from "@/components/admin/data-table"
 import { ConfirmDialog } from "@/components/admin/confirm-dialog"
 import { StatusBadge } from "@/components/admin/status-badge"
@@ -76,15 +77,32 @@ interface GenerateResult {
   assigned: number
   unresolved: { code: string; title: string }[]
   overflow: { code: string; title: string }[]
+  slotsUsed?: number
+  examPeriod?: { from: string; to: string } | null
 }
 
+interface SeatAssignment {
+  id: string
+  seatNumber: number | null
+  student: { id: string; matricNumber: string; fullName: string }
+  timetableEntry: {
+    course: { id: string; code: string; title: string }
+    timeSlot: { date: string; startTime: string; endTime: string; label: string }
+  }
+  examHall: { id: string; name: string; code: string }
+}
+
+const EXAM_WEEK_OPTIONS = Array.from({ length: MAX_EXAM_WEEKS }, (_, i) => i + 1)
+
+/** The coming Monday (a week ahead when today is Monday), as YYYY-MM-DD in local time. */
 function nextMonday(): string {
   const today = new Date()
   const day = today.getDay()
   const daysToMonday = day === 0 ? 1 : day === 1 ? 7 : 8 - day
   const d = new Date(today)
   d.setDate(today.getDate() + daysToMonday)
-  return d.toISOString().split("T")[0]
+  const pad = (n: number) => n.toString().padStart(2, "0")
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
 function formatDate(iso: string): string {
@@ -101,21 +119,18 @@ function formatTime(iso: string): string {
   return `${h % 12 || 12}:${m.toString().padStart(2, "0")} ${ampm}`
 }
 
+const weeksLabel = (n: number) => `${n} week${n === 1 ? "" : "s"}`
+
 export default function TimetablePage() {
   const queryClient = useQueryClient()
-  const router = useRouter()
 
-  const handleAuthFailure = useCallback(() => {
-    toast.error("Session expired. Please log in again.")
-    router.push("/login")
-  }, [router])
-
-  const [session, setSession] = useState<string>("")
+  const [selectedSession, setSession] = useState<string>("")
   const [activeTab, setActiveTab] = useState<string>("all")
 
   const [generateDialogOpen, setGenerateDialogOpen] = useState(false)
   const [generateSchoolId, setGenerateSchoolId] = useState<string>("all")
   const [generateExamStartDate, setGenerateExamStartDate] = useState<string>(nextMonday)
+  const [generateExamWeeks, setGenerateExamWeeks] = useState<number>(DEFAULT_EXAM_WEEKS)
 
   const [generateResultOpen, setGenerateResultOpen] = useState(false)
   const [generateResult, setGenerateResult] = useState<GenerateResult | null>(null)
@@ -135,46 +150,40 @@ export default function TimetablePage() {
 
   const { data: sessions = [] } = useQuery<SessionOption[]>({
     queryKey: QUERY_KEYS.SESSIONS,
-    queryFn: async () => {
-      const res = await fetch("/api/sessions")
-      const json = await res.json()
-      return json.data ?? []
-    },
+    queryFn: () => apiGet<SessionOption[]>("/api/sessions"),
     staleTime: 5 * 60 * 1000,
   })
 
+  // Sessions arrive newest first; until the officer picks one, show the newest active session.
+  const session = selectedSession || (sessions.find((s) => s.isActive)?.name ?? "")
+  const sessionObj = sessions.find((s) => s.name === session)
+
   const { data: schools = [] } = useQuery<School[]>({
     queryKey: QUERY_KEYS.SCHOOLS,
-    queryFn: async () => {
-      const res = await fetch("/api/schools")
-      const json = await res.json()
-      return json.data ?? []
-    },
+    queryFn: () => apiGet<School[]>("/api/schools"),
     staleTime: 60 * 60 * 1000,
   })
 
   const { data: slots = [] } = useQuery<TimeSlotOption[]>({
     queryKey: QUERY_KEYS.SLOTS,
-    queryFn: async () => {
-      const res = await fetch("/api/slots")
-      const json = await res.json()
-      return json.data ?? []
-    },
+    queryFn: () => apiGet<TimeSlotOption[]>("/api/slots"),
     staleTime: 5 * 60 * 1000,
   })
 
-  const { data: entries = [], isLoading } = useQuery<TimetableEntry[]>({
+  const {
+    data: entries = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery<TimetableEntry[]>({
     queryKey: QUERY_KEYS.TIMETABLE(session || undefined),
-    queryFn: async () => {
-      if (!session) return []
-      const res = await fetch(`/api/timetable?session=${encodeURIComponent(session)}`)
-      const json = await res.json()
-      return json.data ?? []
-    },
+    queryFn: () => apiGet<TimetableEntry[]>(`/api/timetable?session=${encodeURIComponent(session)}`),
     enabled: !!session,
   })
 
   const hasDraft = entries.some((e) => e.status === "DRAFT")
+  const hasPublished = entries.some((e) => e.status === "PUBLISHED")
 
   const departments = useMemo(() => {
     const map = new Map<string, string>()
@@ -204,144 +213,121 @@ export default function TimetablePage() {
     })
   }, [entries, activeTab])
 
+  // Slots offered by Edit Slot: those from this timetable's first exam day onwards.
+  const movableSlots = useMemo(() => {
+    if (entries.length === 0) return slots
+    const firstDay = Math.min(...entries.map((e) => new Date(e.timeSlot.date).getTime()))
+    return slots.filter((s) => new Date(s.date).getTime() >= firstDay)
+  }, [slots, entries])
+
+  const refreshTimetable = () => {
+    queryClient.invalidateQueries({ queryKey: ["timetable"] })
+    queryClient.invalidateQueries({ queryKey: ["assignments"] })
+  }
+
   const generateMutation = useMutation({
-    mutationFn: async (params: { force: boolean; schoolId?: string; examStartDate?: string }) => {
-      const res = await fetch("/api/timetable/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ session, ...params }),
-      })
-      if (res.status === 401 || res.status === 403) { handleAuthFailure(); throw new Error("Unauthorized") }
-      const json = await res.json()
-      if (!json.success) throw new Error(json.message)
-      return json.data as GenerateResult
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["timetable"] })
+    mutationFn: (params: { force: boolean; schoolId?: string; examStartDate: string; examWeeks: number }) =>
+      apiSend<GenerateResult>("/api/timetable/generate", "POST", { session, ...params }),
+    onSuccess: ({ data }) => {
+      refreshTimetable()
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SLOTS })
       setGenerateDialogOpen(false)
       setGenerateResult(data)
       setGenerateResultOpen(true)
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e) => toast.error(errorMessage(e)),
   })
 
   const publishMutation = useMutation({
-    mutationFn: async () => {
-      const res = await fetch(`/api/timetable/${encodeURIComponent(session)}/publish`, { method: "PUT" })
-      if (res.status === 401 || res.status === 403) { handleAuthFailure(); throw new Error("Unauthorized") }
-      const json = await res.json()
-      if (!json.success) throw new Error(json.message)
-    },
+    mutationFn: () => apiSend(`/api/timetable/${encodeURIComponent(session)}/publish`, "PUT"),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["timetable"] })
-      toast.success("Timetable published")
+      refreshTimetable()
+      if (sessionObj && !sessionObj.isActive) {
+        toast.success("Timetable published", {
+          description: "This session is Inactive — students won't see it until you make it Active.",
+        })
+      } else {
+        toast.success("Timetable published — students can now see their exams")
+      }
       setPublishDialogOpen(false)
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e) => toast.error(errorMessage(e)),
   })
 
   const resetMutation = useMutation({
-    mutationFn: async () => {
-      // ?confirm=published bypasses the published-entries guard — the ConfirmDialog
-      // already presents an explicit "delete draft AND published" warning.
-      const res = await fetch(
-        `/api/timetable/${encodeURIComponent(session)}/reset?confirm=published`,
-        { method: "DELETE" }
-      )
-      if (res.status === 401 || res.status === 403) { handleAuthFailure(); throw new Error("Unauthorized") }
-      const json = await res.json()
-      if (!json.success) throw new Error(json.message)
-    },
+    // ?confirm=published bypasses the published-entries guard — the ConfirmDialog
+    // already presents an explicit "delete draft AND published" warning.
+    mutationFn: () =>
+      apiSend(`/api/timetable/${encodeURIComponent(session)}/reset?confirm=published`, "DELETE"),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["timetable"] })
-      toast.success("Draft reset")
+      refreshTimetable()
+      toast.success("Timetable reset")
       setResetDialogOpen(false)
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e) => toast.error(errorMessage(e)),
   })
 
   const moveSlotMutation = useMutation({
-    mutationFn: async ({ entryId, newTimeSlotId }: { entryId: string; newTimeSlotId: string }) => {
-      const res = await fetch(`/api/timetable/entry/${entryId}/move`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ newTimeSlotId }),
-      })
-      if (res.status === 401 || res.status === 403) { handleAuthFailure(); throw new Error("Unauthorized") }
-      const json = await res.json()
-      if (!json.success) throw new Error(json.message)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["timetable"] })
-      toast.success("Slot updated")
+    mutationFn: ({ entryId, newTimeSlotId }: { entryId: string; newTimeSlotId: string }) =>
+      apiSend(`/api/timetable/entry/${entryId}/move`, "PATCH", { newTimeSlotId }),
+    onSuccess: ({ message }) => {
+      refreshTimetable()
+      toast.success(message || "Exam moved")
       setEditSlotEntryId(null)
       setSelectedNewSlotId("")
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e) => toast.error(errorMessage(e)),
   })
-
-  interface SeatAssignment {
-    id: string
-    seatNumber: number | null
-    student: { id: string; matricNumber: string; fullName: string }
-    timetableEntry: {
-      course: { id: string; code: string; title: string }
-      timeSlot: { date: string; startTime: string; endTime: string; label: string }
-    }
-    examHall: { id: string; name: string; code: string }
-  }
 
   const { data: assignments = [], isLoading: assignmentsLoading } = useQuery<SeatAssignment[]>({
     queryKey: ["assignments", session],
-    queryFn: async () => {
-      const res = await fetch(`/api/assignments?session=${encodeURIComponent(session)}`)
-      const json = await res.json()
-      if (!json.success) throw new Error(json.message)
-      return json.data ?? []
-    },
+    queryFn: () => apiGet<SeatAssignment[]>(`/api/assignments?session=${encodeURIComponent(session)}`),
     enabled: assignmentsDialogOpen && !!session,
     staleTime: 60 * 1000,
   })
 
   const createSessionMutation = useMutation({
-    mutationFn: async (name: string) => {
-      const res = await fetch("/api/sessions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
-      })
-      if (res.status === 401 || res.status === 403) { handleAuthFailure(); throw new Error("Unauthorized") }
-      const json = await res.json()
-      if (!json.success) throw new Error(json.errors?.[0]?.message ?? json.message)
-      return json.data
-    },
-    onSuccess: (data) => {
+    mutationFn: (name: string) => apiSend<SessionOption>("/api/sessions", "POST", { name }),
+    onSuccess: ({ data }) => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SESSIONS })
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.STATS })
       setSession(data.name)
+      setActiveTab("all")
       setNewSessionYear("")
       setNewSessionSemester("First")
       setNewSessionDialogOpen(false)
       toast.success(`Session "${data.name}" created`)
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e) => toast.error(errorMessage(e)),
+  })
+
+  const toggleActiveMutation = useMutation({
+    mutationFn: (target: SessionOption) =>
+      apiSend<SessionOption>(`/api/sessions/${target.id}`, "PATCH", { isActive: !target.isActive }),
+    onSuccess: ({ message }) => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SESSIONS })
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.STATS })
+      toast.success(message)
+    },
+    onError: (e) => toast.error(errorMessage(e)),
   })
 
   const deleteSessionMutation = useMutation({
-    mutationFn: async () => {
-      const sessionObj = sessions.find((s) => s.name === session)
+    mutationFn: () => {
       if (!sessionObj) throw new Error("Session not found")
-      const res = await fetch(`/api/sessions/${sessionObj.id}`, { method: "DELETE" })
-      if (res.status === 401 || res.status === 403) { handleAuthFailure(); throw new Error("Unauthorized") }
-      const json = await res.json()
-      if (!json.success) throw new Error(json.message)
+      const confirm = hasPublished ? "?confirm=published" : ""
+      return apiSend(`/api/sessions/${sessionObj.id}${confirm}`, "DELETE")
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SESSIONS })
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.STATS })
+      refreshTimetable()
       toast.success("Session deleted")
       setSession("")
+      setActiveTab("all")
       setDeleteSessionDialogOpen(false)
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e) => toast.error(errorMessage(e)),
   })
 
   const columns: ColumnDef<TimetableEntry>[] = [
@@ -404,19 +390,27 @@ export default function TimetablePage() {
     {
       id: "actions",
       header: "",
-      cell: ({ row }) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-muted-foreground hover:text-foreground"
-          onClick={() => {
-            setEditSlotEntryId(row.original.id)
-            setSelectedNewSlotId(row.original.timeSlotId)
-          }}
-        >
-          Edit Slot
-        </Button>
-      ),
+      cell: ({ row }) =>
+        row.original.status === "PUBLISHED" ? (
+          <span
+            className="px-3 text-xs text-muted-foreground"
+            title="Published exams can't be moved. Use Reset All to change a published timetable."
+          >
+            Locked
+          </span>
+        ) : (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground hover:text-foreground"
+            onClick={() => {
+              setEditSlotEntryId(row.original.id)
+              setSelectedNewSlotId(row.original.timeSlotId)
+            }}
+          >
+            Edit Slot
+          </Button>
+        ),
     },
   ]
 
@@ -434,6 +428,10 @@ export default function TimetablePage() {
     ...columns,
   ]
 
+  const selectedSlot = slots.find((s) => s.id === selectedNewSlotId)
+  const slotLabel = (s: TimeSlotOption) =>
+    `${s.label} — ${formatDate(s.date)}, ${formatTime(s.startTime)}–${formatTime(s.endTime)}`
+
   return (
     <div className="space-y-6">
       <div className="flex flex-row items-start justify-between gap-4">
@@ -448,7 +446,7 @@ export default function TimetablePage() {
             Generate
           </Button>
 
-          {entries.some((e) => e.status === "PUBLISHED") && (
+          {hasPublished && (
             <Button variant="outline" size="sm" onClick={() => setAssignmentsDialogOpen(true)}>
               <Users className="mr-1.5 size-4" />
               Seat Assignments
@@ -477,20 +475,50 @@ export default function TimetablePage() {
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Select value={session} onValueChange={(v) => { if (v != null) { setSession(v); setActiveTab("all") } }}>
-          <SelectTrigger className="w-64">
-            <SelectValue>{session || "Select session"}</SelectValue>
+          <SelectTrigger className="w-72">
+            <SelectValue>
+              {session ? `${session}${sessionObj && !sessionObj.isActive ? " (inactive)" : ""}` : "Select session"}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
-            {sessions.filter((s) => s.isActive).map((s) => (
-              <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
+            {sessions.map((s) => (
+              <SelectItem key={s.id} value={s.name}>
+                {s.name}
+                {!s.isActive && <span className="ml-1 text-muted-foreground">(inactive)</span>}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
         <Button variant="outline" size="sm" onClick={() => setNewSessionDialogOpen(true)} title="Create new session">
           <Plus className="size-4" />
         </Button>
+        {sessionObj && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              // Keep showing this session after the list refreshes (it may stop being the default).
+              setSession(sessionObj.name)
+              toggleActiveMutation.mutate(sessionObj)
+            }}
+            disabled={toggleActiveMutation.isPending}
+            title={
+              sessionObj.isActive
+                ? "Active — visible to students. Click to hide it from students."
+                : "Inactive — hidden from students. Click to make it visible."
+            }
+            className={
+              sessionObj.isActive
+                ? "border-emerald-600/40 text-emerald-700 hover:text-emerald-700 dark:text-emerald-400"
+                : "text-muted-foreground"
+            }
+          >
+            {sessionObj.isActive ? <Eye className="mr-1.5 size-4" /> : <EyeOff className="mr-1.5 size-4" />}
+            {sessionObj.isActive ? "Active" : "Inactive"}
+          </Button>
+        )}
         {session && (
           <Button
             variant="outline"
@@ -508,7 +536,14 @@ export default function TimetablePage() {
         <EmptyState
           icon={CalendarRange}
           title="Select a session"
-          description="Choose a session above to view the timetable"
+          description="Choose a session above, or create one with +"
+        />
+      ) : isError ? (
+        <EmptyState
+          icon={CalendarRange}
+          title="Couldn't load the timetable"
+          description={errorMessage(error)}
+          action={{ label: "Try again", onClick: () => refetch() }}
         />
       ) : !isLoading && entries.length === 0 ? (
         <EmptyState
@@ -553,8 +588,8 @@ export default function TimetablePage() {
           <DialogHeader>
             <DialogTitle>Generate Timetable</DialogTitle>
             <DialogDescription>
-              The system will automatically create exam slots and assign courses using DSatur graph
-              coloring. Existing draft entries for{" "}
+              The system creates the exam slots, schedules every course without clashes and assigns
+              halls and seats. Existing draft entries for{" "}
               <span className="text-foreground font-medium">
                 {generateSchoolId !== "all"
                   ? `${schools.find((s) => s.id === generateSchoolId)?.name ?? "selected school"} in "${session}"`
@@ -582,20 +617,40 @@ export default function TimetablePage() {
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">Filter to one school or generate for all at once</p>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label>Exam Start Date</Label>
-              <Input
-                type="date"
-                value={generateExamStartDate}
-                onChange={(e) => setGenerateExamStartDate(e.target.value)}
-              />
               <p className="text-xs text-muted-foreground">
-                Mon–Fri slots (8:00 AM–10:00 AM and 12:00 PM–2:00 PM) auto-created for 2 weeks from this date
+                Generate for one school or all at once — halls already booked by other schools are respected.
               </p>
             </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Exam Start Date</Label>
+                <Input
+                  type="date"
+                  value={generateExamStartDate}
+                  onChange={(e) => setGenerateExamStartDate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Exam Period</Label>
+                <Select
+                  value={String(generateExamWeeks)}
+                  onValueChange={(v) => v != null && setGenerateExamWeeks(Number(v))}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue>{weeksLabel(generateExamWeeks)}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {EXAM_WEEK_OPTIONS.map((n) => (
+                      <SelectItem key={n} value={String(n)}>{weeksLabel(n)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Monday–Friday slots (8:00–10:00 AM and 12:00–2:00 PM) are created automatically for the exam period.
+            </p>
           </div>
 
           <DialogFooter>
@@ -603,12 +658,13 @@ export default function TimetablePage() {
               Cancel
             </Button>
             <Button
-              disabled={generateMutation.isPending}
+              disabled={generateMutation.isPending || !generateExamStartDate}
               onClick={() =>
                 generateMutation.mutate({
                   force: true,
                   schoolId: generateSchoolId !== "all" ? generateSchoolId : undefined,
-                  examStartDate: generateExamStartDate || undefined,
+                  examStartDate: generateExamStartDate,
+                  examWeeks: generateExamWeeks,
                 })
               }
             >
@@ -623,19 +679,29 @@ export default function TimetablePage() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Generation Complete</DialogTitle>
-            <DialogDescription>Timetable generation finished for {session}.</DialogDescription>
+            <DialogDescription>
+              Draft timetable created for {session}
+              {generateResult?.examPeriod
+                ? ` (${formatDate(generateResult.examPeriod.from)} – ${formatDate(generateResult.examPeriod.to)})`
+                : ""}
+              . Review it, then Publish All.
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
             <p className="text-sm text-foreground">
               <span className="font-medium text-emerald-600 dark:text-emerald-400">{generateResult?.assigned ?? 0}</span>{" "}
-              courses assigned successfully.
+              courses scheduled
+              {generateResult?.slotsUsed ? ` across ${generateResult.slotsUsed} time slots` : ""}.
             </p>
 
             {(generateResult?.unresolved?.length ?? 0) > 0 && (
               <div>
                 <p className="text-sm font-medium text-amber-600 dark:text-amber-400 mb-1">
                   Unresolved ({generateResult!.unresolved.length})
+                </p>
+                <p className="text-xs text-muted-foreground mb-1.5">
+                  No clash-free slot was left for these courses — choose a longer exam period and generate again.
                 </p>
                 <ul className="space-y-0.5 max-h-40 overflow-y-auto">
                   {generateResult!.unresolved.map((c) => (
@@ -651,6 +717,9 @@ export default function TimetablePage() {
               <div>
                 <p className="text-sm font-medium text-destructive mb-1">
                   Hall Overflow ({generateResult!.overflow.length})
+                </p>
+                <p className="text-xs text-muted-foreground mb-1.5">
+                  Not enough hall space for these courses — add halls or capacity, or choose a longer exam period, and generate again.
                 </p>
                 <ul className="space-y-0.5 max-h-40 overflow-y-auto">
                   {generateResult!.overflow.map((c) => (
@@ -673,9 +742,15 @@ export default function TimetablePage() {
         open={publishDialogOpen}
         onOpenChange={setPublishDialogOpen}
         title="Publish Timetable"
-        description={`Publish all draft entries for "${session}"? Students will be able to view their exam schedule.`}
+        description={
+          sessionObj && !sessionObj.isActive
+            ? `Publish all draft entries for "${session}"? This session is Inactive — students won't see it until you make it Active.`
+            : `Publish all draft entries for "${session}"? Students will be able to view their exam schedule.`
+        }
         onConfirm={() => publishMutation.mutate()}
         loading={publishMutation.isPending}
+        confirmLabel="Publish"
+        variant="default"
       />
 
       <ConfirmDialog
@@ -685,6 +760,7 @@ export default function TimetablePage() {
         description={`Delete ALL timetable entries (draft and published) for "${session}"? This cannot be undone. You will need to regenerate and republish.`}
         onConfirm={() => resetMutation.mutate()}
         loading={resetMutation.isPending}
+        confirmLabel="Reset"
       />
 
       {/* Seat Assignments dialog */}
@@ -709,7 +785,7 @@ export default function TimetablePage() {
             ) : assignments.length === 0 ? (
               <div className="py-8 text-center space-y-1">
                 <p className="text-sm text-muted-foreground">No individual seat assignments for this session.</p>
-                <p className="text-xs text-muted-foreground/60">Seat assignments are generated per enrolled student. If students have not yet enrolled in courses for this session, regenerate the timetable after they enrol.</p>
+                <p className="text-xs text-muted-foreground/60">Seats are assigned to enrolled students. If students have not yet enrolled in courses for this session, generate the timetable again after they enrol.</p>
               </div>
             ) : (
               <table className="w-full text-sm">
@@ -756,7 +832,7 @@ export default function TimetablePage() {
           <DialogHeader>
             <DialogTitle>New Academic Session</DialogTitle>
             <DialogDescription>
-              Enter the start year and choose the semester.
+              Enter the start year and choose the semester. New sessions are visible to students.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-1">
@@ -781,7 +857,7 @@ export default function TimetablePage() {
               <Label>Semester</Label>
               <Select value={newSessionSemester} onValueChange={(v) => v != null && setNewSessionSemester(v as "First" | "Second")}>
                 <SelectTrigger className="w-full">
-                  <SelectValue />
+                  <SelectValue>{newSessionSemester} Semester</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="First">First Semester</SelectItem>
@@ -818,9 +894,14 @@ export default function TimetablePage() {
         open={deleteSessionDialogOpen}
         onOpenChange={setDeleteSessionDialogOpen}
         title="Delete Session"
-        description={`Permanently delete "${session}" and all its timetable entries? Student enrollment records are preserved. This cannot be undone.`}
+        description={
+          hasPublished
+            ? `"${session}" has a PUBLISHED timetable. Deleting the session removes it for all students, together with every draft entry. Student enrollment records are preserved. This cannot be undone.`
+            : `Permanently delete "${session}" and all its timetable entries? Student enrollment records are preserved. This cannot be undone.`
+        }
         onConfirm={() => deleteSessionMutation.mutate()}
         loading={deleteSessionMutation.isPending}
+        confirmLabel="Delete session"
       />
 
       {/* Edit slot dialog */}
@@ -833,17 +914,22 @@ export default function TimetablePage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Move to Different Slot</DialogTitle>
+            <DialogDescription>
+              The move is checked for clashes, and halls and seats are re-assigned automatically for the new slot.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
             <Label>Select Time Slot</Label>
             <Select value={selectedNewSlotId} onValueChange={(v) => v != null && setSelectedNewSlotId(v)}>
               <SelectTrigger>
-                <SelectValue placeholder="Choose a slot" />
+                <SelectValue placeholder="Choose a slot">
+                  {selectedSlot ? slotLabel(selectedSlot) : "Choose a slot"}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {slots.map((s) => (
+                {movableSlots.map((s) => (
                   <SelectItem key={s.id} value={s.id}>
-                    {s.label} — {formatDate(s.date)}, {formatTime(s.startTime)}–{formatTime(s.endTime)}
+                    {slotLabel(s)}
                   </SelectItem>
                 ))}
               </SelectContent>

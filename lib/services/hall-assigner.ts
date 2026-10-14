@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import type { ExamHall } from "../generated/prisma/client";
+import { packSlot, type HallCapacity, type SlotCourse } from "./hall-packing";
 
 export interface StudentEnrollment {
   studentId: string;
@@ -28,33 +28,36 @@ export interface HallPlan {
   overflowCourseIds: string[];
 }
 
+export interface PlanOptions {
+  occupied?: Map<string, Set<string>>; // slotId → halls already booked there by other timetables
+  lowPriority?: Set<string>; // courses the scheduler already knows won't fully fit — seated last
+}
+
 /**
- * Pure in-memory hall assignment planner — no DB access.
+ * Pure in-memory hall and seat planner — no DB access, ids pre-generated so the
+ * whole plan can be saved in one transaction.
  *
- * Rules:
- * - One hall hosts at most ONE course per time slot.
- * - Within a slot, courses are sorted largest-enrollment-first so bigger
- *   classes get first pick of halls.
- * - Seat numbers are local to each hall (1 → allocate). Students are
- *   identified by (hallId, seatNumber) — there is no global seat sequence.
- * - HALL_OVERFLOW is flagged (not thrown) if all halls in a slot are
- *   exhausted before every enrolled student is seated.
- *
- * Call only after all data is pre-fetched outside any transaction.
+ * Rules (see hall-packing.ts):
+ * - A hall hosts at most ONE course per time slot, and halls already booked in
+ *   that slot by another timetable (another school or session) are never reused.
+ * - Within a slot, larger classes choose first; each takes the best-fitting free hall.
+ * - Seat numbers are local to each hall (1 → seatEnd), in matric-number order.
+ *   Students are identified by (hall, seat number) — there is no global sequence.
+ * - A course whose class can't be fully seated is reported in overflowCourseIds.
  */
 export function planHallAssignments(
-  courseSlotMap: Map<string, string>,                        // courseId → slotId (DSatur output)
-  halls: ExamHall[],                                        // active halls, sorted capacity DESC
-  enrollmentsByCourse: Map<string, StudentEnrollment[]>,    // courseId → students (matric-sorted)
-  countByCourse: Map<string, number>,                       // courseId → estimated headcount fallback
-  session: string
+  courseSlotMap: Map<string, string>, // courseId → slotId (scheduler output)
+  halls: HallCapacity[], // active halls
+  enrollmentsByCourse: Map<string, StudentEnrollment[]>, // courseId → students (matric-sorted)
+  countByCourse: Map<string, number>, // courseId → headcount fallback
+  session: string,
+  options: PlanOptions = {}
 ): HallPlan {
   const timetableEntries: HallPlan["timetableEntries"] = [];
   const hallAssignments: HallPlan["hallAssignments"] = [];
   const studentAssignments: HallPlan["studentAssignments"] = [];
   const overflowCourseIds: string[] = [];
 
-  // Group courses by their assigned slot
   const coursesBySlot = new Map<string, string[]>();
   for (const [courseId, slotId] of courseSlotMap) {
     const arr = coursesBySlot.get(slotId) ?? [];
@@ -63,72 +66,54 @@ export function planHallAssignments(
   }
 
   for (const [slotId, coursesInSlot] of coursesBySlot) {
-    // Largest-enrollment-first: bigger classes get first pick of halls
-    const sortedCourses = [...coursesInSlot].sort((a, b) => {
-      const ca = enrollmentsByCourse.get(a)?.length ?? countByCourse.get(a) ?? 0;
-      const cb = enrollmentsByCourse.get(b)?.length ?? countByCourse.get(b) ?? 0;
-      return cb - ca;
+    const booked = options.occupied?.get(slotId);
+    const freeHalls = booked ? halls.filter((h) => !booked.has(h.id)) : halls;
+
+    const slotCourses: SlotCourse[] = coursesInSlot.map((courseId) => {
+      const enrolled = enrollmentsByCourse.get(courseId)?.length ?? 0;
+      return {
+        id: courseId,
+        headcount: enrolled > 0 ? enrolled : (countByCourse.get(courseId) ?? 0),
+        lowPriority: options.lowPriority?.has(courseId) ?? false,
+      };
     });
+    const packing = packSlot(slotCourses, freeHalls);
 
-    // Track which halls are already booked for this slot
-    const usedHallIds = new Set<string>();
-
-    for (const courseId of sortedCourses) {
+    for (const course of slotCourses) {
       const entryId = randomUUID();
       timetableEntries.push({
         id: entryId,
-        courseId,
+        courseId: course.id,
         timeSlotId: slotId,
         session,
         status: "DRAFT",
       });
 
-      const enrolled = enrollmentsByCourse.get(courseId) ?? [];
-      const headcount =
-        enrolled.length > 0
-          ? enrolled.length
-          : (countByCourse.get(courseId) ?? 0);
+      if (course.headcount === 0) continue;
 
-      // No students at all — create the entry but skip hall booking
-      if (headcount === 0) continue;
-
-      const availableHalls = halls.filter((h) => !usedHallIds.has(h.id));
-      let remaining = headcount;
+      const { allocations, unseated } = packing.get(course.id) ?? { allocations: [], unseated: course.headcount };
+      const enrolled = enrollmentsByCourse.get(course.id) ?? [];
       let studentOffset = 0;
 
-      for (const hall of availableHalls) {
-        if (remaining <= 0) break;
+      for (const { hallId, seats } of allocations) {
+        // Individual seats only when real enrolment data exists. seatEnd records the
+        // seats actually issued, so students who enrol later are numbered from there
+        // and can use the rest of the booked hall.
+        const batch = enrolled.slice(studentOffset, studentOffset + seats);
+        hallAssignments.push({ timetableEntryId: entryId, examHallId: hallId, seatEnd: batch.length });
 
-        const allocate = Math.min(remaining, hall.capacity);
-
-        hallAssignments.push({
-          timetableEntryId: entryId,
-          examHallId: hall.id,
-          seatEnd: allocate,
+        batch.forEach((student, i) => {
+          studentAssignments.push({
+            studentId: student.studentId,
+            timetableEntryId: entryId,
+            examHallId: hallId,
+            seatNumber: i + 1,
+          });
         });
-
-        usedHallIds.add(hall.id);
-
-        // Individual seat records only when real enrollment data exists
-        if (enrolled.length > 0) {
-          const batch = enrolled.slice(studentOffset, studentOffset + allocate);
-          for (let i = 0; i < batch.length; i++) {
-            studentAssignments.push({
-              studentId: batch[i].studentId,
-              timetableEntryId: entryId,
-              examHallId: hall.id,
-              seatNumber: i + 1,
-            });
-          }
-        }
-
-        studentOffset += allocate;
-        remaining -= allocate;
+        studentOffset += seats;
       }
 
-      if (remaining > 0) {
-        overflowCourseIds.push(courseId);
-      }
+      if (unseated > 0) overflowCourseIds.push(course.id);
     }
   }
 
